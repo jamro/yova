@@ -9,26 +9,54 @@ from voice_command_station.core.logging_utils import get_clean_logger
 import logging
 
 class RealtimeTranscriber:
-    def __init__(self, transcription_provider: TranscriptionProvider, audio_recorder: AudioRecorder, logger=None, onCompleted=None):
+    def __init__(self, transcription_provider: TranscriptionProvider, audio_recorder: AudioRecorder, logger=None, onCompleted=None, max_wait_time=10, wait_interval=0.1):
         self.transcription_provider: TranscriptionProvider = transcription_provider
         self.audio_recorder: AudioRecorder = audio_recorder
         self.logger = get_clean_logger("realtime_transcriber", logger)
         
+        # Configuration parameters for testing
+        self.max_wait_time = max_wait_time  # seconds
+        self.wait_interval = wait_interval  # seconds
+        
+        # State management for easier testing
+        self._is_initialized = False
+        self._is_listening = False
+        self._is_session_ready = False
+        
         # Use EventEmitter for domain-specific event handling
         self.event_emitter = EventEmitter(self.logger)
         
-        # Set up internal transcription provider event handlers
-        self._setup_transcription_provider_handlers()
-        
-        # Set up audio recorder event handlers
-        self._setup_audio_recorder_handlers()
+        # Set up event handlers
+        self.setup_event_handlers()
         
         # Add event listener for transcription completion if callback provided
         if onCompleted:
             self.add_event_listener("transcription_completed", lambda data: onCompleted(data['transcript']))
     
-    def _setup_transcription_provider_handlers(self):
-        """Set up internal handlers for transcription provider events"""
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the transcription session has been initialized"""
+        return self._is_initialized
+    
+    @property
+    def is_listening(self) -> bool:
+        """Check if the transcription session is currently listening"""
+        return self._is_listening
+    
+    @property
+    def is_session_ready(self) -> bool:
+        """Check if the transcription session is ready to receive audio data"""
+        return self._is_session_ready
+    
+    @property
+    def is_active(self) -> bool:
+        """Check if the transcription session is fully active (initialized, listening, and ready)"""
+        return self._is_initialized and self._is_listening and self._is_session_ready
+
+    def setup_event_handlers(self):
+        """Set up all event handlers for transcription provider and audio recorder.
+        This method can be called independently for testing purposes."""
+
         self.transcription_provider.add_event_listener(
             "transcription_completed",
             self._on_transcription_completed
@@ -38,8 +66,6 @@ class RealtimeTranscriber:
             self._on_transcription_error
         )
     
-    def _setup_audio_recorder_handlers(self):
-        """Set up internal handlers for AudioRecorder events"""
         self.audio_recorder.add_event_listener(
             "audio_chunk",
             self._on_audio_chunk
@@ -85,6 +111,20 @@ class RealtimeTranscriber:
         """Emit an event to all registered listeners"""
         await self.event_emitter.emit_event(event_type, data)
     
+    async def _wait_for_session_ready(self) -> bool:
+        """Wait for the transcription session to be ready using configurable timing parameters.
+        
+        Returns:
+            bool: True if session is ready within timeout, False otherwise
+        """
+        waited_time = 0
+        
+        while not self.transcription_provider.is_session_ready() and waited_time < self.max_wait_time:
+            await asyncio.sleep(self.wait_interval)
+            waited_time += self.wait_interval
+        
+        return self.transcription_provider.is_session_ready()
+    
     async def start_realtime_transcription(self):
         """Initialize and start real-time transcription session"""
         try:
@@ -93,31 +133,40 @@ class RealtimeTranscriber:
             if not initialized:
                 raise Exception("Failed to initialize transcription session")
             
+            self._is_initialized = True
+            self.logger.info("Transcription session initialized")
+            
             # Start listening for transcription events
             listening_started = await self.transcription_provider.start_listening()
             if not listening_started:
                 raise Exception("Failed to start listening for transcription events")
             
+            self._is_listening = True
+            self.logger.info("Transcription session listening started")
+            
             # Wait for session to be fully ready
-            max_wait_time = 10  # seconds
-            wait_interval = 0.1  # seconds
-            waited_time = 0
-            
-            while not self.transcription_provider.is_session_ready() and waited_time < max_wait_time:
-                await asyncio.sleep(wait_interval)
-                waited_time += wait_interval
-            
-            if not self.transcription_provider.is_session_ready():
+            session_ready = await self._wait_for_session_ready()
+            if not session_ready:
                 raise Exception("Session not ready within timeout period")
             
+            self._is_session_ready = True
             self.logger.info("Transcription session ready")
             
         except Exception as e:
             self.logger.error(f"Error during real-time transcription initialization: {e}")
+            # Reset states on error
+            self._is_initialized = False
+            self._is_listening = False
+            self._is_session_ready = False
             raise
     
     def cleanup(self):
         """Clean up resources"""
         self.audio_recorder.cleanup()
         if self.transcription_provider:
-            asyncio.create_task(self.transcription_provider.close()) 
+            asyncio.create_task(self.transcription_provider.close())
+        
+        # Reset states after cleanup
+        self._is_initialized = False
+        self._is_listening = False
+        self._is_session_ready = False 
