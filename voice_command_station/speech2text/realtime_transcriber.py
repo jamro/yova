@@ -11,7 +11,7 @@ import logging
 
 class RealtimeTranscriber:
     def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None):
-        self.transcription_provider = transcription_provider
+        self.transcription_provider: TranscriptionProvider = transcription_provider
         self.logger = get_clean_logger("realtime_transcriber", logger)
         self.audio_recorder = AudioRecorder(self.logger)
         
@@ -52,8 +52,9 @@ class RealtimeTranscriber:
         if audio_data:
             success = await self.transcription_provider.send_audio_data(audio_data)
             if not success:
-                self.logger.error("Failed to send audio data to transcription provider, stopping recording")
-                self.audio_recorder.stop_recording()
+                # Don't stop recording immediately on first failure
+                # The session might still be initializing
+                self.logger.warning("Failed to send audio data to transcription provider, will retry on next chunk")
     
     async def _on_transcription_completed(self, data):
         """Handle transcription completed event"""
@@ -97,6 +98,20 @@ class RealtimeTranscriber:
             listening_started = await self.transcription_provider.start_listening()
             if not listening_started:
                 raise Exception("Failed to start listening for transcription events")
+            
+            # Wait for session to be fully ready
+            max_wait_time = 10  # seconds
+            wait_interval = 0.1  # seconds
+            waited_time = 0
+            
+            while not self.transcription_provider.is_session_ready() and waited_time < max_wait_time:
+                await asyncio.sleep(wait_interval)
+                waited_time += wait_interval
+            
+            if not self.transcription_provider.is_session_ready():
+                raise Exception("Session not ready within timeout period")
+            
+            self.logger.info("Session ready, starting audio recording...")
             
             # Start recording audio
             self.audio_recorder.start_recording()

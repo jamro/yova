@@ -23,7 +23,7 @@ async def main():
         raise ValueError("OPENAI_API_KEY is not set")
     
     # Set up clean logging
-    root_logger = setup_logging()
+    root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
     # Create transcription provider

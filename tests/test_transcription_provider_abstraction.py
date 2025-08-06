@@ -48,6 +48,9 @@ class MockTranscriptionProvider(TranscriptionProvider):
     async def close(self):
         self.closed = True
         self.close_called = True
+    
+    def is_session_ready(self) -> bool:
+        return self.initialized and self.listening
 
 
 class TestTranscriptionProviderAbstraction:

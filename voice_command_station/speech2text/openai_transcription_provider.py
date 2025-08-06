@@ -146,7 +146,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     
     async def send_audio_data(self, audio_chunk):
         """Send audio data to the WebSocket"""
-        if self.websocket and not self.websocket.closed and self.session_id:
+        if self.is_session_ready():
+            # Reset the warning flag since we can now send data
+            self._logged_invalid_request = False
+            
             # Encode audio data as base64
             audio_base64 = base64.b64encode(audio_chunk).decode('utf-8')
             
@@ -276,4 +279,8 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     
     def get_session_id(self):
         """Get the current session ID"""
-        return self.session_id 
+        return self.session_id
+    
+    def is_session_ready(self) -> bool:
+        """Check if the transcription session is ready to receive audio data"""
+        return self.websocket is not None and not self.websocket.closed and self.session_id is not None 

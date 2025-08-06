@@ -44,4 +44,9 @@ class TranscriptionProvider(ABC):
     @abstractmethod
     async def close(self):
         """Close the transcription session and cleanup resources"""
+        pass
+    
+    @abstractmethod
+    def is_session_ready(self) -> bool:
+        """Check if the transcription session is ready to receive audio data"""
         pass 
