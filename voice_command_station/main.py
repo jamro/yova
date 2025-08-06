@@ -6,6 +6,7 @@ import sys
 from typing import Optional
 from dotenv import load_dotenv
 from voice_command_station.speech2text import RealtimeTranscriber
+from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
 
 load_dotenv()
@@ -25,7 +26,11 @@ async def main():
     root_logger = setup_logging()
     logger = get_clean_logger("main", root_logger)
 
-    transcriber = RealtimeTranscriber(api_key, logger=logger)
+    # Create transcription provider
+    transcription_provider = OpenAiTranscriptionProvider(api_key, logger)
+    
+    # Create transcriber with the provider
+    transcriber = RealtimeTranscriber(transcription_provider, logger=logger)
     transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
 
 

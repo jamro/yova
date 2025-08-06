@@ -8,6 +8,7 @@ from openai import OpenAI
 from typing import Dict, List, Callable, Any, Awaitable
 from voice_command_station.core.event_emitter import EventEmitter
 from voice_command_station.core.logging_utils import get_clean_logger
+from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
 import logging
 
 # WebSocket configuration
@@ -43,7 +44,7 @@ def get_session_config():
         ]
     }
 
-class WebSocketHandler:
+class OpenAiTranscriptionProvider(TranscriptionProvider):
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
                  openai_client=None, websocket_connector=None):
         self.api_key = api_key
@@ -53,10 +54,11 @@ class WebSocketHandler:
         self._websocket_connector = websocket_connector or websockets.connect
         self.websocket = None
         self.session_id = None
-        self.logger = get_clean_logger("websocket_handler", logger)
+        self.logger = get_clean_logger("openai_transcription_provider", logger)
         self._logged_invalid_request = False
         # Use EventEmitter for event handling
         self.event_emitter = EventEmitter(logger)
+        self._listening_task = None
         
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """Add an event listener for a specific event type"""
@@ -73,6 +75,27 @@ class WebSocketHandler:
     async def _emit_event(self, event_type: str, data: Any):
         """Emit an event to all registered listeners"""
         await self.event_emitter.emit_event(event_type, data)
+    
+    async def initialize_session(self) -> bool:
+        """Initialize the transcription session"""
+        try:
+            self.logger.debug("Creating transcription session...")
+            session_config = get_session_config()
+            response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
+            self.logger.debug(f"Session created successfully, client_secret type: {type(response.client_secret)}")
+            
+            # Connect to WebSocket
+            connected = await self.connect_websocket(response.client_secret)
+            if not connected:
+                self.logger.error("Failed to connect to WebSocket")
+                return False
+                
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to create transcription session: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     async def create_transcription_session(self):
         """Create a transcription session and get ephemeral token"""
@@ -148,6 +171,29 @@ class WebSocketHandler:
         
         return True
     
+    async def start_listening(self) -> bool:
+        """Start listening for transcription events"""
+        if not self.websocket:
+            self.logger.error("Cannot start listening: WebSocket not connected")
+            return False
+            
+        try:
+            self._listening_task = asyncio.create_task(self.handle_websocket_messages())
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to start listening: {e}")
+            return False
+    
+    async def stop_listening(self):
+        """Stop listening for transcription events"""
+        if self._listening_task:
+            self._listening_task.cancel()
+            try:
+                await self._listening_task
+            except asyncio.CancelledError:
+                pass
+            self._listening_task = None
+    
     async def handle_websocket_messages(self):
         """Handle incoming WebSocket messages"""
         if not self.websocket:
@@ -201,6 +247,7 @@ class WebSocketHandler:
 
                     elif message_type == "conversation.item.input_audio_transcription.completed":
                         self.logger.debug(f"Transcription completed: {data['transcript']}")
+                        await self._emit_event("transcription_completed", data['transcript'])
 
                     else:
                         # Log unknown message types
@@ -223,6 +270,7 @@ class WebSocketHandler:
     
     async def close(self):
         """Close the WebSocket connection"""
+        await self.stop_listening()
         if self.websocket:
             await self.websocket.close()
     

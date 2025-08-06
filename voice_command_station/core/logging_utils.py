@@ -11,7 +11,7 @@ def get_clean_logger(name: str, parent_logger: Optional[logging.Logger] = None) 
     Create a logger with a clean name (just the class/module name, not the full path).
     
     Args:
-        name: The name for the logger (e.g., 'audio_recorder', 'websocket_handler')
+        name: The name for the logger (e.g., 'audio_recorder', 'openai_transcription_provider')
         parent_logger: Optional parent logger to inherit configuration from
         
     Returns:
