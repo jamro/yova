@@ -2,7 +2,7 @@
 
 import sys
 from typing import Optional
-from voice_command_station.speech2text import WebSocketHandler
+from voice_command_station.speech2text import AudioRecorder
 
 def hello_world(name: Optional[str] = None) -> str:
     """
