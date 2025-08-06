@@ -1,37 +1,47 @@
 #!/usr/bin/env python3
 
+import asyncio
 import json
 import base64
 import websockets
 from openai import OpenAI
 from typing import Dict, List, Callable, Any, Awaitable
 from voice_command_station.core.event_emitter import EventEmitter
+from voice_command_station.core.logging_utils import get_clean_logger
+import logging
 
-
+# WebSocket configuration
 WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
-FORMAT = "pcm16"  # Using string format for API compatibility
+
+# Audio format for API compatibility
+FORMAT = "pcm16"
 EXPLICIT_LANGUAGE = "pl"
+
+# Turn detection configuration
 TURN_DETECTION = {
     "type": "server_vad",
     "threshold": 0.5,
     "prefix_padding_ms": 100,
     "silence_duration_ms": 200,
 }
-SESSION_CONFIG = {
-    "input_audio_format": FORMAT,
-    "input_audio_transcription": {
-        "model": "gpt-4o-transcribe",
-        "prompt": "",
-        "language": EXPLICIT_LANGUAGE
-    },
-    "turn_detection": TURN_DETECTION,
-    "input_audio_noise_reduction": {
-        "type": "near_field"
-    },
-    "include": [
-        "item.input_audio_transcription.logprobs"
-    ]
-}
+
+def get_session_config():
+    """Get the session configuration for transcription"""
+    return {
+        "input_audio_format": FORMAT,
+        "input_audio_transcription": {
+            "model": "gpt-4o-transcribe",
+            "prompt": "",
+            "language": EXPLICIT_LANGUAGE
+        },
+        "turn_detection": TURN_DETECTION,
+        "input_audio_noise_reduction": {
+            "type": "near_field"
+        },
+        "include": [
+            "item.input_audio_transcription.logprobs"
+        ]
+    }
 
 class WebSocketHandler:
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
@@ -43,7 +53,7 @@ class WebSocketHandler:
         self._websocket_connector = websocket_connector or websockets.connect
         self.websocket = None
         self.session_id = None
-        self.logger = logger
+        self.logger = get_clean_logger("websocket_handler", logger)
         self._logged_invalid_request = False
         # Use EventEmitter for event handling
         self.event_emitter = EventEmitter(logger)
@@ -68,7 +78,7 @@ class WebSocketHandler:
         """Create a transcription session and get ephemeral token"""
         try:
             self.logger.debug("Creating transcription session...")
-            session_config = SESSION_CONFIG
+            session_config = get_session_config()
             response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
             self.logger.debug(f"Session created successfully, client_secret type: {type(response.client_secret)}")
             return response.client_secret
@@ -97,7 +107,7 @@ class WebSocketHandler:
             # Send session configuration
             session_config = {
                 "type": "transcription_session.update",
-                "session": SESSION_CONFIG
+                "session": get_session_config()
             }
             
             self.logger.debug("Sending session configuration...")
@@ -128,19 +138,13 @@ class WebSocketHandler:
                 self.logger.error(f"WebSocket connection closed while sending audio: {e}")
                 return False
             except Exception as e:
-                error_str = str(e)
-                if "invalid_request_error" not in error_str:
-                    self.logger.error(f"Failed to send audio data: {e}")
-                    self.logger.error(f"Audio chunk size: {len(audio_chunk)} bytes")
-                    self.logger.error(f"Base64 audio length: {len(audio_base64)} characters")
-                    self.logger.error(f"Session ID: {self.session_id}")
-                else:
-                    # Log invalid_request_error only once to avoid spam
-                    if not self._logged_invalid_request:
-                        self.logger.error(f"Invalid request error detected: {e}")
-                        self._logged_invalid_request = True
-        elif not self.session_id:
-            self.logger.debug("Waiting for session ID before sending audio...")
+                self.logger.error(f"Error sending audio data: {e}")
+                return False
+        else:
+            if not self._logged_invalid_request:
+                self.logger.warning("Cannot send audio data: WebSocket not connected or session not ready")
+                self._logged_invalid_request = True
+            return False
         
         return True
     
@@ -165,7 +169,7 @@ class WebSocketHandler:
                     if message_type == "input_audio_buffer.committed":
                         # Audio buffer was committed, can be used for ordering
                         item_id = data.get("item_id", "unknown")
-                        self.logger.info(f"Audio buffer committed - Item ID: {item_id}")
+                        self.logger.debug(f"Audio buffer committed - Item ID: {item_id}")
                         
                     elif message_type == "input_audio_buffer.speech_started":
                         # Speech started in audio buffer
@@ -193,10 +197,10 @@ class WebSocketHandler:
                         
                     elif message_type == "conversation.item.input_audio_transcription.delta":
                         # print the delta
-                        self.logger.info(f"Delta: {data['delta']}")
+                        self.logger.debug(f"Delta: {data['delta']}")
 
                     elif message_type == "conversation.item.input_audio_transcription.completed":
-                        self.logger.info(f"Transcription completed: {data['transcript']}")
+                        self.logger.debug(f"Transcription completed: {data['transcript']}")
 
                     else:
                         # Log unknown message types

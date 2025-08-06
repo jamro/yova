@@ -188,7 +188,7 @@ class TestEventEmitterIntegration:
         mock_logger.debug.assert_any_call("Removed event listener for 'logger_test'")
 
         emitter.clear_event_listeners("logger_test")
-        mock_logger.debug.assert_any_call("Cleared event listeners for 'logger_test'")
+        mock_logger.debug.assert_any_call("Cleared all listeners for 'logger_test'")
 
 
 if __name__ == "__main__":

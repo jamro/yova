@@ -1,4 +1,6 @@
 from typing import Dict, List, Callable, Any, Awaitable
+import logging
+from .logging_utils import get_clean_logger
 
 class EventEmitter:
     """
@@ -15,7 +17,7 @@ class EventEmitter:
         """
         # Event listeners: {event_type: [listener_functions]}
         self._event_listeners: Dict[str, List[Callable[[Any], Awaitable[None]]]] = {}
-        self.logger = logger
+        self.logger = get_clean_logger("event_emitter", logger) if logger else None
     
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """
@@ -49,60 +51,70 @@ class EventEmitter:
         Clear all event listeners or listeners for a specific event type.
         
         Args:
-            event_type: Optional specific event type to clear. If None, clears all listeners.
+            event_type: Optional specific event type to clear. If None, clears all events.
         """
-        if event_type is None:
+        if event_type:
+            if event_type in self._event_listeners:
+                self._event_listeners[event_type].clear()
+                if self.logger:
+                    self.logger.debug(f"Cleared all listeners for '{event_type}'")
+        else:
             self._event_listeners.clear()
             if self.logger:
                 self.logger.debug("Cleared all event listeners")
-        elif event_type in self._event_listeners:
-            self._event_listeners[event_type].clear()
-            if self.logger:
-                self.logger.debug(f"Cleared event listeners for '{event_type}'")
     
     async def emit_event(self, event_type: str, data: Any):
         """
         Emit an event to all registered listeners.
         
         Args:
-            event_type: The type of event being emitted
+            event_type: The type of event to emit
             data: The data to pass to the event listeners
         """
         if event_type in self._event_listeners:
-            for listener in self._event_listeners[event_type]:
+            listeners = self._event_listeners[event_type].copy()  # Copy to avoid modification during iteration
+            if self.logger:
+                self.logger.debug(f"Emitting event '{event_type}' to {len(listeners)} listeners")
+            
+            for listener in listeners:
                 try:
                     await listener(data)
                 except Exception as e:
                     if self.logger:
                         self.logger.error(f"Error in event listener for '{event_type}': {e}")
-                        import traceback
-                        traceback.print_exc()
+        else:
+            if self.logger:
+                self.logger.debug(f"No listeners registered for event '{event_type}'")
     
-    def has_listeners(self, event_type: str) -> bool:
+    def get_listener_count(self, event_type: str = None) -> int:
         """
-        Check if there are any listeners for a specific event type.
+        Get the number of listeners for a specific event type or total listeners.
         
         Args:
-            event_type: The event type to check
+            event_type: Optional specific event type. If None, returns total count.
             
         Returns:
-            True if there are listeners for the event type, False otherwise
+            Number of listeners
         """
-        return event_type in self._event_listeners and len(self._event_listeners[event_type]) > 0
+        if event_type:
+            return len(self._event_listeners.get(event_type, []))
+        else:
+            return sum(len(listeners) for listeners in self._event_listeners.values())
     
-    def get_listener_count(self, event_type: str) -> int:
+    def has_listeners(self, event_type: str = None) -> bool:
         """
-        Get the number of listeners for a specific event type.
+        Check if there are any listeners for a specific event type or any events.
         
         Args:
-            event_type: The event type to count listeners for
+            event_type: Optional specific event type. If None, checks for any events.
             
         Returns:
-            The number of listeners for the event type
+            True if there are listeners, False otherwise
         """
-        if event_type in self._event_listeners:
-            return len(self._event_listeners[event_type])
-        return 0
+        if event_type:
+            return event_type in self._event_listeners and len(self._event_listeners[event_type]) > 0
+        else:
+            return len(self._event_listeners) > 0
     
     def get_all_event_types(self) -> List[str]:
         """

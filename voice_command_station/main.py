@@ -1,37 +1,46 @@
 """Main application module for Voice Command Station."""
 
+import asyncio
+import os
 import sys
 from typing import Optional
-from voice_command_station.speech2text import AudioRecorder
+from dotenv import load_dotenv
+from voice_command_station.speech2text import RealtimeTranscriber
+from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
 
-def hello_world(name: Optional[str] = None) -> str:
-    """
-    Return a hello world message.
+load_dotenv()
+
+async def onTranscriptionCompleted(data):
+    print(">>>", data['transcript'])
+
+async def main():
+    print("Starting Voice Command Station...")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not set")
     
-    Args:
-        name: Optional name to greet. If None, uses "World".
-        
-    Returns:
-        A greeting message.
-    """
-    if name is None:
-        name = "World"
-    return f"Hello, {name}! Welcome to Voice Command Station!"
+    # Set up clean logging
+    root_logger = setup_logging()
+    logger = get_clean_logger("main", root_logger)
+
+    transcriber = RealtimeTranscriber(api_key, logger=logger)
+    transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
 
 
-def main():
-    """Main entry point for the application."""
-    # Get name from command line arguments if provided
-    name = sys.argv[1] if len(sys.argv) > 1 else None
-    
-    # Print the hello world message
-    message = hello_world(name)
-    print(message)
-    
-    # Additional welcome information
-    print(f"Version: {__import__('voice_command_station').__version__}")
-    print("Ready to process voice commands!")
+    try:
+        await transcriber.start_realtime_transcription()
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        transcriber.cleanup()
+
+
+def run():
+    """Synchronous wrapper for the async main function."""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
-    main() 
+    run() 

@@ -175,9 +175,9 @@ class TestWebSocketHandler:
         audio_chunk = b"test_audio_data"
         result = await handler.send_audio_data(audio_chunk)
         
-        assert result is True
+        assert result is False
         mock_websocket.send.assert_not_called()
-        mock_logger.debug.assert_called_with("Waiting for session ID before sending audio...")
+        mock_logger.warning.assert_called_with("Cannot send audio data: WebSocket not connected or session not ready")
 
     @pytest.mark.asyncio
     async def test_send_audio_data_connection_closed(self):
@@ -193,7 +193,7 @@ class TestWebSocketHandler:
         audio_chunk = b"test_audio_data"
         result = await handler.send_audio_data(audio_chunk)
         
-        assert result is True
+        assert result is False
         mock_websocket.send.assert_not_called()
 
     @pytest.mark.asyncio
@@ -211,7 +211,7 @@ class TestWebSocketHandler:
         audio_chunk = b"test_audio_data"
         result = await handler.send_audio_data(audio_chunk)
         
-        assert result is True
+        assert result is False
         mock_logger.error.assert_called()
 
     @pytest.mark.asyncio

@@ -4,6 +4,8 @@ import pyaudio
 import asyncio
 from typing import Dict, List, Callable, Any, Awaitable, Optional
 from voice_command_station.core.event_emitter import EventEmitter
+from voice_command_station.core.logging_utils import get_clean_logger
+import logging
 
 # Audio recording parameters
 CHUNK = 512  # Smaller chunk size for more frequent updates
@@ -23,7 +25,7 @@ class AudioRecorder:
         # Use dependency injection for testability, fallback to default implementation
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
         self._stream_factory = stream_factory or self._create_default_stream
-        self.logger = logger
+        self.logger = get_clean_logger("audio_recorder", logger)
         self.is_recording = False
         self.stream = None
         # Use EventEmitter for event handling
@@ -103,6 +105,7 @@ class AudioRecorder:
         self._cleanup_stream()
     
     def cleanup(self):
-        """Clean up audio resources"""
+        """Clean up resources"""
         self.stop_recording()
-        self._pyaudio_instance.terminate() 
+        if self._pyaudio_instance:
+            self._pyaudio_instance.terminate() 

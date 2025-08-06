@@ -1,5 +1,7 @@
-from voice_command_station.core.event_emitter import EventEmitter
+"""
+Core package for the voice command station.
+"""
 
-__all__ = [
-    'EventEmitter'
-]
+from .event_emitter import EventEmitter
+
+__all__ = ['EventEmitter']

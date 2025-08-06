@@ -139,7 +139,7 @@ class TestEventEmitter:
         emitter.add_event_listener("test_event", listener)
         emitter.clear_event_listeners("test_event")
         
-        mock_logger.debug.assert_any_call("Cleared event listeners for 'test_event'")
+        mock_logger.debug.assert_any_call("Cleared all listeners for 'test_event'")
 
     def test_clear_all_event_listeners_with_logger(self):
         """Test clearing all listeners with logger enabled."""
