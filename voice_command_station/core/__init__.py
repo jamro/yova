@@ -1,4 +1,4 @@
-from .event_emitter import EventEmitter
+from voice_command_station.core.event_emitter import EventEmitter
 
 __all__ = [
     'EventEmitter'
