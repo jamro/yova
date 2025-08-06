@@ -67,7 +67,7 @@ class AudioRecorder:
         try:
             self.stream = self._create_stream()
             
-            self.logger.info("Recording and streaming... Press Enter to stop")
+            self.logger.info("Recording and streaming...")
             
             while self.is_recording:
                 try:

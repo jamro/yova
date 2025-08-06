@@ -5,8 +5,9 @@ import os
 import sys
 from typing import Optional
 from dotenv import load_dotenv
-from voice_command_station.speech2text import RealtimeTranscriber
+from voice_command_station.speech2text import RealtimeTranscriber, AudioSessionManager
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
 
 load_dotenv()
@@ -29,17 +30,22 @@ async def main():
     # Create transcription provider
     transcription_provider = OpenAiTranscriptionProvider(api_key, logger)
     
-    # Create transcriber with the provider
-    transcriber = RealtimeTranscriber(transcription_provider, logger=logger)
+    # Create audio recorder
+    audio_recorder = AudioRecorder(logger)
+    
+    # Create transcriber with the provider and audio recorder
+    transcriber = RealtimeTranscriber(transcription_provider, audio_recorder, logger=logger)
     transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
 
+    # Create audio session manager to handle the recording lifecycle
+    session_manager = AudioSessionManager(transcriber, audio_recorder, logger=logger)
 
     try:
-        await transcriber.start_realtime_transcription()
+        await session_manager.start_session()
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        transcriber.cleanup()
+        session_manager.cleanup()
 
 
 def run():

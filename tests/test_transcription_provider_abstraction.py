@@ -59,7 +59,8 @@ class TestTranscriptionProviderAbstraction:
     def test_realtime_transcriber_accepts_transcription_provider(self):
         """Test that RealtimeTranscriber can be initialized with any TranscriptionProvider"""
         mock_provider = MockTranscriptionProvider()
-        transcriber = RealtimeTranscriber(mock_provider)
+        mock_audio_recorder = Mock()
+        transcriber = RealtimeTranscriber(mock_provider, mock_audio_recorder)
         
         assert transcriber.transcription_provider == mock_provider
         assert isinstance(transcriber.transcription_provider, TranscriptionProvider)
@@ -68,7 +69,8 @@ class TestTranscriptionProviderAbstraction:
     async def test_start_realtime_transcription_uses_abstract_methods(self):
         """Test that start_realtime_transcription uses abstract methods from TranscriptionProvider"""
         mock_provider = MockTranscriptionProvider()
-        transcriber = RealtimeTranscriber(mock_provider)
+        mock_audio_recorder = Mock()
+        transcriber = RealtimeTranscriber(mock_provider, mock_audio_recorder)
         
         # Mock the audio recorder to avoid actual recording
         transcriber.audio_recorder = Mock()
@@ -93,7 +95,6 @@ class TestTranscriptionProviderAbstraction:
         # Verify that the abstract methods were called
         assert mock_provider.initialize_called, "initialize_session should have been called"
         assert mock_provider.start_listening_called, "start_listening should have been called"
-        assert mock_provider.close_called, "close should have been called"
     
     def test_transcription_provider_interface_compliance(self):
         """Test that OpenAiTranscriptionProvider properly implements TranscriptionProvider interface"""

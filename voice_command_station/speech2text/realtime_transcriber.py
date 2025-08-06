@@ -2,7 +2,6 @@
 
 import asyncio
 from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
-from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from typing import Dict, List, Callable, Any, Awaitable
 from voice_command_station.core.event_emitter import EventEmitter
@@ -10,10 +9,10 @@ from voice_command_station.core.logging_utils import get_clean_logger
 import logging
 
 class RealtimeTranscriber:
-    def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None):
+    def __init__(self, transcription_provider: TranscriptionProvider, audio_recorder: AudioRecorder, logger=None, onCompleted=None):
         self.transcription_provider: TranscriptionProvider = transcription_provider
+        self.audio_recorder: AudioRecorder = audio_recorder
         self.logger = get_clean_logger("realtime_transcriber", logger)
-        self.audio_recorder = AudioRecorder(self.logger)
         
         # Use EventEmitter for domain-specific event handling
         self.event_emitter = EventEmitter(self.logger)
@@ -87,7 +86,7 @@ class RealtimeTranscriber:
         await self.event_emitter.emit_event(event_type, data)
     
     async def start_realtime_transcription(self):
-        """Start real-time transcription"""
+        """Initialize and start real-time transcription session"""
         try:
             # Initialize transcription session
             initialized = await self.transcription_provider.initialize_session()
@@ -111,25 +110,10 @@ class RealtimeTranscriber:
             if not self.transcription_provider.is_session_ready():
                 raise Exception("Session not ready within timeout period")
             
-            self.logger.info("Session ready, starting audio recording...")
-            
-            # Start recording audio
-            self.audio_recorder.start_recording()
-            recording_task = asyncio.create_task(self.audio_recorder.record_and_stream())
-            
-            # Wait for user input to stop
-            await asyncio.get_event_loop().run_in_executor(None, input)
-            
-            # Stop recording and cleanup
-            self.audio_recorder.stop_recording()
-            recording_task.cancel()
-            
-            # Stop listening and close connection
-            await self.transcription_provider.stop_listening()
-            await self.transcription_provider.close()
+            self.logger.info("Transcription session ready")
             
         except Exception as e:
-            self.logger.error(f"Error during real-time transcription: {e}")
+            self.logger.error(f"Error during real-time transcription initialization: {e}")
             raise
     
     def cleanup(self):
