@@ -2,7 +2,7 @@
 
 import sys
 from typing import Optional
-
+from .core import EventEmitter
 
 def hello_world(name: Optional[str] = None) -> str:
     """
