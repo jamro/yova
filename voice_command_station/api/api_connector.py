@@ -25,7 +25,9 @@ class ApiConnector(EventSource):
     
     This interface emits the following events:
     - message_chunk: Emitted when a partial message response is received
+      Event data: {"id": str, "text": str} where id is a unique message identifier
     - message_completed: Emitted when a complete message response is received
+      Event data: {"id": str, "text": str} where id is the same as the corresponding message_chunk events
     """
     
     @abstractmethod

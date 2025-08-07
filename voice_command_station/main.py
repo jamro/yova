@@ -35,7 +35,7 @@ async def main():
     # Create API connector
     api_connector = OpenAIConnector(logger)
     async def onMessageChunk(chunk):
-        print(chunk, end="", flush=True)
+        print(chunk['text'], end="", flush=True)
     async def onMessageCompleted(text):
         print("\n")
     api_connector.add_event_listener("message_chunk", onMessageChunk)

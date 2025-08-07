@@ -76,9 +76,13 @@ class TestEchoConnector:
         # Check the calls were made with correct arguments
         calls = mock_emit.call_args_list
         assert calls[0][0][0] == "message_chunk"
-        assert calls[0][0][1] == test_message
+        assert calls[0][0][1]["text"] == test_message
+        assert "id" in calls[0][0][1]
         assert calls[1][0][0] == "message_completed"
-        assert calls[1][0][1] == test_message
+        assert calls[1][0][1]["text"] == test_message
+        assert "id" in calls[1][0][1]
+        # Verify same ID for correlation
+        assert calls[0][0][1]["id"] == calls[1][0][1]["id"]
 
     @pytest.mark.asyncio
     async def test_send_message_with_logger(self):
@@ -116,8 +120,12 @@ class TestEchoConnector:
         # Verify events were emitted with empty string
         assert mock_emit.call_count == 2
         calls = mock_emit.call_args_list
-        assert calls[0][0][1] == ""
-        assert calls[1][0][1] == ""
+        assert calls[0][0][1]["text"] == ""
+        assert "id" in calls[0][0][1]
+        assert calls[1][0][1]["text"] == ""
+        assert "id" in calls[1][0][1]
+        # Verify same ID for correlation
+        assert calls[0][0][1]["id"] == calls[1][0][1]["id"]
 
     @pytest.mark.asyncio
     async def test_send_message_special_characters(self):
@@ -134,8 +142,12 @@ class TestEchoConnector:
         # Verify events were emitted with the exact message
         assert mock_emit.call_count == 2
         calls = mock_emit.call_args_list
-        assert calls[0][0][1] == test_message
-        assert calls[1][0][1] == test_message
+        assert calls[0][0][1]["text"] == test_message
+        assert "id" in calls[0][0][1]
+        assert calls[1][0][1]["text"] == test_message
+        assert "id" in calls[1][0][1]
+        # Verify same ID for correlation
+        assert calls[0][0][1]["id"] == calls[1][0][1]["id"]
 
     def test_add_event_listener(self):
         """Test adding event listeners to EchoConnector."""
@@ -223,9 +235,13 @@ class TestEchoConnector:
         
         # Verify listeners received the events
         assert len(received_chunks) == 1
-        assert received_chunks[0] == test_message
+        assert received_chunks[0]["text"] == test_message
+        assert "id" in received_chunks[0]
         assert len(received_completions) == 1
-        assert received_completions[0] == test_message
+        assert received_completions[0]["text"] == test_message
+        assert "id" in received_completions[0]
+        # Verify same ID for correlation
+        assert received_chunks[0]["id"] == received_completions[0]["id"]
 
     @pytest.mark.asyncio
     async def test_multiple_send_messages(self):
@@ -245,7 +261,9 @@ class TestEchoConnector:
         
         # Verify all messages were received
         assert len(received_messages) == 3
-        assert received_messages == messages
+        for i, message in enumerate(messages):
+            assert received_messages[i]["text"] == message
+            assert "id" in received_messages[i]
 
     @pytest.mark.asyncio
     async def test_send_message_with_failing_listener(self):
@@ -268,7 +286,8 @@ class TestEchoConnector:
         await connector.send_message(test_message)
         
         assert len(received_messages) == 1
-        assert received_messages[0] == test_message
+        assert received_messages[0]["text"] == test_message
+        assert "id" in received_messages[0]
 
     def test_inheritance_from_api_connector(self):
         """Test that EchoConnector properly inherits from ApiConnector."""

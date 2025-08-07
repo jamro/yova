@@ -115,9 +115,33 @@ class TestOpenAIConnector:
         
         # Verify events were emitted
         assert connector.event_emitter.emit_event.call_count == 3
-        connector.event_emitter.emit_event.assert_any_call("message_chunk", "Hello")
-        connector.event_emitter.emit_event.assert_any_call("message_chunk", " world")
-        connector.event_emitter.emit_event.assert_any_call("message_completed", "Hello world")
+        
+        # Get all calls to verify the structure
+        calls = connector.event_emitter.emit_event.call_args_list
+        
+        # Verify chunk events
+        chunk_calls = [call for call in calls if call[0][0] == "message_chunk"]
+        assert len(chunk_calls) == 2
+        
+        # Verify completion event
+        completion_calls = [call for call in calls if call[0][0] == "message_completed"]
+        assert len(completion_calls) == 1
+        
+        # Verify all events have the expected structure
+        for call in calls:
+            event_data = call[0][1]
+            assert "id" in event_data
+            assert "text" in event_data
+        
+        # Verify same ID for correlation
+        message_id = chunk_calls[0][0][1]["id"]
+        assert chunk_calls[1][0][1]["id"] == message_id
+        assert completion_calls[0][0][1]["id"] == message_id
+        
+        # Verify text content
+        assert chunk_calls[0][0][1]["text"] == "Hello"
+        assert chunk_calls[1][0][1]["text"] == " world"
+        assert completion_calls[0][0][1]["text"] == "Hello world"
     
     @pytest.mark.asyncio
     async def test_send_message_not_connected(self, connector):

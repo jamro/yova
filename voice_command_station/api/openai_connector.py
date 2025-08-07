@@ -1,5 +1,6 @@
 import os
 import asyncio
+import uuid
 from typing import Any, Optional
 from openai import AsyncOpenAI
 from .api_connector import ApiConnector
@@ -60,6 +61,9 @@ class OpenAIConnector(ApiConnector):
         
         self.logger.debug(f"OpenAIConnector: Sending message: {text}")
         
+        # Generate unique message ID for correlation
+        message_id = str(uuid.uuid4())
+        
         try:
             # Create the chat completion with streaming
             stream = await self.client.chat.completions.create(
@@ -81,13 +85,15 @@ class OpenAIConnector(ApiConnector):
                     content = chunk.choices[0].delta.content
                     full_response += content
                     
-                    # Emit chunk event
-                    await self.event_emitter.emit_event("message_chunk", content)
-                    self.logger.debug(f"OpenAIConnector: Emitted chunk: {content}")
+                    # Emit chunk event with ID and text
+                    chunk_data = {"id": message_id, "text": content}
+                    await self.event_emitter.emit_event("message_chunk", chunk_data)
+                    self.logger.debug(f"OpenAIConnector: Emitted chunk: {chunk_data}")
             
-            # Emit completion event
-            await self.event_emitter.emit_event("message_completed", full_response)
-            self.logger.debug(f"OpenAIConnector: Message completed, total response: {full_response}")
+            # Emit completion event with same ID and full text
+            completion_data = {"id": message_id, "text": full_response}
+            await self.event_emitter.emit_event("message_completed", completion_data)
+            self.logger.debug(f"OpenAIConnector: Message completed, total response: {completion_data}")
             
             return full_response
             

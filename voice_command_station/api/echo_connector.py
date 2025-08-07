@@ -1,3 +1,4 @@
+import uuid
 from .api_connector import ApiConnector
 from voice_command_station.core.logging_utils import get_clean_logger
 from voice_command_station.core.event_emitter import EventEmitter
@@ -18,8 +19,17 @@ class EchoConnector(ApiConnector):
 
     async def send_message(self, text: str):
         self.logger.debug(f"EchoConnector: Sending message: {text}")
-        await self.event_emitter.emit_event("message_chunk", text)
-        await self.event_emitter.emit_event("message_completed", text)
+        
+        # Generate unique message ID for correlation
+        message_id = str(uuid.uuid4())
+        
+        # Emit chunk event with ID and text
+        chunk_data = {"id": message_id, "text": text}
+        await self.event_emitter.emit_event("message_chunk", chunk_data)
+        
+        # Emit completion event with same ID and text
+        completion_data = {"id": message_id, "text": text}
+        await self.event_emitter.emit_event("message_completed", completion_data)
     
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         self.event_emitter.add_event_listener(event_type, listener)
