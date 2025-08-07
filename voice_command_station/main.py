@@ -67,6 +67,16 @@ async def main():
     # Create audio session manager to handle the recording lifecycle
     session_manager = AudioSessionManager(transcriber, audio_recorder, logger=logger)
 
+
+    # testing purpose only
+    async def test_message():
+        await asyncio.sleep(1)
+        audio_recorder.stop_recording()
+        await api_connector.send_message("Hej, gdzie najlepiej pojechać na wakacje we wrześniu?")
+
+    #asyncio.create_task(test_message())
+
+
     try:
         await session_manager.start_session()
     except Exception as e:

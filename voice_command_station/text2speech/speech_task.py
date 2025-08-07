@@ -1,27 +1,20 @@
 from openai import AsyncOpenAI
-from openai.helpers import LocalAudioPlayer
 import re
 import asyncio
 import asyncio
-from io import BytesIO
-from pydub import AudioSegment
 from time import sleep
 from pydub.playback import _play_with_simpleaudio as play_audio
 from voice_command_station.core.logging_utils import get_clean_logger
-import logging
+from voice_command_station.text2speech.stream_playback import StreamPlayback
+from voice_command_station.text2speech.data_playback import DataPlayback
 
 class SpeechTask:
     def __init__(self, message_id, api_key, logger):
         self.message_id = message_id
         self.logger = get_clean_logger("speech_task", logger)
         self.api_key = api_key
-        self.voice = 'coral'
-        self.speed = 1.25
-        self.instructions = "Speak in a friendly, engaging tone. Always answer in Polish."
         self.client = AsyncOpenAI(api_key=self.api_key)
 
-        self.model = "gpt-4o-mini-tts"
-        self.stream_audio_player = LocalAudioPlayer()
         self.current_buffer = ""
         self.sentence_endings = ['.', '!', '?', ':', ';']
         self.min_chunk_length = 15
@@ -30,6 +23,12 @@ class SpeechTask:
         self.audio_task = None
         self.conversion_task = None
         self.is_streaming = False
+        self.playback_config = {
+            "model": "gpt-4o-mini-tts",
+            "voice": "coral",
+            "speed": 1.25,
+            "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
+        }
 
 
     def clean_chunk(self, text_chunk):
@@ -42,7 +41,7 @@ class SpeechTask:
         return text_chunk
 
     async def append_chunk(self, text_chunk):
-        self.logger.info(f"Appending chunk: {text_chunk}")
+        self.logger.debug(f"Appending chunk: {text_chunk}")
         text_chunk = self.clean_chunk(text_chunk)
 
         self.current_buffer += text_chunk
@@ -72,38 +71,16 @@ class SpeechTask:
         try:
             if len(self.audio_queue) == 0 and not self.audio_task:
                 self.logger.debug(f"Creating streaming response")
-                response = self.client.audio.speech.with_streaming_response.create(
-                    model=self.model,
-                    voice=self.voice,
-                    input=text,
-                    speed=self.speed,
-                    response_format="pcm",
-                    instructions=self.instructions
-                )
-                # store stream to speed up playback
-                self.audio_queue.append({
-                    "type": "stream",
-                    "text": text,
-                    "data": response
-                })
+                playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
+                await playback.load()
+                self.audio_queue.append(playback)
             else:
                 self.logger.debug(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
                 await asyncio.sleep(1 + 1*len(self.audio_queue))
                 self.logger.debug(f"Creating non-streaming response")
-                response = await self.client.audio.speech.create(
-                    model=self.model,
-                    voice=self.voice,
-                    input=text,
-                    speed=self.speed,
-                    response_format="mp3",
-                    instructions=self.instructions
-                )
-                audio_data = await response.aread()
-                self.audio_queue.append({
-                    "type": "bytes",
-                    "text": text,
-                    "data": audio_data
-                })
+                playback = DataPlayback(self.client, self.logger, text, self.playback_config)
+                await playback.load()
+                self.audio_queue.append(playback)
             if not self.audio_task:
                 self.logger.debug(f"Creating audio task")
                 self.audio_task = asyncio.create_task(self.play_audio())
@@ -124,18 +101,10 @@ class SpeechTask:
             return
         
         audio = self.audio_queue.pop(0)
-        if audio["type"] == "stream":
-            self.logger.debug(f"Playing streaming audio")
-            self.is_streaming = True
-            response = await audio["data"].__aenter__()
-            await self.stream_audio_player.play(response)
-            await audio["data"].__aexit__(None, None, None)
-            self.is_streaming = False
-        elif audio["type"] == "bytes":
-            self.logger.debug(f"Playing bytes audio")
-            audio = AudioSegment.from_file(BytesIO(audio["data"]), format="mp3")
-            playback = await asyncio.to_thread(play_audio, audio)
-            await asyncio.to_thread(playback.wait_done)
+
+        self.is_streaming = True if isinstance(audio, StreamPlayback) else None
+        await audio.play()
+        self.is_streaming = False
         
         self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
 

@@ -47,7 +47,7 @@ class SpeechHandler:
         Args:
             full_text: The complete response text
         """
-        self.logger.info(f"[DEBUG] Processing complete: {full_text}")
+        self.logger.info(f"Processing complete: {full_text}")
 
         # remove the task from the list
         task = self.get_task(message_id)
