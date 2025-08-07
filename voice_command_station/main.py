@@ -10,6 +10,7 @@ from voice_command_station.speech2text.openai_transcription_provider import Open
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
 from voice_command_station.api import OpenAIConnector
+from voice_command_station.text2speech.speech_handler import SpeechHandler
 
 load_dotenv()
 
@@ -32,12 +33,19 @@ async def main():
     # Create audio recorder
     audio_recorder = AudioRecorder(logger)
 
+    # Create speech handler
+    speech_handler = SpeechHandler(api_key)
+
     # Create API connector
     api_connector = OpenAIConnector(logger)
     async def onMessageChunk(chunk):
         print(chunk['text'], end="", flush=True)
+        await speech_handler.process_chunk(chunk['text'])
+
     async def onMessageCompleted(text):
         print("\n")
+        await speech_handler.process_complete(text)
+
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
     await api_connector.configure({"api_key": api_key})
