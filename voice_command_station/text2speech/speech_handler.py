@@ -2,10 +2,10 @@
 
 import asyncio
 from openai import AsyncOpenAI
-from openai.helpers import LocalAudioPlayer
+from voice_command_station.text2speech.speech_task import SpeechTask
 
 class SpeechHandler:
-    def __init__(self, api_key, voice="coral", min_chunk_length=15):
+    def __init__(self, api_key):
         """
         Initialize SpeechHandler for streaming text-to-speech.
         
@@ -13,34 +13,32 @@ class SpeechHandler:
             voice: The voice to use for speech synthesis (coral, alloy, echo, fable, onyx, nova, shimmer)
             min_chunk_length: Minimum characters before processing a chunk
         """
-        self.api_key =api_key
-        self.client = AsyncOpenAI(api_key=self.api_key)
-        self.voice = voice
-        self.model = "gpt-4o-mini-tts"
-        self.audio_player = LocalAudioPlayer()
-        self.current_buffer = ""
-        self.sentence_endings = ['.', '!', '?', ':', ';']
-        self.min_chunk_length = min_chunk_length
-        self.response_format = "pcm"  # Best for low latency
-        self.is_speaking = False
+        self.api_key = api_key
+        self.tasks = []
+
+    def get_task(self, message_id):
+        for task in self.tasks:
+            if task.message_id == message_id:
+                return task
+        return None
         
-    async def process_chunk(self, text_chunk):
+    async def process_chunk(self, message_id, text_chunk):
         """
         Process a text chunk and convert to speech if it forms a complete sentence.
         
         Args:
+            message_id: The message id of the chunk
             text_chunk: The text chunk to process
         """
-        self.current_buffer += text_chunk
-        
-        # Check if we have a complete sentence or enough content
-        if (len(self.current_buffer) >= self.min_chunk_length and 
-            any(self.current_buffer.rstrip().endswith(ending) for ending in self.sentence_endings)):
-            
-            await self._speak_text(self.current_buffer.strip())
-            self.current_buffer = ""
+        task = self.get_task(message_id)
+        if task is None:
+            task = SpeechTask(message_id, self.api_key)
+            self.tasks.append(task)
+
+        await task.append_chunk(text_chunk)
+
     
-    async def process_complete(self, full_text):
+    async def process_complete(self, message_id, full_text):
         """
         Process the complete response and speak any remaining text.
         
@@ -48,39 +46,10 @@ class SpeechHandler:
             full_text: The complete response text
         """
         # Speak any remaining text in the buffer
-        if self.current_buffer.strip():
-            await self._speak_text(self.current_buffer.strip())
-            self.current_buffer = ""
+
+        # remove the task from the list
+        task = self.get_task(message_id)
+        if task is not None:
+            await task.complete()
+        self.tasks = [task for task in self.tasks if task.message_id != message_id]
     
-    async def _speak_text(self, text):
-        """
-        Convert text to speech and play it.
-        
-        Args:
-            text: The text to convert to speech
-        """
-        if not text.strip() or self.is_speaking:
-            return
-            
-        self.is_speaking = True
-        try:
-            async with self.client.audio.speech.with_streaming_response.create(
-                model=self.model,
-                voice=self.voice,
-                input=text,
-                response_format=self.response_format,
-                instructions="Speak in a friendly, engaging tone. Always answer in Polish."
-            ) as response:
-                await self.audio_player.play(response)
-        except Exception as e:
-            print(f"Error in speech synthesis: {e}")
-        finally:
-            self.is_speaking = False
-    
-    def set_voice(self, voice):
-        """Change the voice for speech synthesis."""
-        self.voice = voice
-    
-    def clear_buffer(self):
-        """Clear the current text buffer."""
-        self.current_buffer = "" 

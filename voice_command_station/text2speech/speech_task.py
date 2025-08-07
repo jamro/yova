@@ -1,0 +1,128 @@
+from openai import AsyncOpenAI
+from openai.helpers import LocalAudioPlayer
+import re
+import asyncio
+import asyncio
+from io import BytesIO
+from pydub import AudioSegment
+from pydub.playback import _play_with_simpleaudio as play_audio
+
+class SpeechTask:
+    def __init__(self, message_id, api_key):
+        self.message_id = message_id
+        self.is_completed = False
+
+        self.api_key = api_key
+        self.voice = 'coral'
+        self.client = AsyncOpenAI(api_key=self.api_key)
+
+        self.model = "gpt-4o-mini-tts"
+        self.stream_audio_player = LocalAudioPlayer()
+        self.current_buffer = ""
+        self.sentence_endings = ['.', '!', '?', ':', ';']
+        self.min_chunk_length = 15
+        self.sentence_queue = []
+        self.audio_queue = []
+        self.audio_task = None
+        self.conversion_task = None
+
+
+    def clean_chunk(self, text_chunk):
+         # remove **
+        text_chunk = re.sub(r'\*\*', '', text_chunk, flags=re.DOTALL)
+        # remove ```
+        text_chunk = re.sub(r'```.*?```', '', text_chunk, flags=re.DOTALL)
+        # remove #+
+        text_chunk = re.sub(r'#+', '', text_chunk)
+        return text_chunk
+
+    async def append_chunk(self, text_chunk):
+        text_chunk = self.clean_chunk(text_chunk)
+
+        self.current_buffer += text_chunk
+        
+        # Check if we have a complete sentence or enough content
+        if (len(self.current_buffer) >= self.min_chunk_length and 
+            any(self.current_buffer.rstrip().endswith(ending) for ending in self.sentence_endings)):
+            
+            self.current_buffer = self.current_buffer.strip()
+            if self.current_buffer:
+                self.sentence_queue.append(self.current_buffer)
+                if not self.conversion_task:
+                    self.conversion_task = asyncio.create_task(self.convert_to_speech())
+
+            self.current_buffer = ""
+
+    async def convert_to_speech(self):
+        if len(self.sentence_queue) == 0:
+            self.conversion_task = None
+            return
+
+        text = self.sentence_queue.pop(0)
+
+        try:
+            if len(self.audio_queue) == 0 and not self.audio_task:
+                response = self.client.audio.speech.with_streaming_response.create(
+                    model=self.model,
+                    voice=self.voice,
+                    input=text,
+                    response_format="pcm",
+                    instructions="Speak in a friendly, engaging tone. Always answer in Polish."
+                )
+                # store stream to speed up playback
+                self.audio_queue.append({
+                    "type": "stream",
+                    "text": text,
+                    "data": response
+                })
+            else:
+                response = await self.client.audio.speech.create(
+                    model=self.model,
+                    voice=self.voice,
+                    input=text,
+                    response_format="mp3",
+                    instructions="Speak in a friendly, engaging tone. Always answer in Polish."
+                )
+                audio_data = await response.aread()
+                self.audio_queue.append({
+                    "type": "bytes",
+                    "text": text,
+                    "data": audio_data
+                })
+                if not self.audio_task:
+                    self.audio_task = asyncio.create_task(self.play_audio())
+
+            await self.convert_to_speech()
+                
+        except Exception as e:
+            print(f"Error in speech synthesis: {e}")
+            self.conversion_task = None
+
+    async def play_audio(self):
+        if len(self.audio_queue) == 0:
+            self.audio_task = None
+            return
+        
+        audio = self.audio_queue.pop(0)
+        if audio["type"] == "stream":
+            response = await audio["data"].__aenter__()
+            await self.stream_audio_player.play(response)
+            await audio["data"].__aexit__(None, None, None)
+        elif audio["type"] == "bytes":
+            audio = AudioSegment.from_file(BytesIO(audio["data"]), format="mp3")
+            playback = await asyncio.to_thread(play_audio, audio)
+            await asyncio.to_thread(playback.wait_done)
+
+        await self.play_audio()
+
+
+    async def complete(self):
+        self.is_completed = True
+
+        if self.current_buffer.strip():
+            self.sentence_queue.append(self.current_buffer.strip())
+            self.current_buffer = ""
+            
+            if not self.is_speaking:
+                await self._speak_text()
+

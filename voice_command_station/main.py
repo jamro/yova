@@ -39,12 +39,12 @@ async def main():
     # Create API connector
     api_connector = OpenAIConnector(logger)
     async def onMessageChunk(chunk):
-        print(chunk['text'], end="", flush=True)
-        await speech_handler.process_chunk(chunk['text'])
+        #print(chunk['text'], end="", flush=True)
+        await speech_handler.process_chunk(chunk['id'], chunk['text'])
 
-    async def onMessageCompleted(text):
-        print("\n")
-        await speech_handler.process_complete(text)
+    async def onMessageCompleted(chunk):
+        #print("\n")
+        await speech_handler.process_complete(chunk['id'], chunk['text'])
 
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
@@ -53,6 +53,7 @@ async def main():
 
     # Create transcriber with the provider and audio recorder
     async def onTranscriptionCompleted(data):
+        audio_recorder.stop_recording()
         print("PROMPT: ", data['transcript'])
         await api_connector.send_message(data['transcript'])
 
