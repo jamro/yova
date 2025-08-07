@@ -16,8 +16,10 @@ class DataPlayback(Playback):
         self.speed = config.get("speed", 1)
         self.instructions = config.get("instructions", "")
         self.format = config.get("format", "mp3")
+        self.current_playback = None
+        self.is_stopped = False
 
-    async def load(self) -> bool:
+    async def load(self) -> None:
         response = await self.client.audio.speech.create(
             model=self.model,
             voice=self.voice,
@@ -26,10 +28,18 @@ class DataPlayback(Playback):
             response_format=self.format,
             instructions=self.instructions
         )
+        if self.is_stopped:
+            return
         self.audio_data = await response.aread()
     
-    async def play(self) -> bool:
+    async def play(self) -> None:
         self.logger.debug(f"Playing data for text: {self.text}")
         audio = AudioSegment.from_file(BytesIO(self.audio_data), format=self.format)
-        playback = await asyncio.to_thread(play_audio, audio)
-        await asyncio.to_thread(playback.wait_done)
+        self.current_playback = await asyncio.to_thread(play_audio, audio)
+        await asyncio.to_thread(self.current_playback.wait_done)
+
+    async def stop(self) -> None:
+        self.is_stopped = True
+        if self.current_playback:
+            self.current_playback.stop()
+            self.current_playback = None

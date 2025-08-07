@@ -1,6 +1,7 @@
 from voice_command_station.text2speech.playback import Playback
 from voice_command_station.core.logging_utils import get_clean_logger
 from openai.helpers import LocalAudioPlayer
+import asyncio
 
 class StreamPlayback(Playback):
     def __init__(self, client, logger, text, config={}):
@@ -14,8 +15,10 @@ class StreamPlayback(Playback):
         self.speed = config.get("speed", 1)
         self.instructions = config.get("instructions", "")
         self.format = config.get("format", "pcm")
+        self.is_stopped = False
+        self.playback_task = None
 
-    async def load(self) -> bool:
+    async def load(self) -> None:
         self.stream_context_manager = self.client.audio.speech.with_streaming_response.create(
             model=self.model,
             voice=self.voice,
@@ -24,9 +27,69 @@ class StreamPlayback(Playback):
             response_format=self.format,
             instructions=self.instructions
         )
+        if self.is_stopped:
+            await self.stream_context_manager.__aexit__(None, None, None)
+            self.playback_task = None
+            return
     
-    async def play(self) -> bool:
+    async def play(self) -> None:
         self.logger.debug(f"Playing stream for text: {self.text}")
-        audio = await self.stream_context_manager.__aenter__()
-        await self.stream_audio_player.play(audio)
-        await self.stream_context_manager.__aexit__(None, None, None)
+        self.is_stopped = False
+        
+        try:
+            audio = await self.stream_context_manager.__aenter__() # audio is AsyncStreamedBinaryAPIResponse
+            
+            # Create a task for the audio playback so we can cancel it
+            self.playback_task = asyncio.create_task(self._play_audio(audio))
+            await self.playback_task
+            
+        except asyncio.CancelledError:
+            self.logger.debug("Playback was cancelled")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error during playback: {e}")
+            raise
+        finally:
+            await self.stream_context_manager.__aexit__(None, None, None)
+            self.playback_task = None
+
+    async def _play_audio(self, audio):
+        """Internal method to play audio that can be cancelled."""
+        if self.is_stopped:
+            return
+        try:
+            await self.stream_audio_player.play(audio)
+        except asyncio.CancelledError:
+            self.logger.debug("Audio playback was cancelled")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error in audio playback: {e}")
+            raise
+
+    async def stop(self) -> None:
+        self.logger.debug("Stopping stream playback")
+        self.is_stopped = True
+        
+        # Cancel the playback task if it exists
+        if self.playback_task and not self.playback_task.done():
+            self.playback_task.cancel()
+            try:
+                await self.playback_task
+            except asyncio.CancelledError:
+                pass  # Expected when cancelling
+            self.playback_task = None
+        
+        # Try to stop the audio player if it has a stop method
+        if hasattr(self.stream_audio_player, 'stop'):
+            try:
+                await self.stream_audio_player.stop()
+            except Exception as e:
+                self.logger.debug(f"Error stopping audio player: {e}")
+        
+        # Close the stream context manager if it exists
+        if self.stream_context_manager:
+            try:
+                await self.stream_context_manager.__aexit__(None, None, None)
+            except Exception as e:
+                self.logger.debug(f"Error closing stream context: {e}")
+            self.stream_context_manager = None

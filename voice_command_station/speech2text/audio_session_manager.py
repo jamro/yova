@@ -5,7 +5,7 @@ from typing import Optional, Callable, Any, Awaitable
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.speech2text.realtime_transcriber import RealtimeTranscriber
 from voice_command_station.core.logging_utils import get_clean_logger
-
+from voice_command_station.text2speech.speech_handler import SpeechHandler
 
 class AudioSessionManager:
     """
@@ -13,9 +13,10 @@ class AudioSessionManager:
     the audio recorder and real-time transcriber.
     """
     
-    def __init__(self, transcriber: RealtimeTranscriber, audio_recorder: AudioRecorder, logger=None):
+    def __init__(self, transcriber: RealtimeTranscriber, audio_recorder: AudioRecorder, speech_handler: SpeechHandler, logger=None):
         self.transcriber = transcriber
         self.audio_recorder = audio_recorder
+        self.speech_handler = speech_handler
         self.logger = get_clean_logger("audio_session_manager", logger)
         self.recording_task: Optional[asyncio.Task] = None
         self.is_session_active = False
@@ -37,6 +38,10 @@ class AudioSessionManager:
             self.recording_task = asyncio.create_task(
                 self.audio_recorder.record_and_stream()
             )
+
+            # Start speech handler
+            if self.speech_handler:
+                await self.speech_handler.start()
             
             self.logger.info("Audio session started. Press Enter to stop...")
             
@@ -73,6 +78,10 @@ class AudioSessionManager:
         if self.transcriber.transcription_provider:
             await self.transcriber.transcription_provider.stop_listening()
             await self.transcriber.transcription_provider.close()
+
+        # Stop speech handler
+        if self.speech_handler:
+            await self.speech_handler.stop()
         
         self.logger.info("Audio session stopped.")
     

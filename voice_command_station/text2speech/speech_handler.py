@@ -17,6 +17,7 @@ class SpeechHandler:
         self.logger = get_clean_logger("realtime_transcriber", logger)
         self.api_key = api_key
         self.tasks = []
+        self.is_active = False
 
     def get_task(self, message_id):
         for task in self.tasks:
@@ -32,6 +33,9 @@ class SpeechHandler:
             message_id: The message id of the chunk
             text_chunk: The text chunk to process
         """
+        if not self.is_active:
+            return
+        
         task = self.get_task(message_id)
         if task is None:
             task = SpeechTask(message_id, self.api_key, self.logger)
@@ -56,4 +60,21 @@ class SpeechHandler:
 
         # TODO: wait for the task to complete before removing it
         self.tasks = [task for task in self.tasks if task.message_id != message_id]
+
+
+    async def start(self):
+        """Start the speech handler."""
+        self.logger.info("Starting speech handler...")
+        self.is_active = True
+
+
+    async def stop(self):
+        """Stop the speech handler."""
+        self.logger.info("Stopping speech handler...")
+        self.is_active = False
+        for task in self.tasks:
+            if task:
+              await task.stop()
+        self.tasks = []
+        self.logger.info("Speech handler stopped.")
     

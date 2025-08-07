@@ -22,13 +22,14 @@ class SpeechTask:
         self.audio_queue = []
         self.audio_task = None
         self.conversion_task = None
-        self.is_streaming = False
+        self.current_playback = None
         self.playback_config = {
             "model": "gpt-4o-mini-tts",
             "voice": "coral",
             "speed": 1.25,
             "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
         }
+        self.is_stopped = False
 
 
     def clean_chunk(self, text_chunk):
@@ -41,6 +42,9 @@ class SpeechTask:
         return text_chunk
 
     async def append_chunk(self, text_chunk):
+        if self.is_stopped:
+            return
+        
         self.logger.debug(f"Appending chunk: {text_chunk}")
         text_chunk = self.clean_chunk(text_chunk)
 
@@ -63,6 +67,9 @@ class SpeechTask:
         if len(self.sentence_queue) == 0:
             self.conversion_task = None
             self.logger.debug(f"No sentence queue, setting conversion task to None")
+            return
+        
+        if self.is_stopped:
             return
 
         self.logger.debug(f"Converting sentence: {self.sentence_queue}")
@@ -100,11 +107,12 @@ class SpeechTask:
             self.audio_task = None
             return
         
-        audio = self.audio_queue.pop(0)
-
-        self.is_streaming = True if isinstance(audio, StreamPlayback) else None
-        await audio.play()
-        self.is_streaming = False
+        if self.is_stopped:
+            return
+        
+        self.current_playback = self.audio_queue.pop(0)
+        await self.current_playback.play()
+        self.current_playback = None
         
         self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
 
@@ -123,8 +131,58 @@ class SpeechTask:
         
         # Wait for any pending conversion task to complete
         if self.conversion_task:
-            await self.conversion_task
+            try:
+                await self.conversion_task
+            except asyncio.CancelledError:
+                self.logger.debug("Conversion task was cancelled during completion")
+            except Exception as e:
+                self.logger.error(f"Error completing conversion task: {e}")
             
         # Wait for any pending audio task to complete
         if self.audio_task:
-            await self.audio_task
+            try:
+                await self.audio_task
+            except asyncio.CancelledError:
+                self.logger.debug("Audio task was cancelled during completion")
+            except Exception as e:
+                self.logger.error(f"Error completing audio task: {e}")
+
+
+    async def stop(self):
+        self.logger.info(f"Stopping task: {self.current_buffer}")
+        
+        # stop immediately
+        self.audio_queue = []
+        self.sentence_queue = []
+        self.is_stopped = True
+
+        if self.current_playback:
+            self.logger.info(f"Stopping current playback")
+            await self.current_playback.stop()
+            self.current_playback = None
+        else:
+            self.logger.info(f"No current playback to stop")
+
+        if self.conversion_task:
+            self.logger.info(f"Stopping conversion task")
+            try:
+                await self.conversion_task
+            except asyncio.CancelledError:
+                self.logger.debug("Conversion task was cancelled")
+            except Exception as e:
+                self.logger.error(f"Error stopping conversion task: {e}")
+            self.conversion_task = None
+        else:
+            self.logger.info(f"No conversion task to stop")
+
+        if self.audio_task:
+            self.logger.info(f"Stopping audio task")
+            try:
+                await self.audio_task
+            except asyncio.CancelledError:
+                self.logger.debug("Audio task was cancelled")
+            except Exception as e:
+                self.logger.error(f"Error stopping audio task: {e}")
+            self.audio_task = None
+        else:
+            self.logger.info(f"No audio task to stop")
