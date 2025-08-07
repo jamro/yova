@@ -9,7 +9,7 @@ from voice_command_station.speech2text import RealtimeTranscriber, AudioSessionM
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
-from voice_command_station.api import EchoConnector
+from voice_command_station.api import OpenAIConnector
 
 load_dotenv()
 
@@ -33,18 +33,19 @@ async def main():
     audio_recorder = AudioRecorder(logger)
 
     # Create API connector
-    api_connector = EchoConnector(logger)
-    async def onMessageChunk(text):
-        print(">>>", text)
+    api_connector = OpenAIConnector(logger)
+    async def onMessageChunk(chunk):
+        print(chunk, end="", flush=True)
     async def onMessageCompleted(text):
-        print("[completed]")
+        print("\n")
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
-    await api_connector.configure(None)
+    await api_connector.configure({"api_key": api_key})
     await api_connector.connect()
 
     # Create transcriber with the provider and audio recorder
     async def onTranscriptionCompleted(data):
+        print("PROMPT: ", data['transcript'])
         await api_connector.send_message(data['transcript'])
 
     async def onTranscriptionError(data):
