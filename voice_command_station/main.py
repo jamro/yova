@@ -2,8 +2,6 @@
 
 import asyncio
 import os
-import sys
-from typing import Optional
 from dotenv import load_dotenv
 from voice_command_station.speech2text import RealtimeTranscriber, AudioSessionManager
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
@@ -74,7 +72,7 @@ async def main():
         audio_recorder.stop_recording()
         await api_connector.send_message("Hej, co to jest 'magiczne drzewo'?")
 
-    #asyncio.create_task(test_message())
+    asyncio.create_task(test_message())
 
     try:
         await session_manager.start_session()

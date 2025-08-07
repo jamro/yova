@@ -1,7 +1,6 @@
 from openai import AsyncOpenAI
 import re
 import asyncio
-import asyncio
 from time import sleep
 from pydub.playback import _play_with_simpleaudio as play_audio
 from voice_command_station.core.logging_utils import get_clean_logger
@@ -30,7 +29,7 @@ class SpeechTask:
             "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
         }
         self.is_stopped = False
-
+        self.wait_time = 1
 
     def clean_chunk(self, text_chunk):
          # remove **
@@ -64,59 +63,47 @@ class SpeechTask:
 
     async def convert_to_speech(self):
         self.logger.debug(f"Converting to speech...")
-        if len(self.sentence_queue) == 0:
-            self.conversion_task = None
-            self.logger.debug(f"No sentence queue, setting conversion task to None")
-            return
+        while len(self.sentence_queue) > 0 and not self.is_stopped:
+            self.logger.debug(f"Converting sentence: {self.sentence_queue}")
+            text = self.sentence_queue.pop(0)
+
+            try:
+                if len(self.audio_queue) == 0 and not self.audio_task:
+                    self.logger.debug(f"Creating streaming response")
+                    playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
+                    await playback.load()
+                    self.audio_queue.append(playback)
+                else:
+                    self.logger.debug(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
+                    await asyncio.sleep(self.wait_time + self.wait_time*len(self.audio_queue))
+                    self.logger.debug(f"Creating non-streaming response")
+                    playback = DataPlayback(self.client, self.logger, text, self.playback_config)
+                    await playback.load()
+                    self.audio_queue.append(playback)
+                if not self.audio_task:
+                    self.logger.debug(f"Creating audio task")
+                    self.audio_task = asyncio.create_task(self.play_audio())
+                else:
+                    self.logger.debug(f"Audio task already exists")
+                    
+            except Exception as e:
+                print(f"Error in speech synthesis: {e}")
+                break
         
-        if self.is_stopped:
-            return
-
-        self.logger.debug(f"Converting sentence: {self.sentence_queue}")
-        text = self.sentence_queue.pop(0)
-
-        try:
-            if len(self.audio_queue) == 0 and not self.audio_task:
-                self.logger.debug(f"Creating streaming response")
-                playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
-                await playback.load()
-                self.audio_queue.append(playback)
-            else:
-                self.logger.debug(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
-                await asyncio.sleep(1 + 1*len(self.audio_queue))
-                self.logger.debug(f"Creating non-streaming response")
-                playback = DataPlayback(self.client, self.logger, text, self.playback_config)
-                await playback.load()
-                self.audio_queue.append(playback)
-            if not self.audio_task:
-                self.logger.debug(f"Creating audio task")
-                self.audio_task = asyncio.create_task(self.play_audio())
-            else:
-                self.logger.debug(f"Audio task already exists")
-
-            await self.convert_to_speech()
-                
-        except Exception as e:
-            print(f"Error in speech synthesis: {e}")
-            self.conversion_task = None
+        self.logger.debug(f"Conversion finished, setting conversion task to None")
+        self.conversion_task = None
 
     async def play_audio(self):
         self.logger.debug(f"Playing audio...")
-        if len(self.audio_queue) == 0:
-            self.logger.debug(f"No audio queue, setting audio task to None")
-            self.audio_task = None
-            return
+        while len(self.audio_queue) > 0 and not self.is_stopped:
+            self.current_playback = self.audio_queue.pop(0)
+            await self.current_playback.play()
+            self.current_playback = None
+            
+            self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
         
-        if self.is_stopped:
-            return
-        
-        self.current_playback = self.audio_queue.pop(0)
-        await self.current_playback.play()
-        self.current_playback = None
-        
-        self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
-
-        await self.play_audio()
+        self.logger.debug(f"Audio playback finished, setting audio task to None")
+        self.audio_task = None
 
 
     async def complete(self):
