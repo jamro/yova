@@ -34,7 +34,7 @@ async def main():
     audio_recorder = AudioRecorder(logger)
 
     # Create speech handler
-    speech_handler = SpeechHandler(api_key)
+    speech_handler = SpeechHandler(logger, api_key)
 
     # Create API connector
     api_connector = OpenAIConnector(logger)

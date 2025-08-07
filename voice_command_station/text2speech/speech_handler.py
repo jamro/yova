@@ -3,9 +3,10 @@
 import asyncio
 from openai import AsyncOpenAI
 from voice_command_station.text2speech.speech_task import SpeechTask
+from voice_command_station.core.logging_utils import get_clean_logger
 
 class SpeechHandler:
-    def __init__(self, api_key):
+    def __init__(self, logger,api_key):
         """
         Initialize SpeechHandler for streaming text-to-speech.
         
@@ -13,6 +14,7 @@ class SpeechHandler:
             voice: The voice to use for speech synthesis (coral, alloy, echo, fable, onyx, nova, shimmer)
             min_chunk_length: Minimum characters before processing a chunk
         """
+        self.logger = get_clean_logger("realtime_transcriber", logger)
         self.api_key = api_key
         self.tasks = []
 
@@ -32,7 +34,7 @@ class SpeechHandler:
         """
         task = self.get_task(message_id)
         if task is None:
-            task = SpeechTask(message_id, self.api_key)
+            task = SpeechTask(message_id, self.api_key, self.logger)
             self.tasks.append(task)
 
         await task.append_chunk(text_chunk)
@@ -45,11 +47,13 @@ class SpeechHandler:
         Args:
             full_text: The complete response text
         """
-        # Speak any remaining text in the buffer
+        self.logger.info(f"[DEBUG] Processing complete: {full_text}")
 
         # remove the task from the list
         task = self.get_task(message_id)
         if task is not None:
             await task.complete()
-        self.tasks = [task for task in self.tasks if task.message_id != message_id]
+
+        # TODO: wait for the task to complete before removing it
+        #self.tasks = [task for task in self.tasks if task.message_id != message_id]
     
