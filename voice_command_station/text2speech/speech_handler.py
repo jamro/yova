@@ -55,5 +55,5 @@ class SpeechHandler:
             await task.complete()
 
         # TODO: wait for the task to complete before removing it
-        #self.tasks = [task for task in self.tasks if task.message_id != message_id]
+        self.tasks = [task for task in self.tasks if task.message_id != message_id]
     
