@@ -9,11 +9,10 @@ from voice_command_station.speech2text import RealtimeTranscriber, AudioSessionM
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
+from voice_command_station.api import EchoConnector
 
 load_dotenv()
 
-async def onTranscriptionCompleted(data):
-    print(">>>", data['transcript'])
 
 async def main():
     print("Starting Voice Command Station...")
@@ -32,10 +31,28 @@ async def main():
     
     # Create audio recorder
     audio_recorder = AudioRecorder(logger)
-    
+
+    # Create API connector
+    api_connector = EchoConnector(logger)
+    async def onMessageChunk(text):
+        print(">>>", text)
+    async def onMessageCompleted(text):
+        print("[completed]")
+    api_connector.add_event_listener("message_chunk", onMessageChunk)
+    api_connector.add_event_listener("message_completed", onMessageCompleted)
+    await api_connector.configure(None)
+    await api_connector.connect()
+
     # Create transcriber with the provider and audio recorder
+    async def onTranscriptionCompleted(data):
+        await api_connector.send_message(data['transcript'])
+
+    async def onTranscriptionError(data):
+        print("!!!", data['error'])
+
     transcriber = RealtimeTranscriber(transcription_provider, audio_recorder, logger=logger)
     transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
+    transcriber.add_event_listener("transcription_error", onTranscriptionError)
 
     # Create audio session manager to handle the recording lifecycle
     session_manager = AudioSessionManager(transcriber, audio_recorder, logger=logger)

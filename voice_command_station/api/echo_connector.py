@@ -1,0 +1,32 @@
+from .api_connector import ApiConnector
+from voice_command_station.core.logging_utils import get_clean_logger
+from voice_command_station.core.event_emitter import EventEmitter
+from typing import Callable, Any, Awaitable
+
+class EchoConnector(ApiConnector):
+    def __init__(self, logger=None):
+        super().__init__()
+        self.logger = get_clean_logger("echo_connector", logger)
+        self.event_emitter = EventEmitter(logger=logger)
+
+    async def configure(self, config: Any):
+        self.logger.debug(f"EchoConnector: Configuring with config: {config}")
+        pass
+
+    async def connect(self):
+        pass
+
+    async def send_message(self, text: str):
+        self.logger.debug(f"EchoConnector: Sending message: {text}")
+        await self.event_emitter.emit_event("message_chunk", text)
+        await self.event_emitter.emit_event("message_completed", text)
+    
+    def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
+        self.event_emitter.add_event_listener(event_type, listener)
+
+    def remove_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
+        self.event_emitter.remove_event_listener(event_type, listener)
+
+    def clear_event_listeners(self, event_type: str = None):
+        self.event_emitter.clear_event_listeners(event_type)
+      

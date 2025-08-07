@@ -1,8 +1,9 @@
 from typing import Dict, List, Callable, Any, Awaitable
 import logging
 from .logging_utils import get_clean_logger
+from .event_source import EventSource
 
-class EventEmitter:
+class EventEmitter(EventSource):
     """
     A reusable event emitter class that provides event listener functionality.
     This class eliminates code duplication across components that need event handling.
