@@ -30,6 +30,7 @@ class AudioRecorder:
         self.stream = None
         # Use EventEmitter for event handling
         self.event_emitter = EventEmitter(logger)
+        self.recording_task = None
         
     def _create_default_stream(self, pyaudio_instance, **kwargs):
         """Default factory method for creating audio streams"""
@@ -61,8 +62,28 @@ class AudioRecorder:
     def _create_stream(self):
         """Create audio stream using the configured factory"""
         return self._stream_factory(self._pyaudio_instance)
+    
+    async def start_recording(self):
+        self.is_recording = True
+        if self.recording_task:
+            self.logger.warning("Recording already started")
+            return
+        self.recording_task = asyncio.create_task(self._record_and_stream())
+    
+    async def stop_recording(self):
+        """Stop recording"""
+        if not self.recording_task:
+            self.logger.warning("Recording not started")
+            return
+        self.is_recording = False
+        self.recording_task.cancel()
+        try:
+            await self.recording_task
+        except asyncio.CancelledError:
+            pass
+        self.recording_task = None
         
-    async def record_and_stream(self):
+    async def _record_and_stream(self):
         """Record audio and emit chunk events"""
         try:
             self.stream = self._create_stream()
@@ -95,17 +116,13 @@ class AudioRecorder:
             self.stream.close()
             self.stream = None
     
-    def start_recording(self):
-        """Start recording"""
-        self.is_recording = True
-    
-    def stop_recording(self):
-        """Stop recording"""
-        self.is_recording = False
-        self._cleanup_stream()
-    
     def cleanup(self):
         """Clean up resources"""
-        self.stop_recording()
+        # Avoid awaiting async methods in a synchronous cleanup
+        if self.recording_task:
+            self.is_recording = False
+            self.recording_task.cancel()
+            self.recording_task = None
+        self._cleanup_stream()
         if self._pyaudio_instance:
             self._pyaudio_instance.terminate() 

@@ -4,6 +4,8 @@ import asyncio
 from openai import AsyncOpenAI
 from voice_command_station.text2speech.speech_task import SpeechTask
 from voice_command_station.core.logging_utils import get_clean_logger
+from voice_command_station.core.event_emitter import EventEmitter
+from typing import Any, Awaitable, Callable
 
 class SpeechHandler:
     def __init__(self, logger,api_key):
@@ -18,6 +20,16 @@ class SpeechHandler:
         self.api_key = api_key
         self.tasks = []
         self.is_active = False
+        self.event_emitter = EventEmitter(logger=logger)
+
+    def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
+        self.event_emitter.add_event_listener(event_type, listener)
+
+    def remove_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
+        self.event_emitter.remove_event_listener(event_type, listener)
+
+    def clear_event_listeners(self, event_type: str = None):
+        self.event_emitter.clear_event_listeners(event_type)
 
     def get_task(self, message_id):
         for task in self.tasks:
@@ -58,8 +70,11 @@ class SpeechHandler:
         if task is not None:
             await task.complete()
 
-        # TODO: wait for the task to complete before removing it
         self.tasks = [task for task in self.tasks if task.message_id != message_id]
+
+        # Emit completion event so listeners know speech playback has finished
+        completion_data = {"id": message_id, "text": full_text}
+        await self.event_emitter.emit_event("message_completed", completion_data)
 
 
     async def start(self):

@@ -51,7 +51,9 @@ async def main():
 
     # Create transcriber with the provider and audio recorder
     async def onTranscriptionCompleted(data):
-        audio_recorder.stop_recording()
+        await audio_recorder.stop_recording()
+        await transcriber.transcription_provider.stop_listening()
+        await transcriber.transcription_provider.close()
         print("PROMPT: ", data['transcript'])
         await api_connector.send_message(data['transcript'])
 
@@ -64,22 +66,11 @@ async def main():
 
     # start session manager ------------------------------------------------------------
     await transcriber.start_realtime_transcription()
-    audio_recorder.start_recording()
-    recording_task = asyncio.create_task(
-        audio_recorder.record_and_stream()
-    )
+    await audio_recorder.start_recording()
     await speech_handler.start()
     await asyncio.get_event_loop().run_in_executor(None, input)
 
     # stop session manager ------------------------------------------------------------
-    audio_recorder.stop_recording()
-    recording_task.cancel()
-    try:
-        await recording_task
-    except asyncio.CancelledError:
-        pass
-    await transcriber.transcription_provider.stop_listening()
-    await transcriber.transcription_provider.close()
     await speech_handler.stop()
 
 

@@ -125,23 +125,25 @@ class TestAudioRecorder:
         assert not recorder.event_emitter.has_listeners("event1")
         assert recorder.event_emitter.has_listeners("event2")
 
-    def test_start_recording(self):
-        """Test starting recording."""
+    @pytest.mark.asyncio
+    async def test_start_recording(self):
+        """Test starting recording (async API)."""
         mock_logger = Mock()
         recorder = AudioRecorder(mock_logger)
-        
-        recorder.start_recording()
-        
-        assert recorder.is_recording is True
 
-    def test_stop_recording(self):
-        """Test stopping recording."""
+        await recorder.start_recording()
+        assert recorder.is_recording is True
+        await recorder.stop_recording()
+
+    @pytest.mark.asyncio
+    async def test_stop_recording(self):
+        """Test stopping recording (async API)."""
         mock_logger = Mock()
         recorder = AudioRecorder(mock_logger)
-        recorder.is_recording = True
-        
-        recorder.stop_recording()
-        
+        await recorder.start_recording()
+
+        await recorder.stop_recording()
+
         assert recorder.is_recording is False
 
     def test_cleanup_stream_with_stream(self):
@@ -168,15 +170,20 @@ class TestAudioRecorder:
         
         assert recorder.stream is None
 
-    def test_cleanup(self):
-        """Test full cleanup."""
+    @pytest.mark.asyncio
+    async def test_cleanup(self):
+        """Test full cleanup (ensure terminate called; stop handled separately)."""
         mock_logger = Mock()
         mock_pyaudio_instance = Mock()
         recorder = AudioRecorder(mock_logger, pyaudio_instance=mock_pyaudio_instance)
-        recorder.is_recording = True
-        
+
+        # Start and stop recording via async API
+        await recorder.start_recording()
+        await recorder.stop_recording()
+
+        # Cleanup should terminate pyaudio instance
         recorder.cleanup()
-        
+
         assert recorder.is_recording is False
         mock_pyaudio_instance.terminate.assert_called_once()
 
@@ -204,21 +211,11 @@ class TestAudioRecorder:
             captured_events.append(data)
         
         recorder.add_event_listener("audio_chunk", test_listener)
-        recorder.start_recording()
-        
-        # Run recording for a short time
-        recording_task = asyncio.create_task(recorder.record_and_stream())
-        await asyncio.sleep(0.1)  # Let it run briefly
-        recorder.stop_recording()
-        
-        try:
-            await asyncio.wait_for(recording_task, timeout=1.0)
-        except asyncio.TimeoutError:
-            recording_task.cancel()
-            try:
-                await recording_task
-            except asyncio.CancelledError:
-                pass
+        await recorder.start_recording()
+
+        # Let background task run briefly
+        await asyncio.sleep(0.1)
+        await recorder.stop_recording()
         
         # Verify stream was created and used
         mock_stream_factory.assert_called_once_with(mock_pyaudio_instance)
@@ -249,21 +246,11 @@ class TestAudioRecorder:
             stream_factory=mock_stream_factory
         )
         
-        recorder.start_recording()
-        
-        # Run recording - should handle the exception gracefully
-        recording_task = asyncio.create_task(recorder.record_and_stream())
-        await asyncio.sleep(0.1)  # Let it run briefly
-        recorder.stop_recording()
-        
-        try:
-            await asyncio.wait_for(recording_task, timeout=1.0)
-        except asyncio.TimeoutError:
-            recording_task.cancel()
-            try:
-                await recording_task
-            except asyncio.CancelledError:
-                pass
+        await recorder.start_recording()
+
+        # Let background task run - it should log the error and exit the loop gracefully
+        await asyncio.sleep(0.1)
+        await recorder.stop_recording()
         
         # Verify error was logged
         mock_logger.error.assert_called()
@@ -284,19 +271,11 @@ class TestAudioRecorder:
             stream_factory=mock_stream_factory
         )
         
-        recorder.start_recording()
-        
-        # Run recording - should handle the exception gracefully
-        recording_task = asyncio.create_task(recorder.record_and_stream())
-        
-        # Wait for the task to complete (it should fail quickly due to the exception)
-        try:
-            await asyncio.wait_for(recording_task, timeout=2.0)
-        except Exception:
-            # The exception is expected, so we just pass
-            pass
-        
-        recorder.stop_recording()
+        await recorder.start_recording()
+
+        # Give the background task a moment to hit the exception and log it
+        await asyncio.sleep(0.1)
+        await recorder.stop_recording()
         
         # Verify error was logged
         mock_logger.error.assert_called()
