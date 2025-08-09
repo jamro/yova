@@ -2,6 +2,5 @@ from voice_command_station.speech2text.transcription_provider import Transcripti
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.speech2text.realtime_transcriber import RealtimeTranscriber
-from voice_command_station.speech2text.audio_session_manager import AudioSessionManager
 
-__all__ = ['TranscriptionProvider', 'OpenAiTranscriptionProvider', 'AudioRecorder', 'RealtimeTranscriber', 'AudioSessionManager'] 
+__all__ = ['TranscriptionProvider', 'OpenAiTranscriptionProvider', 'AudioRecorder', 'RealtimeTranscriber'] 

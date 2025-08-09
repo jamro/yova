@@ -3,7 +3,7 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from voice_command_station.speech2text import RealtimeTranscriber, AudioSessionManager
+from voice_command_station.speech2text import RealtimeTranscriber
 from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from voice_command_station.speech2text.audio_recorder import AudioRecorder
 from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
@@ -62,24 +62,25 @@ async def main():
     transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
     transcriber.add_event_listener("transcription_error", onTranscriptionError)
 
-    # Create audio session manager to handle the recording lifecycle
-    session_manager = AudioSessionManager(transcriber, audio_recorder, speech_handler,logger=logger)
+    # start session manager ------------------------------------------------------------
+    await transcriber.start_realtime_transcription()
+    audio_recorder.start_recording()
+    recording_task = asyncio.create_task(
+        audio_recorder.record_and_stream()
+    )
+    await speech_handler.start()
+    await asyncio.get_event_loop().run_in_executor(None, input)
 
-
-    # testing purpose only
-    async def test_message():
-        await asyncio.sleep(1)
-        audio_recorder.stop_recording()
-        await api_connector.send_message("Hej, co to jest 'magiczne drzewo'?")
-
-    asyncio.create_task(test_message())
-
+    # stop session manager ------------------------------------------------------------
+    audio_recorder.stop_recording()
+    recording_task.cancel()
     try:
-        await session_manager.start_session()
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        session_manager.cleanup()
+        await recording_task
+    except asyncio.CancelledError:
+        pass
+    await transcriber.transcription_provider.stop_listening()
+    await transcriber.transcription_provider.close()
+    await speech_handler.stop()
 
 
 def run():
