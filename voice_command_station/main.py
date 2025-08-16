@@ -1,5 +1,3 @@
-"""Main application module for Voice Command Station."""
-
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -14,7 +12,7 @@ load_dotenv()
 
 
 async def main():
-    print("Starting Voice Command Station...")
+    print("Starting YOVA - Your Own Voice Assistant...")
 
     api_key = os.getenv("OPENAI_API_KEY")
 

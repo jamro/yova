@@ -1,4 +1,4 @@
-# Voice Command Station
+# YOVA - Your Own Voice Assistant
 
 ## Hardware
 

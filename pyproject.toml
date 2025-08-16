@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "voice-command-station"
 version = "0.1.0"
-description = "A simple voice command station"
+description = "YOVA - Your Own Voice Assistant"
 authors = ["Krzysztof Jamroz"]
 readme = "README.md"
 packages = [{include = "voice_command_station"}]

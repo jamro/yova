@@ -1,1 +1,1 @@
-"""Test package for Voice Command Station.""" 
+"""Test package for YOVA - Your Own Voice Assistant.""" 

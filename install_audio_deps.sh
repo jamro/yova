@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Audio Dependencies Installation Script for Voice Command Station
-echo "Installing audio dependencies for Voice Command Station..."
+# Audio Dependencies Installation Script for YOVA
+echo "Installing audio dependencies for YOVA..."
 
 # Check if we're on macOS and install portaudio if needed
 if [[ "$OSTYPE" == "darwin"* ]]; then
