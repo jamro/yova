@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from voice_command_station.core.event_source import EventSource
+from yova_core.core.event_source import EventSource
 
 class Playback(ABC):
     

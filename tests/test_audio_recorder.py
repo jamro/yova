@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from voice_command_station.speech2text.audio_recorder import AudioRecorder
+from yova_core.speech2text.audio_recorder import AudioRecorder
 
 # Mock pyaudio for testing
 try:
@@ -22,7 +22,7 @@ class TestAudioRecorder:
         """Test AudioRecorder initialization with default dependencies."""
         mock_logger = Mock()
         
-        with patch('voice_command_station.speech2text.audio_recorder.pyaudio.PyAudio') as mock_pyaudio:
+        with patch('yova_core.speech2text.audio_recorder.pyaudio.PyAudio') as mock_pyaudio:
             mock_pyaudio_instance = Mock()
             mock_pyaudio.return_value = mock_pyaudio_instance
             
@@ -286,7 +286,7 @@ class TestAudioRecorder:
         """Test that the new constructor maintains backward compatibility."""
         mock_logger = Mock()
         
-        with patch('voice_command_station.speech2text.audio_recorder.pyaudio.PyAudio') as mock_pyaudio:
+        with patch('yova_core.speech2text.audio_recorder.pyaudio.PyAudio') as mock_pyaudio:
             mock_pyaudio_instance = Mock()
             mock_pyaudio.return_value = mock_pyaudio_instance
             

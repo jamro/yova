@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "YOVA - Your Own Voice Assistant"
 authors = ["Krzysztof Jamroz"]
 readme = "README.md"
-packages = [{include = "voice_command_station"}]
+packages = [{include = "yova_core"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -28,7 +28,7 @@ pytest-cov = "^4.0.0"
 pytest-asyncio = "^0.21.0"
 
 [tool.poetry.scripts]
-voice-command-station = "voice_command_station.main:run"
+voice-command-station = "yova_core.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

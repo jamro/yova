@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock
-from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 
 class TestOpenAiTranscriptionProvider:
     """Test cases for the OpenAiTranscriptionProvider class."""

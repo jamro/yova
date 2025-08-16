@@ -3,9 +3,9 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from voice_command_station.text2speech.speech_task import SpeechTask
-from voice_command_station.text2speech.stream_playback import StreamPlayback
-from voice_command_station.text2speech.data_playback import DataPlayback
+from yova_core.text2speech.speech_task import SpeechTask
+from yova_core.text2speech.stream_playback import StreamPlayback
+from yova_core.text2speech.data_playback import DataPlayback
 
 
 class TestSpeechTask:
@@ -16,7 +16,7 @@ class TestSpeechTask:
         if logger is None:
             logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI') as mock_openai:
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI') as mock_openai:
             mock_client = Mock()
             mock_openai.return_value = mock_client
             
@@ -82,7 +82,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             await task.append_chunk("Hello")
@@ -98,7 +98,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Mock methods that could create tasks to avoid unawaited coroutines
@@ -120,7 +120,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Mock methods that could create tasks to avoid unawaited coroutines
@@ -142,7 +142,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.is_stopped = True
             
@@ -158,7 +158,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.conversion_task = asyncio.create_task(task.convert_to_speech())
             
@@ -173,7 +173,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.is_stopped = True
             task.sentence_queue.append("Test sentence.")
@@ -189,14 +189,14 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("Test sentence.")
             
             # Mock StreamPlayback
             mock_stream_playback = AsyncMock()
-            with patch('voice_command_station.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback):
+            with patch('yova_core.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback):
                 # Mock the recursive call to prevent infinite recursion
                 with patch.object(task, 'convert_to_speech', wraps=task.convert_to_speech) as mock_recursive:
                     await task.convert_to_speech()
@@ -213,7 +213,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("First sentence.")
@@ -222,7 +222,7 @@ class TestSpeechTask:
             
             # Mock DataPlayback
             mock_data_playback = AsyncMock()
-            with patch('voice_command_station.text2speech.speech_task.DataPlayback', return_value=mock_data_playback):
+            with patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback):
                 # Mock the recursive call to prevent infinite recursion
                 with patch.object(task, 'convert_to_speech', wraps=task.convert_to_speech) as mock_recursive:
                     await task.convert_to_speech()
@@ -240,12 +240,12 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.sentence_queue.append("Test sentence.")
             
             # Mock StreamPlayback to raise an exception
-            with patch('voice_command_station.text2speech.speech_task.StreamPlayback') as mock_stream_class:
+            with patch('yova_core.text2speech.speech_task.StreamPlayback') as mock_stream_class:
                 mock_stream_class.side_effect = Exception("API Error")
                 
                 await task.convert_to_speech()
@@ -259,7 +259,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.audio_task = asyncio.create_task(task.play_audio())
             
@@ -274,7 +274,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.is_stopped = True
             mock_item = Mock()
@@ -293,7 +293,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Mock playback object
@@ -316,7 +316,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Mock playback objects
@@ -342,7 +342,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.current_buffer = "Incomplete sentence"
             
@@ -362,7 +362,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.current_buffer = ""
             
@@ -381,7 +381,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Create mock tasks that are awaitable
@@ -404,7 +404,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Create mock tasks that raise CancelledError
@@ -425,7 +425,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Set up some state
@@ -450,7 +450,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.current_playback = None
             
@@ -465,7 +465,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Create mock tasks
@@ -486,7 +486,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             # Create mock tasks that raise CancelledError
@@ -507,7 +507,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             
@@ -515,8 +515,8 @@ class TestSpeechTask:
             mock_stream_playback = AsyncMock()
             mock_data_playback = AsyncMock()
             
-            with patch('voice_command_station.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback), \
-                 patch('voice_command_station.text2speech.speech_task.DataPlayback', return_value=mock_data_playback), \
+            with patch('yova_core.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback), \
+                 patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback), \
                  patch.object(task, 'play_audio') as mock_play_audio:
                 
                 # Add chunks that form sentences
@@ -538,8 +538,8 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'), \
-             patch('voice_command_station.text2speech.speech_task.get_clean_logger') as mock_get_logger:
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'), \
+             patch('yova_core.text2speech.speech_task.get_clean_logger') as mock_get_logger:
             mock_clean_logger = Mock()
             mock_get_logger.return_value = mock_clean_logger
             
@@ -556,7 +556,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             await task.append_chunk("Test chunk")
@@ -570,12 +570,12 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("Test sentence.")
             
-            with patch('voice_command_station.text2speech.speech_task.StreamPlayback') as mock_stream_class, \
+            with patch('yova_core.text2speech.speech_task.StreamPlayback') as mock_stream_class, \
                  patch.object(task, 'play_audio') as mock_play_audio:
                 mock_stream_playback = AsyncMock()
                 mock_stream_class.return_value = mock_stream_playback
@@ -593,7 +593,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
             mock_playback = AsyncMock()
@@ -613,7 +613,7 @@ class TestSpeechTask:
         api_key = "test_api_key"
         mock_logger = Mock()
         
-        with patch('voice_command_station.text2speech.speech_task.AsyncOpenAI'):
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.current_buffer = "Test buffer"
             

@@ -1,12 +1,12 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from voice_command_station.speech2text import RealtimeTranscriber
-from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
-from voice_command_station.speech2text.audio_recorder import AudioRecorder
-from voice_command_station.core.logging_utils import setup_logging, get_clean_logger
-from voice_command_station.api import OpenAIConnector
-from voice_command_station.text2speech.speech_handler import SpeechHandler
+from yova_core.speech2text import RealtimeTranscriber
+from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+from yova_core.speech2text.audio_recorder import AudioRecorder
+from yova_core.core.logging_utils import setup_logging, get_clean_logger
+from yova_core.api import OpenAIConnector
+from yova_core.text2speech.speech_handler import SpeechHandler
 
 load_dotenv()
 

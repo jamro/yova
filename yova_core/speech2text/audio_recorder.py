@@ -3,8 +3,8 @@
 import pyaudio
 import asyncio
 from typing import Dict, List, Callable, Any, Awaitable, Optional
-from voice_command_station.core.event_emitter import EventEmitter
-from voice_command_station.core.logging_utils import get_clean_logger
+from yova_core.core.event_emitter import EventEmitter
+from yova_core.core.logging_utils import get_clean_logger
 import logging
 
 # Audio recording parameters

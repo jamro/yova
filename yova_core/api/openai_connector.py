@@ -4,8 +4,8 @@ import uuid
 from typing import Any, Optional
 from openai import AsyncOpenAI
 from .api_connector import ApiConnector
-from voice_command_station.core.logging_utils import get_clean_logger
-from voice_command_station.core.event_emitter import EventEmitter
+from yova_core.core.logging_utils import get_clean_logger
+from yova_core.core.event_emitter import EventEmitter
 
 
 class OpenAIConnector(ApiConnector):

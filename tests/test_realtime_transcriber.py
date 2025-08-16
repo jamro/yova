@@ -3,9 +3,9 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from voice_command_station.speech2text.realtime_transcriber import RealtimeTranscriber
-from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
-from voice_command_station.speech2text.audio_recorder import AudioRecorder
+from yova_core.speech2text.realtime_transcriber import RealtimeTranscriber
+from yova_core.speech2text.transcription_provider import TranscriptionProvider
+from yova_core.speech2text.audio_recorder import AudioRecorder
 
 
 class MockTranscriptionProvider(TranscriptionProvider):

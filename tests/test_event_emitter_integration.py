@@ -3,14 +3,14 @@
 import pytest
 import asyncio
 from unittest.mock import Mock
-from voice_command_station.core.event_emitter import EventEmitter
+from yova_core.core.event_emitter import EventEmitter
 
 
 class TestEventEmitterIntegration:
     """Integration tests demonstrating practical EventEmitter usage."""
 
     @pytest.mark.asyncio
-    async def test_voice_command_scenario(self):
+    async def test_yova_scenario(self):
         """Test a realistic voice command scenario with multiple listeners."""
         emitter = EventEmitter()
         results = []
@@ -26,12 +26,12 @@ class TestEventEmitterIntegration:
             results.append(f"response_generated: Hello, I heard '{data['text']}'")
 
         # Register listeners
-        emitter.add_event_listener("voice_command", speech_processor)
-        emitter.add_event_listener("voice_command", command_parser)
-        emitter.add_event_listener("voice_command", response_generator)
+        emitter.add_event_listener("yova", speech_processor)
+        emitter.add_event_listener("yova", command_parser)
+        emitter.add_event_listener("yova", response_generator)
 
         # Emit a voice command event
-        await emitter.emit_event("voice_command", {"text": "turn on the lights"})
+        await emitter.emit_event("yova", {"text": "turn on the lights"})
 
         # Verify all listeners were called
         assert len(results) == 3
@@ -117,13 +117,13 @@ class TestEventEmitterIntegration:
             system_results.append(data["status"])
 
         # Register listeners for different event types
-        emitter.add_event_listener("voice_command", voice_handler)
+        emitter.add_event_listener("yova", voice_handler)
         emitter.add_event_listener("system_status", system_handler)
 
         # Emit different types of events
-        await emitter.emit_event("voice_command", {"message": "Hello world"})
+        await emitter.emit_event("yova", {"message": "Hello world"})
         await emitter.emit_event("system_status", {"status": "online"})
-        await emitter.emit_event("voice_command", {"message": "Goodbye"})
+        await emitter.emit_event("yova", {"message": "Goodbye"})
 
         # Verify results
         assert voice_results == ["Hello world", "Goodbye"]
@@ -132,7 +132,7 @@ class TestEventEmitterIntegration:
         # Verify event type tracking
         event_types = emitter.get_all_event_types()
         assert len(event_types) == 2
-        assert "voice_command" in event_types
+        assert "yova" in event_types
         assert "system_status" in event_types
 
     @pytest.mark.asyncio

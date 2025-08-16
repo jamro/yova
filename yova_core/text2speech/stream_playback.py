@@ -1,5 +1,5 @@
-from voice_command_station.text2speech.playback import Playback
-from voice_command_station.core.logging_utils import get_clean_logger
+from yova_core.text2speech.playback import Playback
+from yova_core.core.logging_utils import get_clean_logger
 from openai.helpers import LocalAudioPlayer
 import asyncio
 

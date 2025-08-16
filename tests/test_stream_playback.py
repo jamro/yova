@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from voice_command_station.text2speech.stream_playback import StreamPlayback
+from yova_core.text2speech.stream_playback import StreamPlayback
 
 
 class TestStreamPlayback:
@@ -305,7 +305,7 @@ class TestStreamPlayback:
         mock_logger = Mock()
         text = "Logger test"
         
-        with patch('voice_command_station.text2speech.stream_playback.get_clean_logger') as mock_get_logger:
+        with patch('yova_core.text2speech.stream_playback.get_clean_logger') as mock_get_logger:
             mock_clean_logger = Mock()
             mock_get_logger.return_value = mock_clean_logger
             
@@ -343,7 +343,7 @@ class TestStreamPlayback:
 
     def test_inheritance(self):
         """Test that StreamPlayback inherits from Playback."""
-        from voice_command_station.text2speech.playback import Playback
+        from yova_core.text2speech.playback import Playback
         
         mock_client = Mock()
         mock_logger = Mock()

@@ -12,10 +12,10 @@ install-dev: ## Install all dependencies (including dev)
 	poetry install
 
 test: ## Run tests
-	poetry run pytest
+	export PATH="$$HOME/Library/Python/3.9/bin:$$PATH" && poetry run pytest
 
 test-cov: ## Run tests with coverage
-	poetry run pytest --cov=voice_command_station --cov-report=term-missing --cov-report=html
+	export PATH="$$HOME/Library/Python/3.9/bin:$$PATH" && poetry run pytest --cov=yova_core --cov-report=term-missing --cov-report=html
 
 test-watch: ## Run tests in watch mode
 	poetry run pytest-watch
@@ -37,13 +37,13 @@ clean: ## Clean up generated files
 	rm -rf build
 
 lint: ## Run linting checks
-	poetry run flake8 voice_command_station tests
-	poetry run black --check voice_command_station tests
-	poetry run isort --check-only voice_command_station tests
+	poetry run flake8 yova_core tests
+	poetry run black --check yova_core tests
+	poetry run isort --check-only yova_core tests
 
 format: ## Format code with black and isort
-	poetry run black voice_command_station tests
-	poetry run isort voice_command_station tests
+	poetry run black yova_core tests
+	poetry run isort yova_core tests
 
 check: ## Run all checks (lint, test, format)
 	$(MAKE) lint

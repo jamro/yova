@@ -3,9 +3,9 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
-from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
-from voice_command_station.speech2text.realtime_transcriber import RealtimeTranscriber
-from voice_command_station.speech2text.audio_recorder import AudioRecorder
+from yova_core.speech2text.transcription_provider import TranscriptionProvider
+from yova_core.speech2text.realtime_transcriber import RealtimeTranscriber
+from yova_core.speech2text.audio_recorder import AudioRecorder
 
 
 class MockTranscriptionProvider(TranscriptionProvider):
@@ -98,7 +98,7 @@ class TestTranscriptionProviderAbstraction:
     
     def test_transcription_provider_interface_compliance(self):
         """Test that OpenAiTranscriptionProvider properly implements TranscriptionProvider interface"""
-        from voice_command_station.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+        from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
         
         # Create a mock logger
         mock_logger = Mock()

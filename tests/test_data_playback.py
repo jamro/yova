@@ -5,7 +5,7 @@ import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch, mock_open
 from io import BytesIO
 # AudioSegment is mocked in tests, no need to import it
-from voice_command_station.text2speech.data_playback import DataPlayback
+from yova_core.text2speech.data_playback import DataPlayback
 
 
 class TestDataPlayback:
@@ -143,9 +143,9 @@ class TestDataPlayback:
         mock_playback = Mock()
         mock_playback.wait_done = Mock()
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment_class.from_file.return_value = mock_audio_segment
             mock_play_audio.return_value = mock_playback
@@ -178,9 +178,9 @@ class TestDataPlayback:
         
         audio_data = b"wav_audio_data"
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment = Mock()
             mock_playback = Mock()
@@ -209,7 +209,7 @@ class TestDataPlayback:
         playback = DataPlayback(mock_client, mock_logger, text)
         # audio_data is None by default
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class:
             mock_audio_segment_class.from_file.side_effect = Exception("No audio data")
             
             with pytest.raises(Exception, match="No audio data"):
@@ -223,7 +223,7 @@ class TestDataPlayback:
         text = "AudioSegment error test"
         audio_data = b"invalid_audio_data"
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class:
             mock_audio_segment_class.from_file.side_effect = Exception("Invalid audio format")
             
             playback = DataPlayback(mock_client, mock_logger, text)
@@ -240,9 +240,9 @@ class TestDataPlayback:
         text = "Playback error test"
         audio_data = b"audio_data"
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment = Mock()
             mock_audio_segment_class.from_file.return_value = mock_audio_segment
@@ -269,9 +269,9 @@ class TestDataPlayback:
         mock_client.audio.speech.create = AsyncMock(return_value=mock_response)
         
         # Mock audio playback
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment = Mock()
             mock_playback = Mock()
@@ -302,7 +302,7 @@ class TestDataPlayback:
         mock_logger = Mock()
         text = "Logger test"
         
-        with patch('voice_command_station.text2speech.data_playback.get_clean_logger') as mock_get_clean_logger:
+        with patch('yova_core.text2speech.data_playback.get_clean_logger') as mock_get_clean_logger:
             mock_clean_logger = Mock()
             mock_get_clean_logger.return_value = mock_clean_logger
             
@@ -319,9 +319,9 @@ class TestDataPlayback:
         text = "Logging test"
         audio_data = b"logging_audio_data"
         
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment = Mock()
             mock_playback = Mock()

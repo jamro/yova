@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import asyncio
-from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
-from voice_command_station.speech2text.audio_recorder import AudioRecorder
+from yova_core.speech2text.transcription_provider import TranscriptionProvider
+from yova_core.speech2text.audio_recorder import AudioRecorder
 from typing import Dict, List, Callable, Any, Awaitable
-from voice_command_station.core.event_emitter import EventEmitter
-from voice_command_station.core.logging_utils import get_clean_logger
+from yova_core.core.event_emitter import EventEmitter
+from yova_core.core.logging_utils import get_clean_logger
 import logging
 
 class RealtimeTranscriber:

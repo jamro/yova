@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Awaitable, Optional
-from voice_command_station.core.event_source import EventSource
+from yova_core.core.event_source import EventSource
 
 class TranscriptionProvider(EventSource):
     """Abstract base class for transcription providers"""

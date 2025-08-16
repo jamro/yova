@@ -6,9 +6,9 @@ import base64
 import websockets
 from openai import OpenAI
 from typing import Dict, List, Callable, Any, Awaitable
-from voice_command_station.core.event_emitter import EventEmitter
-from voice_command_station.core.logging_utils import get_clean_logger
-from voice_command_station.speech2text.transcription_provider import TranscriptionProvider
+from yova_core.core.event_emitter import EventEmitter
+from yova_core.core.logging_utils import get_clean_logger
+from yova_core.speech2text.transcription_provider import TranscriptionProvider
 import logging
 
 # WebSocket configuration

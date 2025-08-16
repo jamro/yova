@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from voice_command_station.text2speech.data_playback import DataPlayback
+from yova_core.text2speech.data_playback import DataPlayback
 
 
 class TestDataPlaybackIntegration:
@@ -38,9 +38,9 @@ class TestDataPlaybackIntegration:
         playback = DataPlayback(mock_client, mock_logger, text, config)
         
         # Mock audio playback components
-        with patch('voice_command_station.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
-             patch('voice_command_station.text2speech.data_playback.play_audio') as mock_play_audio, \
-             patch('voice_command_station.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
+        with patch('yova_core.text2speech.data_playback.AudioSegment') as mock_audio_segment_class, \
+             patch('yova_core.text2speech.data_playback.play_audio') as mock_play_audio, \
+             patch('yova_core.text2speech.data_playback.asyncio.to_thread') as mock_to_thread:
             
             mock_audio_segment = Mock()
             mock_playback = Mock()
