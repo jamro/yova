@@ -94,13 +94,23 @@ class YovaBroker:
         self.running = True
         logger.info("YOVA Broker started successfully")
         
-        # Start the proxy
-        await self._run_proxy()
+        # Start the proxy in a separate task to avoid blocking
+        self._proxy_task = asyncio.create_task(self._run_proxy())
+        
+        # Wait for proxy to be fully ready
+        await asyncio.sleep(0.5)
+        logger.info("Broker proxy is ready and accepting connections")
+    
+    async def wait_for_proxy(self):
+        """Wait for the proxy to complete (useful for keeping the broker running)"""
+        if hasattr(self, '_proxy_task') and self._proxy_task:
+            await self._proxy_task
     
     async def _run_proxy(self):
         """Run the ZeroMQ proxy to forward messages between frontend and backend"""
         try:
-            await zmq.proxy(self.frontend, self.backend)
+            # Run zmq.proxy in a separate thread since it's blocking
+            await asyncio.to_thread(zmq.proxy, self.frontend, self.backend)
         except Exception as e:
             if self.running:
                 logger.error(f"Proxy error: {e}")
@@ -117,6 +127,21 @@ class YovaBroker:
             self.context is not None
         )
     
+    def is_ready_for_connections(self) -> bool:
+        """Check if the broker is ready to accept connections"""
+        if not self.is_healthy():
+            return False
+        
+        # Check if proxy task is running
+        if not hasattr(self, '_proxy_task') or not self._proxy_task:
+            return False
+            
+        # Check if proxy task is not done
+        if self._proxy_task.done():
+            return False
+            
+        return True
+    
     async def graceful_shutdown(self):
         """Gracefully shutdown the broker"""
         logger.info("Initiating graceful shutdown...")
@@ -131,6 +156,16 @@ class YovaBroker:
         """Stop the broker service"""
         logger.info("Stopping YOVA Broker...")
         self.running = False
+        
+        # Cancel the proxy task if it exists
+        if hasattr(self, '_proxy_task') and self._proxy_task:
+            self._proxy_task.cancel()
+            try:
+                await self._proxy_task
+            except asyncio.CancelledError:
+                pass  # Expected when cancelling
+            except Exception as e:
+                logger.warning(f"Error cancelling proxy task: {e}")
         
         try:
             if self.frontend:
@@ -157,6 +192,3 @@ class YovaBroker:
             logger.warning(f"Error terminating ZMQ context: {e}")
         
         logger.info("YOVA Broker stopped")
-
-
-# Note: Main entry point is now in main.py, following the same pattern as yova_core

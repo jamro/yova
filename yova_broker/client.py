@@ -20,11 +20,31 @@ class Publisher:
         self.context = zmq.asyncio.Context()
         self.socket = None
         
-    async def connect(self):
-        """Connect to the broker"""
-        self.socket = self.context.socket(zmq.PUB)
-        self.socket.connect(self.broker_url)
-        logger.info(f"Publisher connected to {self.broker_url}")
+    async def connect(self, max_retries: int = 3, retry_delay: float = 0.5):
+        """Connect to the broker with retry mechanism"""
+        if self.socket:
+            return  # Already connected
+            
+        for attempt in range(max_retries):
+            try:
+                self.socket = self.context.socket(zmq.PUB)
+                self.socket.connect(self.broker_url)
+                
+                # Wait a moment for connection to stabilize
+                await asyncio.sleep(0.1)
+                
+                logger.info(f"Publisher connected to {self.broker_url} (attempt {attempt + 1})")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Connection attempt {attempt + 1} failed: {e}, retrying in {retry_delay}s...")
+                    await asyncio.sleep(retry_delay)
+                    if self.socket:
+                        self.socket.close()
+                        self.socket = None
+                else:
+                    logger.error(f"Failed to connect after {max_retries} attempts: {e}")
+                    raise
         
     async def publish(self, topic: str, message: Any):
         """Publish a message to a topic"""
@@ -53,11 +73,31 @@ class Subscriber:
         self.socket = None
         self.running = False
         
-    async def connect(self):
-        """Connect to the broker"""
-        self.socket = self.context.socket(zmq.SUB)
-        self.socket.connect(self.broker_url)
-        logger.info(f"Subscriber connected to {self.broker_url}")
+    async def connect(self, max_retries: int = 3, retry_delay: float = 0.5):
+        """Connect to the broker with retry mechanism"""
+        if self.socket:
+            return  # Already connected
+            
+        for attempt in range(max_retries):
+            try:
+                self.socket = self.context.socket(zmq.SUB)
+                self.socket.connect(self.broker_url)
+                
+                # Wait a moment for connection to stabilize
+                await asyncio.sleep(0.1)
+                
+                logger.info(f"Subscriber connected to {self.broker_url} (attempt {attempt + 1})")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Connection attempt {attempt + 1} failed: {e}, retrying in {retry_delay}s...")
+                    await asyncio.sleep(retry_delay)
+                    if self.socket:
+                        self.socket.close()
+                        self.socket = None
+                else:
+                    logger.error(f"Failed to connect after {max_retries} attempts: {e}")
+                    raise
         
     async def subscribe(self, topic: str):
         """Subscribe to a topic"""
@@ -65,6 +105,10 @@ class Subscriber:
             await self.connect()
             
         self.socket.setsockopt_string(zmq.SUBSCRIBE, topic)
+        
+        # Wait a moment for subscription to be processed
+        await asyncio.sleep(0.1)
+        
         logger.info(f"Subscribed to topic: {topic}")
         
     async def listen(self, callback: Callable[[str, Any], None]):
@@ -74,6 +118,9 @@ class Subscriber:
             
         self.running = True
         logger.info("Starting to listen for messages...")
+        
+        # Wait a moment for the listener to be fully ready
+        await asyncio.sleep(0.2)
         
         try:
             while self.running:

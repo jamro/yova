@@ -7,6 +7,7 @@ import logging
 import signal
 import sys
 from .broker import YovaBroker
+from .broker_tester import BrokerTester
 
 
 def signal_handler(signum, frame):
@@ -29,7 +30,14 @@ async def main():
     broker = YovaBroker()
     
     try:
+        # Start the broker (this now returns immediately)
         await broker.start()
+        
+        # Run broker proxy and broker tester concurrently
+        await asyncio.gather(
+            broker.wait_for_proxy(),
+            BrokerTester(broker).run_test()
+        )
     except KeyboardInterrupt:
         logging.info("Received interrupt signal, shutting down gracefully...")
     except Exception as e:
