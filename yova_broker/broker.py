@@ -25,7 +25,7 @@ class YovaBroker:
         self.subscribers: Dict[str, Set[str]] = {}  # topic -> set of subscriber addresses
         self.running = False
     
-    def _get_port_check_instructions(self, port: int) -> str:
+    def get_port_check_instructions(self, port: int) -> str:
         """Get instructions for checking which process is using a port based on OS"""
         system = platform.system().lower()
         
@@ -60,12 +60,13 @@ class YovaBroker:
         except zmq.error.ZMQError as e:
             if "Address already in use" in str(e):
                 logger.error(f"Frontend port {self.frontend_port} is already in use!")
-                logger.error(self._get_port_check_instructions(self.frontend_port))
+                logger.error(self.get_port_check_instructions(self.frontend_port))
                 logger.error("Please either:")
                 logger.error(f"  1. Stop the process using port {self.frontend_port}")
                 logger.error(f"  2. Use a different port by modifying the YovaBroker constructor")
                 raise
             else:
+                logger.error(f"Frontend socket error: {e}")
                 raise
         
         try:
@@ -74,14 +75,20 @@ class YovaBroker:
             self.backend.bind(f"tcp://*:{self.backend_port}")
             logger.info(f"Backend bound to port {self.backend_port}")
         except zmq.error.ZMQError as e:
+            # Clean up frontend if backend fails
+            if self.frontend:
+                self.frontend.close()
+                self.frontend = None
+            
             if "Address already in use" in str(e):
                 logger.error(f"Backend port {self.backend_port} is already in use!")
-                logger.error(self._get_port_check_instructions(self.backend_port))
+                logger.error(self.get_port_check_instructions(self.backend_port))
                 logger.error("Please either:")
                 logger.error(f"  1. Stop the process using port {self.backend_port}")
                 logger.error(f"  2. Use a different port by modifying the YovaBroker constructor")
                 raise
             else:
+                logger.error(f"Backend socket error: {e}")
                 raise
         
         self.running = True
@@ -97,41 +104,59 @@ class YovaBroker:
         except Exception as e:
             if self.running:
                 logger.error(f"Proxy error: {e}")
-                raise
+                # Don't re-raise here, let the calling method handle it
+            else:
+                logger.info("Proxy stopped due to shutdown request")
+    
+    def is_healthy(self) -> bool:
+        """Check if the broker is in a healthy state"""
+        return (
+            self.running and 
+            self.frontend is not None and 
+            self.backend is not None and 
+            self.context is not None
+        )
+    
+    async def graceful_shutdown(self):
+        """Gracefully shutdown the broker"""
+        logger.info("Initiating graceful shutdown...")
+        self.running = False
+        
+        # Give some time for the proxy to stop naturally
+        await asyncio.sleep(0.1)
+        
+        await self.stop()
     
     async def stop(self):
         """Stop the broker service"""
         logger.info("Stopping YOVA Broker...")
         self.running = False
         
-        if self.frontend:
-            self.frontend.close()
-        if self.backend:
-            self.backend.close()
-        if self.context:
-            self.context.term()
+        try:
+            if self.frontend:
+                self.frontend.close()
+                self.frontend = None
+                logger.debug("Frontend socket closed")
+        except Exception as e:
+            logger.warning(f"Error closing frontend socket: {e}")
+        
+        try:
+            if self.backend:
+                self.backend.close()
+                self.backend = None
+                logger.debug("Backend socket closed")
+        except Exception as e:
+            logger.warning(f"Error closing backend socket: {e}")
+        
+        try:
+            if self.context:
+                self.context.term()
+                self.context = None
+                logger.debug("ZMQ context terminated")
+        except Exception as e:
+            logger.warning(f"Error terminating ZMQ context: {e}")
         
         logger.info("YOVA Broker stopped")
 
 
-async def main():
-    """Main entry point for the broker"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    broker = YovaBroker()
-    
-    try:
-        await broker.start()
-    except KeyboardInterrupt:
-        logger.info("Received interrupt signal")
-    except Exception as e:
-        logger.error(f"Broker error: {e}")
-    finally:
-        await broker.stop()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# Note: Main entry point is now in main.py, following the same pattern as yova_core

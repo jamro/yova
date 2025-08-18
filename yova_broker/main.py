@@ -4,37 +4,23 @@ Main entry point for YOVA Broker service
 
 import asyncio
 import logging
+import signal
 import sys
-import platform
 from .broker import YovaBroker
 
 
-def get_port_check_instructions(port: int) -> str:
-    """Get instructions for checking which process is using a port based on OS"""
-    system = platform.system().lower()
-    
-    if system == "darwin":  # macOS
-        return f"""Port {port} is busy. To check which process is using it on macOS:
-  lsof -i :{port}
-  netstat -an | grep :{port}
-  sudo lsof -i :{port}  # for more detailed info"""
-    
-    elif system == "windows":
-        return f"""Port {port} is busy. To check which process is using it on Windows:
-  netstat -ano | findstr :{port}
-  Get-NetTCPConnection -LocalPort {port}  # PowerShell
-  netstat -anob | findstr :{port}  # Shows process name (requires admin)"""
-    
-    else:  # Linux (including Raspberry Pi)
-        return f"""Port {port} is busy. To check which process is using it on Linux/Raspberry Pi:
-  lsof -i :{port}
-  netstat -tulpn | grep :{port}
-  ss -tulpn | grep :{port}
-  sudo lsof -i :{port}  # for more detailed info"""
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    logging.info(f"Received signal {signum}, initiating graceful shutdown...")
+    sys.exit(0)
 
 
-def run():
-    """Run the YOVA Broker service"""
+async def main():
+    """Async main function for the YOVA Broker service"""
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -43,9 +29,9 @@ def run():
     broker = YovaBroker()
     
     try:
-        asyncio.run(broker.start())
+        await broker.start()
     except KeyboardInterrupt:
-        logging.info("Received interrupt signal")
+        logging.info("Received interrupt signal, shutting down gracefully...")
     except Exception as e:
         logging.error(f"Broker error: {e}")
         
@@ -58,7 +44,7 @@ def run():
             # Check both ports
             for port in [broker.frontend_port, broker.backend_port]:
                 logging.error(f"\nInstructions for port {port}:")
-                logging.error(get_port_check_instructions(port))
+                logging.error(broker.get_port_check_instructions(port))
             
             logging.error("\n" + "="*60)
             logging.error("SOLUTIONS:")
@@ -69,7 +55,18 @@ def run():
         
         sys.exit(1)
     finally:
-        asyncio.run(broker.stop())
+        logging.info("Shutting down broker...")
+        try:
+            await broker.stop()
+            logging.info("Broker shutdown completed")
+        except Exception as e:
+            logging.error(f"Error during shutdown: {e}")
+            sys.exit(1)
+
+
+def run():
+    """Synchronous wrapper for the async main function."""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
