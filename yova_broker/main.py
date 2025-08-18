@@ -8,6 +8,7 @@ import signal
 import sys
 from .broker import YovaBroker
 from .broker_tester import BrokerTester
+from .broker_monitor import BrokerMonitor
 
 
 def signal_handler(signum, frame):
@@ -36,6 +37,7 @@ async def main():
         # Run broker proxy and broker tester concurrently
         await asyncio.gather(
             broker.wait_for_proxy(),
+            BrokerMonitor(broker).run_monitor(),
             BrokerTester(broker).run_test()
         )
     except KeyboardInterrupt:
