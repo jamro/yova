@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov run clean lint format check build publish supervisor-start supervisor-stop supervisor-restart supervisor-status supervisor-logs supervisor-follow
+.PHONY: help install install-dev test test-cov run clean lint format check build publish supervisor-start supervisor-stop supervisor-restart supervisor-status supervisor-logs supervisor-follow supervisor-dev
 
 # Default target
 help: ## Show this help message
@@ -23,9 +23,6 @@ test-watch: ## Run tests in watch mode
 run: ## Run the application
 	poetry run yova
 
-run-with-name: ## Run the application with a custom name (usage: make run-with-name NAME=Alice)
-	poetry run yova $(NAME)
-
 supervisor-start: ## Start supervisor and yova_core process
 	poetry run supervisord -c configs/supervisord.conf
 
@@ -44,6 +41,9 @@ supervisor-logs: ## Show yova_core logs
 supervisor-follow: ## Follow yova_core logs in real-time
 	poetry run supervisorctl -c configs/supervisord.conf tail -f yova_core
 
+supervisor-dev: ## Start development supervisor with auto-restart and log streaming
+	poetry run python scripts/supervisor_dev.py
+
 clean: ## Clean up generated files
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete
@@ -59,7 +59,7 @@ lint: ## Run linting checks
 	poetry run black --check yova_core tests
 	poetry run isort --check-only yova_core tests
 
-format: ## Format code with black and isort
+format: ## Format code with black and isortsupervisor
 	poetry run black yova_core tests
 	poetry run isort yova_core tests
 
@@ -69,9 +69,6 @@ check: ## Run all checks (lint, test, format)
 
 build: ## Build the package
 	poetry build
-
-publish: ## Publish to PyPI (use with caution)
-	poetry publish
 
 shell: ## Open Poetry shell
 	poetry shell

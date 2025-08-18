@@ -62,4 +62,4 @@ else
 fi
 
 echo "✅ Audio dependencies installed!"
-echo "Test with: poetry run yova" 
+echo "Test with: poetry run yova"
