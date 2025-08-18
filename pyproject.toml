@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "YOVA - Your Own Voice Assistant"
 authors = ["Krzysztof Jamroz"]
 readme = "README.md"
-packages = [{include = "yova_core"}]
+packages = [{include = "yova_core"}, {include = "yova_broker"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -22,6 +22,7 @@ soundfile = "^0.13.1"
 pydub = "^0.25.1"
 simpleaudio = "^1.0.4"
 supervisor = "^4.2.5"
+pyzmq = "^25.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
@@ -30,6 +31,7 @@ pytest-asyncio = "^0.21.0"
 
 [tool.poetry.scripts]
 yova = "yova_core.main:run"
+yova-broker = "yova_broker.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
