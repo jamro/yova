@@ -21,10 +21,10 @@ test-watch: ## Run tests in watch mode
 	poetry run pytest-watch
 
 run: ## Run the application
-	poetry run voice-command-station
+	poetry run yova
 
 run-with-name: ## Run the application with a custom name (usage: make run-with-name NAME=Alice)
-	poetry run voice-command-station $(NAME)
+	poetry run yova $(NAME)
 
 clean: ## Clean up generated files
 	find . -type f -name "*.pyc" -delete

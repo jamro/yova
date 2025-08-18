@@ -3,7 +3,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "voice-command-station"
+name = "yova"
 version = "0.1.0"
 description = "YOVA - Your Own Voice Assistant"
 authors = ["Krzysztof Jamroz"]
@@ -28,7 +28,7 @@ pytest-cov = "^4.0.0"
 pytest-asyncio = "^0.21.0"
 
 [tool.poetry.scripts]
-voice-command-station = "yova_core.main:run"
+yova = "yova_core.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
