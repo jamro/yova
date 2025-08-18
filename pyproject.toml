@@ -21,6 +21,7 @@ python-dotenv = "^1.0.0"
 soundfile = "^0.13.1"
 pydub = "^0.25.1"
 simpleaudio = "^1.0.4"
+supervisor = "^4.2.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"

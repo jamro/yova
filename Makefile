@@ -1,9 +1,9 @@
-.PHONY: help install install-dev test test-cov run clean lint format check build publish
+.PHONY: help install install-dev test test-cov run clean lint format check build publish supervisor-start supervisor-stop supervisor-restart supervisor-status supervisor-logs supervisor-follow
 
 # Default target
 help: ## Show this help message
 	@echo "Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$1, $$2}'
 
 install: ## Install production dependencies
 	poetry install --only main
@@ -25,6 +25,24 @@ run: ## Run the application
 
 run-with-name: ## Run the application with a custom name (usage: make run-with-name NAME=Alice)
 	poetry run yova $(NAME)
+
+supervisor-start: ## Start supervisor and yova_core process
+	poetry run supervisord -c configs/supervisord.conf
+
+supervisor-stop: ## Stop supervisor and all processes
+	poetry run supervisorctl -c configs/supervisord.conf shutdown
+
+supervisor-restart: ## Restart yova_core process
+	poetry run supervisorctl -c configs/supervisord.conf restart yova_core
+
+supervisor-status: ## Show status of all supervised processes
+	poetry run supervisorctl -c configs/supervisord.conf status
+
+supervisor-logs: ## Show yova_core logs
+	poetry run supervisorctl -c configs/supervisord.conf tail yova_core
+
+supervisor-follow: ## Follow yova_core logs in real-time
+	poetry run supervisorctl -c configs/supervisord.conf tail -f yova_core
 
 clean: ## Clean up generated files
 	find . -type f -name "*.pyc" -delete
