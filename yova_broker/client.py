@@ -5,7 +5,7 @@ Client library for interacting with YOVA Broker
 import asyncio
 import json
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Awaitable
 import zmq
 import zmq.asyncio
 
@@ -111,7 +111,7 @@ class Subscriber:
         
         logger.info(f"Subscribed to topic: {topic}")
         
-    async def listen(self, callback: Callable[[str, Any], None]):
+    async def listen(self, callback: Callable[[str, Any], Awaitable[None]]):
         """Listen for messages and call the callback function"""
         if not self.socket:
             await self.connect()
@@ -128,7 +128,7 @@ class Subscriber:
                     message = await self.socket.recv_string()
                     topic, data = message.split(' ', 1)
                     message_data = json.loads(data)
-                    callback(topic, message_data)
+                    await callback(topic, message_data)
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")
         except asyncio.CancelledError:

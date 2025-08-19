@@ -53,7 +53,7 @@ class BrokerTester:
             await asyncio.sleep(1) 
             
             received_messages = []
-            def message_handler(topic, data):
+            async def message_handler(topic, data):
                 received_messages.append((topic, data))
             
             # Start listening in background
