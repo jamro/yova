@@ -32,6 +32,7 @@ pytest-asyncio = "^0.21.0"
 [tool.poetry.scripts]
 yova = "yova_core.main:run"
 yova-broker = "yova_broker.main:run"
+yova-api-openai = "yova_api_openai.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

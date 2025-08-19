@@ -21,7 +21,7 @@ test-watch: ## Run tests in watch mode
 	poetry run pytest-watch
 
 run: ## Run the application
-	poetry run yova
+	poetry run python scripts/supervisor_dev.py
 
 supervisor-start: ## Start supervisor and yova_core process
 	poetry run supervisord -c configs/supervisord.conf

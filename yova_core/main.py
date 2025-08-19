@@ -32,9 +32,6 @@ async def main():
     # Create speech handler
     speech_handler = SpeechHandler(logger, api_key)
 
-    # Create API connector
-    api_connector = OpenAIConnector(logger)
-    
     # Create broker publisher for voice command events
     voice_command_publisher = Publisher()
     await voice_command_publisher.connect()
@@ -49,30 +46,6 @@ async def main():
     await voice_response_subscriber.connect()
     await voice_response_subscriber.subscribe("voice_response")
     
-    async def onMessageChunk(chunk):
-        # Emit voice response chunk event
-        try:
-            await voice_command_publisher.publish("voice_response", {
-                "type": "chunk",
-                "id": chunk['id'],
-                "text": chunk['text'],
-                "timestamp": asyncio.get_event_loop().time()
-            })
-        except Exception as e:
-            logger.error(f"Failed to publish voice response chunk event: {e}")
-
-    async def onMessageCompleted(full_response):
-        # Emit voice response completed event
-        try:
-            await voice_command_publisher.publish("voice_response", {
-                "type": "completed",
-                "id": full_response['id'],
-                "text": full_response['text'],
-                "timestamp": asyncio.get_event_loop().time()
-            })
-        except Exception as e:
-            logger.error(f"Failed to publish voice response completed event: {e}")
-
     # Handle voice response events from the broker
     async def onVoiceResponse(topic, data):
         logger.info(f"Received voice response event: {data['type']} for message {data['id']}")
@@ -84,11 +57,6 @@ async def main():
             # Handle speech complete
             await speech_handler.process_complete(data['id'], data['text'])
 
-    api_connector.add_event_listener("message_chunk", onMessageChunk)
-    api_connector.add_event_listener("message_completed", onMessageCompleted)
-    await api_connector.configure({"api_key": api_key})
-    await api_connector.connect()
-
     # Handle voice command detection events from the broker
     async def onVoiceCommandDetected(topic, data):
         logger.info(f"Received voice command detection event: {data['transcript']}")
@@ -98,7 +66,6 @@ async def main():
         await transcriber.transcription_provider.stop_listening()
         await transcriber.transcription_provider.close()
         print("PROMPT: ", data['transcript'])
-        await api_connector.send_message(data['transcript'])
 
     # Start listening for voice command events
     voice_command_listener_task = asyncio.create_task(
