@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from yova_core.api.openai_connector import OpenAIConnector
+from yova_api_openai.openai_connector import OpenAIConnector
 
 
 class TestOpenAIConnector:
@@ -12,7 +12,7 @@ class TestOpenAIConnector:
     
     @pytest.fixture
     def mock_openai_client(self):
-        with patch('yova_core.api.openai_connector.AsyncOpenAI') as mock:
+        with patch('yova_api_openai.openai_connector.AsyncOpenAI') as mock:
             yield mock
     
     @pytest.mark.asyncio

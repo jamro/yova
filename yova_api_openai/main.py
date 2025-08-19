@@ -3,7 +3,7 @@ Main entry point for YOVA API OpenAI connector
 """
 
 import asyncio
-from yova_core.api.openai_connector import OpenAIConnector
+from yova_api_openai.openai_connector import OpenAIConnector
 from yova_shared import setup_logging, get_clean_logger
 from yova_shared.broker import Publisher, Subscriber
 import os

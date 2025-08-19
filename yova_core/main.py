@@ -5,7 +5,6 @@ from yova_core.speech2text import RealtimeTranscriber
 from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
 from yova_core.speech2text.audio_recorder import AudioRecorder
 from yova_shared import setup_logging, get_clean_logger
-from yova_core.api import OpenAIConnector
 from yova_core.text2speech.speech_handler import SpeechHandler
 from yova_shared.broker import Publisher, Subscriber  
 
