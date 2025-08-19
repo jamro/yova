@@ -1,7 +1,7 @@
 import uuid
 from .api_connector import ApiConnector
-from yova_core.core.logging_utils import get_clean_logger
-from yova_core.core.event_emitter import EventEmitter
+from yova_shared import get_clean_logger
+from yova_shared import EventEmitter
 from typing import Callable, Any, Awaitable
 
 class EchoConnector(ApiConnector):

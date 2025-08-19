@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
-from yova_core.core.event_emitter import EventEmitter
+from yova_shared import EventEmitter
 
 
 class TestEventEmitter:

@@ -3,10 +3,9 @@ ZeroMQ-based event broker for YOVA system
 """
 
 import asyncio
-import json
 import logging
 import platform
-from typing import Dict, Set, Any
+from typing import Dict, Set
 import zmq
 import zmq.asyncio
 

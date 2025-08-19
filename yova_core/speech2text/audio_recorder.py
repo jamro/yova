@@ -3,8 +3,8 @@
 import pyaudio
 import asyncio
 from typing import Dict, List, Callable, Any, Awaitable, Optional
-from yova_core.core.event_emitter import EventEmitter
-from yova_core.core.logging_utils import get_clean_logger
+from yova_shared import EventEmitter
+from yova_shared import get_clean_logger
 import logging
 
 # Audio recording parameters

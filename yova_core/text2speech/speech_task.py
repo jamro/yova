@@ -3,7 +3,7 @@ import re
 import asyncio
 from time import sleep
 from pydub.playback import _play_with_simpleaudio as play_audio
-from yova_core.core.logging_utils import get_clean_logger
+from yova_shared import get_clean_logger
 from yova_core.text2speech.stream_playback import StreamPlayback
 from yova_core.text2speech.data_playback import DataPlayback
 

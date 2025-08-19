@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Awaitable, Optional
-from yova_core.core.event_source import EventSource
+from yova_shared import EventSource
 
 class TranscriptionProvider(EventSource):
     """Abstract base class for transcription providers"""

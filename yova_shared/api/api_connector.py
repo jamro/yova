@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
-from ..core.event_source import EventSource
+from yova_shared import EventSource
 
 
 class ApiConnector(EventSource):

@@ -6,9 +6,9 @@ import asyncio
 import logging
 import signal
 import sys
-from .broker import YovaBroker
-from .broker_tester import BrokerTester
-from .broker_monitor import BrokerMonitor
+from yova_broker.broker import YovaBroker
+from yova_broker.broker_tester import BrokerTester
+from yova_broker.broker_monitor import BrokerMonitor
 
 
 def signal_handler(signum, frame):

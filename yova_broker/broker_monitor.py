@@ -5,8 +5,8 @@ Broker monitoring functionality for YOVA Broker
 import asyncio
 import logging
 from typing import Optional
-from .broker import YovaBroker
-from .client import Subscriber
+from yova_broker.broker import YovaBroker
+from yova_shared.broker import Subscriber
 
 
 class BrokerMonitor:

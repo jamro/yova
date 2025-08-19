@@ -4,8 +4,8 @@ import asyncio
 from yova_core.speech2text.transcription_provider import TranscriptionProvider
 from yova_core.speech2text.audio_recorder import AudioRecorder
 from typing import Dict, List, Callable, Any, Awaitable
-from yova_core.core.event_emitter import EventEmitter
-from yova_core.core.logging_utils import get_clean_logger
+from yova_shared import EventEmitter
+from yova_shared import get_clean_logger
 import logging
 
 class RealtimeTranscriber:

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from yova_core.core.event_source import EventSource
+from yova_shared import EventSource
 
 class Playback(ABC):
     

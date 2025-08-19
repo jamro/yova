@@ -1,6 +1,5 @@
 from typing import Dict, List, Callable, Any, Awaitable
-import logging
-from .logging_utils import get_clean_logger
+from yova_shared import get_clean_logger
 from .event_source import EventSource
 
 class EventEmitter(EventSource):

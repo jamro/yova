@@ -4,8 +4,8 @@ Broker testing functionality for YOVA Broker
 
 import asyncio
 import logging
-from .broker import YovaBroker
-from .client import Publisher, Subscriber
+from yova_broker.broker import YovaBroker
+from yova_shared.broker import Publisher, Subscriber
 
 
 class BrokerTester:

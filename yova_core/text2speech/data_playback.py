@@ -1,5 +1,5 @@
 from yova_core.text2speech.playback import Playback
-from yova_core.core.logging_utils import get_clean_logger
+from yova_shared import get_clean_logger
 from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio as play_audio
 from io import BytesIO

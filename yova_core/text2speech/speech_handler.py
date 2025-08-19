@@ -3,8 +3,8 @@
 import asyncio
 from openai import AsyncOpenAI
 from yova_core.text2speech.speech_task import SpeechTask
-from yova_core.core.logging_utils import get_clean_logger
-from yova_core.core.event_emitter import EventEmitter
+from yova_shared import get_clean_logger
+from yova_shared import EventEmitter
 from typing import Any, Awaitable, Callable
 
 class SpeechHandler:

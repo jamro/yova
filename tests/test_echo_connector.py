@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from yova_core.api.echo_connector import EchoConnector
+from yova_shared.api.echo_connector import EchoConnector
 
 
 class TestEchoConnector:
@@ -294,7 +294,7 @@ class TestEchoConnector:
         connector = EchoConnector()
         
         # Verify it's an instance of ApiConnector
-        from yova_core.api.api_connector import ApiConnector
+        from yova_shared.api.api_connector import ApiConnector
         assert isinstance(connector, ApiConnector)
 
     def test_event_emitter_integration(self):
