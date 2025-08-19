@@ -25,8 +25,6 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 {
   "transcript": "string",
   "timestamp": "float",
-  "event_type": "voice_command_detected",
-  "source": "transcription_completed"
 }
 ```
 - **Description**: Published when a voice command is detected and transcribed

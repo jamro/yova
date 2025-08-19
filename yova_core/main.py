@@ -78,9 +78,7 @@ async def main():
         try:
             await voice_command_publisher.publish("voice_command_detected", {
                 "transcript": data['transcript'],
-                "timestamp": asyncio.get_event_loop().time(),
-                "event_type": "voice_command_detected",
-                "source": "transcription_completed"
+                "timestamp": asyncio.get_event_loop().time()
             })
             logger.info(f"Published voice command detection event: {data['transcript']}")
         except Exception as e:
