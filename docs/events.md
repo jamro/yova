@@ -16,9 +16,7 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 
 ## ZeroMQ Events
 
-### 1. Voice Command Events
-
-#### `voice_command_detected`
+### `voice_command_detected`
 - **Topic**: `voice_command_detected`
 - **Data Structure**:
 ```json
@@ -31,7 +29,25 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Use Case**: External systems can listen for voice commands to trigger actions, home automation, or logging
 - **Example**: Smart home systems can subscribe to detect when users say "turn on the lights"
 
-#### `broker_test`
+### `voice_response`
+- **Topic**: `voice_response`
+- **Data Structure**:
+```json
+{
+  "type": "chunk|completed",
+  "id": "string",
+  "text": "string",
+  "timestamp": "float"
+}
+```
+- **Description**: Published when voice response chunks are received or when a complete response is finished
+- **Types**:
+  - **`chunk`**: Individual text chunks as they arrive from the AI service
+  - **`completed`**: Final complete response when the AI has finished generating
+- **Use Case**: External systems can monitor AI responses in real-time, implement streaming UI updates, or trigger actions based on response completion
+- **Example**: Web interfaces can subscribe to show real-time typing indicators and update displays as responses stream in
+
+### `broker_test`
 - **Topic**: `broker_test`
 - **Data Structure**:
 ```json

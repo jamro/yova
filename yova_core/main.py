@@ -45,11 +45,45 @@ async def main():
     await voice_command_subscriber.connect()
     await voice_command_subscriber.subscribe("voice_command_detected")
     
+    # Create broker subscriber for voice response events
+    voice_response_subscriber = Subscriber()
+    await voice_response_subscriber.connect()
+    await voice_response_subscriber.subscribe("voice_response")
+    
     async def onMessageChunk(chunk):
-        await speech_handler.process_chunk(chunk['id'], chunk['text'])
+        # Emit voice response chunk event
+        try:
+            await voice_command_publisher.publish("voice_response", {
+                "type": "chunk",
+                "id": chunk['id'],
+                "text": chunk['text'],
+                "timestamp": asyncio.get_event_loop().time()
+            })
+        except Exception as e:
+            logger.error(f"Failed to publish voice response chunk event: {e}")
 
     async def onMessageCompleted(full_response):
-        await speech_handler.process_complete(full_response['id'], full_response['text'])
+        # Emit voice response completed event
+        try:
+            await voice_command_publisher.publish("voice_response", {
+                "type": "completed",
+                "id": full_response['id'],
+                "text": full_response['text'],
+                "timestamp": asyncio.get_event_loop().time()
+            })
+        except Exception as e:
+            logger.error(f"Failed to publish voice response completed event: {e}")
+
+    # Handle voice response events from the broker
+    async def onVoiceResponse(topic, data):
+        logger.info(f"Received voice response event: {data['type']} for message {data['id']}")
+        
+        if data['type'] == "chunk":
+            # Handle speech chunk
+            await speech_handler.process_chunk(data['id'], data['text'])
+        elif data['type'] == "completed":
+            # Handle speech complete
+            await speech_handler.process_complete(data['id'], data['text'])
 
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
@@ -71,6 +105,11 @@ async def main():
     voice_command_listener_task = asyncio.create_task(
         voice_command_subscriber.listen(onVoiceCommandDetected)
     )
+    
+    # Start listening for voice response events
+    voice_response_listener_task = asyncio.create_task(
+        voice_response_subscriber.listen(onVoiceResponse)
+    )
 
     # Create transcriber with the provider and audio recorder
     async def onTranscriptionCompleted(data):
@@ -80,7 +119,6 @@ async def main():
                 "transcript": data['transcript'],
                 "timestamp": asyncio.get_event_loop().time()
             })
-            logger.info(f"Published voice command detection event: {data['transcript']}")
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")
 
@@ -100,7 +138,9 @@ async def main():
     # stop session manager ------------------------------------------------------------
     await speech_handler.stop()
     await voice_command_listener_task
+    await voice_response_listener_task
     await voice_command_subscriber.close()
+    await voice_response_subscriber.close()
     await voice_command_publisher.close()
 
 
