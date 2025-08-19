@@ -9,9 +9,9 @@ from yova_shared import get_clean_logger
 import logging
 
 class RealtimeTranscriber:
-    def __init__(self, transcription_provider: TranscriptionProvider, audio_recorder: AudioRecorder, logger=None, onCompleted=None, max_wait_time=10, wait_interval=0.1):
+    def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None, max_wait_time=10, wait_interval=0.1):
         self.transcription_provider: TranscriptionProvider = transcription_provider
-        self.audio_recorder: AudioRecorder = audio_recorder
+        self.audio_recorder: AudioRecorder = AudioRecorder(logger)
         self.logger = get_clean_logger("realtime_transcriber", logger)
         
         # Configuration parameters for testing
@@ -149,8 +149,13 @@ class RealtimeTranscriber:
             if not session_ready:
                 raise Exception("Session not ready within timeout period")
             
+
+            await self.audio_recorder.start_recording()
+            self.logger.info("Audio recorder started")
+
             self._is_session_ready = True
             self.logger.info("Transcription session ready")
+
             
         except Exception as e:
             self.logger.error(f"Error during real-time transcription initialization: {e}")
@@ -159,6 +164,12 @@ class RealtimeTranscriber:
             self._is_listening = False
             self._is_session_ready = False
             raise
+        
+    async def stop_realtime_transcription(self):
+        """Stop real-time transcription session"""
+        await self.transcription_provider.stop_listening()
+        await self.audio_recorder.stop_recording()
+        await self.transcription_provider.close()
     
     def cleanup(self):
         """Clean up resources"""

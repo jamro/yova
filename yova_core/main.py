@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from yova_core.speech2text import RealtimeTranscriber
 from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
-from yova_core.speech2text.audio_recorder import AudioRecorder
 from yova_shared import setup_logging, get_clean_logger
 from yova_core.text2speech.speech_handler import SpeechHandler
 from yova_shared.broker import Publisher, Subscriber  
@@ -22,14 +21,11 @@ async def main():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
-    # Create transcription provider
-    transcription_provider = OpenAiTranscriptionProvider(api_key, logger)
-    
-    # Create audio recorder
-    audio_recorder = AudioRecorder(logger)
-
     # Create speech handler
     speech_handler = SpeechHandler(logger, api_key)
+
+    # Create transcriber with the provider
+    transcriber = RealtimeTranscriber(OpenAiTranscriptionProvider(api_key, logger), logger=logger)
 
     # Create broker publisher for voice command events
     voice_command_publisher = Publisher()
@@ -61,9 +57,7 @@ async def main():
         logger.info(f"Received voice command detection event: {data['transcript']}")
         
         # Handle transcription completed logic
-        await audio_recorder.stop_recording()
-        await transcriber.transcription_provider.stop_listening()
-        await transcriber.transcription_provider.close()
+        await transcriber.stop_realtime_transcription()
         print("PROMPT: ", data['transcript'])
 
     # Start listening for voice command events
@@ -76,7 +70,6 @@ async def main():
         voice_response_subscriber.listen(onVoiceResponse)
     )
 
-    # Create transcriber with the provider and audio recorder
     async def onTranscriptionCompleted(data):
         # Publish voice command detection event
         try:
@@ -90,13 +83,12 @@ async def main():
     async def onTranscriptionError(data):
         logger.error(f"Transcription error: {data['error']}")
 
-    transcriber = RealtimeTranscriber(transcription_provider, audio_recorder, logger=logger)
+
     transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
     transcriber.add_event_listener("transcription_error", onTranscriptionError)
 
     # start session manager ------------------------------------------------------------
     await transcriber.start_realtime_transcription()
-    await audio_recorder.start_recording()
     await speech_handler.start()
     await asyncio.get_event_loop().run_in_executor(None, input)
 

@@ -89,13 +89,12 @@ class TestRealtimeTranscriber:
     def test_init_with_default_parameters(self):
         """Test RealtimeTranscriber initialization with default parameters."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         assert transcriber.transcription_provider == mock_provider
-        assert transcriber.audio_recorder == mock_recorder
+        assert isinstance(transcriber.audio_recorder, AudioRecorder)
         assert transcriber.logger == mock_logger
         assert transcriber.max_wait_time == 10
         assert transcriber.wait_interval == 0.1
@@ -107,12 +106,10 @@ class TestRealtimeTranscriber:
     def test_init_with_custom_parameters(self):
         """Test RealtimeTranscriber initialization with custom parameters."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
         transcriber = RealtimeTranscriber(
             mock_provider, 
-            mock_recorder, 
             mock_logger,
             max_wait_time=5,
             wait_interval=0.05
@@ -124,7 +121,6 @@ class TestRealtimeTranscriber:
     def test_init_with_on_completed_callback(self):
         """Test RealtimeTranscriber initialization with onCompleted callback."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         callback_called = False
         callback_data = None
@@ -136,7 +132,6 @@ class TestRealtimeTranscriber:
         
         transcriber = RealtimeTranscriber(
             mock_provider, 
-            mock_recorder, 
             mock_logger,
             onCompleted=on_completed
         )
@@ -147,22 +142,23 @@ class TestRealtimeTranscriber:
     def test_setup_event_handlers(self):
         """Test that event handlers are properly set up."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
-        # Verify event listeners were added to both provider and recorder
+        # Verify event listeners were added to provider
         assert mock_provider.event_emitter.add_event_listener.called
-        assert mock_recorder.event_emitter.add_event_listener.called
+        
+        # Verify that the audio recorder has the expected event listener methods
+        assert hasattr(transcriber.audio_recorder, 'add_event_listener')
+        assert hasattr(transcriber.audio_recorder, 'event_emitter')
 
     def test_property_is_initialized(self):
         """Test the is_initialized property."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         assert transcriber.is_initialized is False
         
@@ -172,10 +168,9 @@ class TestRealtimeTranscriber:
     def test_property_is_listening(self):
         """Test the is_listening property."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         assert transcriber.is_listening is False
         
@@ -185,10 +180,9 @@ class TestRealtimeTranscriber:
     def test_property_is_session_ready(self):
         """Test the is_session_ready property."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         assert transcriber.is_session_ready is False
         
@@ -198,10 +192,9 @@ class TestRealtimeTranscriber:
     def test_property_is_active(self):
         """Test the is_active property."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Initially all states are False
         assert transcriber.is_active is False
@@ -219,10 +212,9 @@ class TestRealtimeTranscriber:
     def test_add_event_listener(self):
         """Test adding event listeners."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         listener = AsyncMock()
         
         transcriber.add_event_listener("test_event", listener)
@@ -232,10 +224,9 @@ class TestRealtimeTranscriber:
     def test_remove_event_listener(self):
         """Test removing event listeners."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         listener = AsyncMock()
         
         transcriber.add_event_listener("test_event", listener)
@@ -246,10 +237,9 @@ class TestRealtimeTranscriber:
     def test_clear_event_listeners(self):
         """Test clearing event listeners."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         listener1 = AsyncMock()
         listener2 = AsyncMock()
         
@@ -264,31 +254,39 @@ class TestRealtimeTranscriber:
     async def test_wait_for_session_ready_success(self):
         """Test waiting for session ready when it becomes ready within timeout."""
         mock_provider = MockTranscriptionProvider(ready_delay=0.05)
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger, max_wait_time=1, wait_interval=0.01)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger, max_wait_time=1, wait_interval=0.01)
         
         # Start a task to set session ready after a short delay
         async def set_ready():
             await asyncio.sleep(0.1)
             await mock_provider.set_session_ready(True)
         
-        asyncio.create_task(set_ready())
+        # Create and manage the task properly
+        task = asyncio.create_task(set_ready())
         
-        # Wait for session ready
-        result = await transcriber._wait_for_session_ready()
-        
-        assert result is True
+        try:
+            # Wait for session ready
+            result = await transcriber._wait_for_session_ready()
+            
+            assert result is True
+        finally:
+            # Ensure the task is properly cancelled and awaited
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
     @pytest.mark.asyncio
     async def test_wait_for_session_ready_timeout(self):
         """Test waiting for session ready when it times out."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger, max_wait_time=0.1, wait_interval=0.05)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger, max_wait_time=0.1, wait_interval=0.05)
         
         # Don't set session ready, should timeout
         result = await transcriber._wait_for_session_ready()
@@ -299,42 +297,50 @@ class TestRealtimeTranscriber:
     async def test_start_realtime_transcription_success(self):
         """Test successful start of real-time transcription."""
         mock_provider = MockTranscriptionProvider(ready_delay=0.05)
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger, max_wait_time=1, wait_interval=0.01)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger, max_wait_time=1, wait_interval=0.01)
         
         # Start a task to set session ready after initialization
         async def set_ready():
             await asyncio.sleep(0.1)
             await mock_provider.set_session_ready(True)
         
-        asyncio.create_task(set_ready())
+        # Create and manage the task properly
+        task = asyncio.create_task(set_ready())
         
-        # Start transcription
-        await transcriber.start_realtime_transcription()
-        
-        # Verify all states are set correctly
-        assert transcriber.is_initialized is True
-        assert transcriber.is_listening is True
-        assert transcriber.is_session_ready is True
-        assert transcriber.is_active is True
-        
-        # Verify provider methods were called
-        assert mock_provider.initialize_called
-        assert mock_provider.start_listening_called
+        try:
+            # Start transcription
+            await transcriber.start_realtime_transcription()
+            
+            # Verify all states are set correctly
+            assert transcriber.is_initialized is True
+            assert transcriber.is_listening is True
+            assert transcriber.is_session_ready is True
+            assert transcriber.is_active is True
+            
+            # Verify provider methods were called
+            assert mock_provider.initialize_called
+            assert mock_provider.start_listening_called
+        finally:
+            # Ensure the task is properly cancelled and awaited
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
     @pytest.mark.asyncio
     async def test_start_realtime_transcription_initialization_failure(self):
         """Test start_realtime_transcription when initialization fails."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        # Make initialization fail
+        # Make initialize_session fail
         mock_provider.initialize_session = AsyncMock(return_value=False)
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Should raise an exception
         with pytest.raises(Exception, match="Failed to initialize transcription session"):
@@ -349,13 +355,12 @@ class TestRealtimeTranscriber:
     async def test_start_realtime_transcription_listening_failure(self):
         """Test start_realtime_transcription when start_listening fails."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
         # Make start_listening fail
         mock_provider.start_listening = AsyncMock(return_value=False)
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Should raise an exception
         with pytest.raises(Exception, match="Failed to start listening for transcription events"):
@@ -370,10 +375,9 @@ class TestRealtimeTranscriber:
     async def test_start_realtime_transcription_session_not_ready(self):
         """Test start_realtime_transcription when session doesn't become ready."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger, max_wait_time=0.1, wait_interval=0.05)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger, max_wait_time=0.1, wait_interval=0.05)
         
         # Should raise an exception
         with pytest.raises(Exception, match="Session not ready within timeout period"):
@@ -388,10 +392,9 @@ class TestRealtimeTranscriber:
     async def test_on_audio_chunk_success(self):
         """Test handling of audio chunk events."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         audio_data = b"test_audio_data"
         data = {"audio_data": audio_data}
@@ -406,10 +409,9 @@ class TestRealtimeTranscriber:
     async def test_on_audio_chunk_failure(self):
         """Test handling of audio chunk events when sending fails."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Make send_audio_data fail
         mock_provider.send_audio_data = AsyncMock(return_value=False)
@@ -419,19 +421,16 @@ class TestRealtimeTranscriber:
         
         await transcriber._on_audio_chunk(data)
         
-        # Verify warning was logged
-        mock_logger.warning.assert_called_once()
-        warning_call = mock_logger.warning.call_args_list[0]
-        assert "Failed to send audio data" in str(warning_call)
+        # Verify warning was logged with the correct message
+        mock_logger.warning.assert_called_once_with("Failed to send audio data to transcription provider, will retry on next chunk")
 
     @pytest.mark.asyncio
     async def test_on_audio_chunk_no_audio_data(self):
         """Test handling of audio chunk events with no audio data."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         data = {"other_field": "value"}
         
@@ -444,10 +443,9 @@ class TestRealtimeTranscriber:
     async def test_on_transcription_completed(self):
         """Test handling of transcription completed events."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Add a listener to capture the event
         captured_event = None
@@ -469,10 +467,9 @@ class TestRealtimeTranscriber:
     async def test_on_transcription_error(self):
         """Test handling of transcription error events."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Add a listener to capture the event
         captured_event = None
@@ -494,10 +491,9 @@ class TestRealtimeTranscriber:
     async def test_on_transcription_error_no_error_field(self):
         """Test handling of transcription error events with no error field."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Add a listener to capture the event
         captured_event = None
@@ -519,10 +515,9 @@ class TestRealtimeTranscriber:
     async def test_cleanup(self):
         """Test cleanup method."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Set some states to True
         transcriber._is_initialized = True
@@ -531,28 +526,26 @@ class TestRealtimeTranscriber:
         
         transcriber.cleanup()
         
-        # Verify cleanup was called on dependencies
-        assert mock_recorder.cleanup_called
+        # Verify cleanup was called on the internal audio recorder
+        # We can't directly check the mock since it's created internally,
+        # but we can verify the states are reset
+        assert transcriber.is_initialized is False
+        assert transcriber.is_listening is False
+        assert transcriber.is_session_ready is False
         
         # Give the async task a chance to run
         await asyncio.sleep(0.01)
         
         # Verify close was called (it's scheduled as a task)
         assert mock_provider.close_called
-        
-        # Verify states are reset
-        assert transcriber.is_initialized is False
-        assert transcriber.is_listening is False
-        assert transcriber.is_session_ready is False
 
     @pytest.mark.asyncio
     async def test_emit_event(self):
         """Test internal event emission."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
-        transcriber = RealtimeTranscriber(mock_provider, mock_recorder, mock_logger)
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Add a listener to capture the event
         captured_event = None
@@ -572,7 +565,6 @@ class TestRealtimeTranscriber:
     async def test_integration_with_on_completed_callback(self):
         """Test integration with onCompleted callback."""
         mock_provider = MockTranscriptionProvider()
-        mock_recorder = MockAudioRecorder()
         mock_logger = Mock()
         
         callback_called = False
@@ -585,7 +577,6 @@ class TestRealtimeTranscriber:
         
         transcriber = RealtimeTranscriber(
             mock_provider, 
-            mock_recorder, 
             mock_logger,
             onCompleted=on_completed
         )

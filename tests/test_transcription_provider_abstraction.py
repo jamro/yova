@@ -59,8 +59,8 @@ class TestTranscriptionProviderAbstraction:
     def test_realtime_transcriber_accepts_transcription_provider(self):
         """Test that RealtimeTranscriber can be initialized with any TranscriptionProvider"""
         mock_provider = MockTranscriptionProvider()
-        mock_audio_recorder = Mock()
-        transcriber = RealtimeTranscriber(mock_provider, mock_audio_recorder)
+        mock_logger = Mock()
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         assert transcriber.transcription_provider == mock_provider
         assert isinstance(transcriber.transcription_provider, TranscriptionProvider)
@@ -69,32 +69,36 @@ class TestTranscriptionProviderAbstraction:
     async def test_start_realtime_transcription_uses_abstract_methods(self):
         """Test that start_realtime_transcription uses abstract methods from TranscriptionProvider"""
         mock_provider = MockTranscriptionProvider()
-        mock_audio_recorder = Mock()
-        transcriber = RealtimeTranscriber(mock_provider, mock_audio_recorder)
+        mock_logger = Mock()
+        transcriber = RealtimeTranscriber(mock_provider, mock_logger)
         
         # Mock the audio recorder to avoid actual recording
-        transcriber.audio_recorder = Mock()
-        transcriber.audio_recorder.start_recording = Mock()
-        transcriber.audio_recorder.stop_recording = Mock()
+        transcriber.audio_recorder.start_recording = AsyncMock()
+        transcriber.audio_recorder.stop_recording = AsyncMock()
         
-        # Create a task that completes immediately
-        async def mock_record_and_stream():
-            pass
-        transcriber.audio_recorder.record_and_stream = mock_record_and_stream
+        # Start a task to set session ready after initialization
+        async def set_ready():
+            await asyncio.sleep(0.1)
+            await mock_provider.set_session_ready(True)
         
-        # Mock user input to stop the transcription immediately
-        async def mock_run_in_executor(executor, func):
-            return "mock_input"
-            
-        with pytest.MonkeyPatch().context() as m:
-            m.setattr(asyncio.get_event_loop(), 'run_in_executor', mock_run_in_executor)
-            
+        # Create and manage the task properly
+        task = asyncio.create_task(set_ready())
+        
+        try:
             # Start transcription
             await transcriber.start_realtime_transcription()
-        
-        # Verify that the abstract methods were called
-        assert mock_provider.initialize_called, "initialize_session should have been called"
-        assert mock_provider.start_listening_called, "start_listening should have been called"
+            
+            # Verify that the abstract methods were called
+            assert mock_provider.initialize_called, "initialize_session should have been called"
+            assert mock_provider.start_listening_called, "start_listening should have been called"
+        finally:
+            # Ensure the task is properly cancelled and awaited
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
     
     def test_transcription_provider_interface_compliance(self):
         """Test that OpenAiTranscriptionProvider properly implements TranscriptionProvider interface"""
