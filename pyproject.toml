@@ -23,6 +23,7 @@ pydub = "^0.25.1"
 simpleaudio = "^1.0.4"
 supervisor = "^4.2.5"
 pyzmq = "^25.1.0"
+urwid = "^2.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
@@ -33,6 +34,7 @@ pytest-asyncio = "^0.21.0"
 yova = "yova_core.main:run"
 yova-broker = "yova_broker.main:run"
 yova-api-openai = "yova_api_openai.main:run"
+yova-dev-tools = "yova_dev_tools.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -58,3 +58,18 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 ```
 - **Description**: Test event used to verify broker functionality
 - **Use Case**: Testing and debugging the ZeroMQ broker during development
+
+### `input`
+- **Topic**: `input`
+- **Data Structure**:
+```json
+{
+  "active": "boolean"
+}
+```
+- **Description**: Published when the input status changes in the development tools UI
+- **Data**:
+  - **`active: true`**: Published when input is activated (status becomes active)
+  - **`active: false`**: Published when input is deactivated (status becomes inactive)
+- **Use Case**: External systems can monitor input activation status to coordinate with voice processing, implement input state synchronization, or trigger actions based on input availability
+- **Example**: Voice processing systems can subscribe to pause/resume audio recording based on input activation status

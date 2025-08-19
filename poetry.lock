@@ -1084,6 +1084,44 @@ files = [
 markers = {dev = "python_version < \"3.11\""}
 
 [[package]]
+name = "urwid"
+version = "2.6.16"
+description = "A full-featured console (xterm et al.) user interface library"
+optional = false
+python-versions = ">3.7"
+groups = ["main"]
+files = [
+    {file = "urwid-2.6.16-py3-none-any.whl", hash = "sha256:de14896c6df9eb759ed1fd93e0384a5279e51e0dde8f621e4083f7a8368c0797"},
+    {file = "urwid-2.6.16.tar.gz", hash = "sha256:93ad239939e44c385e64aa00027878b9e5c486d59e855ec8ab5b1e1adcdb32a2"},
+]
+
+[package.dependencies]
+typing-extensions = "*"
+wcwidth = "*"
+
+[package.extras]
+curses = ["windows-curses ; sys_platform == \"win32\""]
+glib = ["PyGObject"]
+lcd = ["pyserial"]
+serial = ["pyserial"]
+tornado = ["tornado (>=5.0)"]
+trio = ["exceptiongroup", "trio (>=0.22.0)"]
+twisted = ["twisted"]
+zmq = ["zmq"]
+
+[[package]]
+name = "wcwidth"
+version = "0.2.13"
+description = "Measures the displayed width of unicode strings in a terminal"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "wcwidth-0.2.13-py2.py3-none-any.whl", hash = "sha256:3da69048e4540d84af32131829ff948f1e022c1c6bdb8d6102117aac784f6859"},
+    {file = "wcwidth-0.2.13.tar.gz", hash = "sha256:72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5"},
+]
+
+[[package]]
 name = "websockets"
 version = "12.0"
 description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
@@ -1168,4 +1206,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8"
-content-hash = "a3889ec939577146c62b3418d89bd851b0075392907f89b9d027ca19cf9a6dfe"
+content-hash = "2e58ca4245f4c74a9784468dddc6a713dfaad71b70adb3a5585384491928af88"
