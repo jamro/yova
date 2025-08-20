@@ -233,6 +233,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         elif self._listening_task:
             self._listening_task.cancel()
             self._listening_task = None
+            await self._emit_event("transcription_completed", '')
         
         if self._listening_task:
             await self._listening_task

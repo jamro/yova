@@ -57,7 +57,7 @@ class OpenAIConnector(ApiConnector):
             raise ConnectionError("Not connected to OpenAI API. Call connect() first.")
         
         if not text or not text.strip():
-            raise ValueError("Message text cannot be empty")
+            return ""
         
         self.logger.debug(f"OpenAIConnector: Sending message: {text}")
         

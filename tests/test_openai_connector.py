@@ -151,19 +151,19 @@ class TestOpenAIConnector:
     
     @pytest.mark.asyncio
     async def test_send_empty_message(self, connector):
-        """Test sending empty message raises error."""
+        """Test sending empty message returns empty string."""
         connector.is_connected = True
         connector.client = MagicMock()  # Mock the client
-        with pytest.raises(ValueError, match="Message text cannot be empty"):
-            await connector.send_message("")
+        result = await connector.send_message("")
+        assert result == ""
     
     @pytest.mark.asyncio
     async def test_send_whitespace_message(self, connector):
-        """Test sending whitespace-only message raises error."""
+        """Test sending whitespace-only message returns empty string."""
         connector.is_connected = True
         connector.client = MagicMock()  # Mock the client
-        with pytest.raises(ValueError, match="Message text cannot be empty"):
-            await connector.send_message("   ")
+        result = await connector.send_message("   ")
+        assert result == ""
     
     @pytest.mark.asyncio
     async def test_send_message_api_error(self, connector, mock_openai_client):
