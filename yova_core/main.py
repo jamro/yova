@@ -22,6 +22,10 @@ async def main():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
+    # Create broker publisher for audio events
+    audio_publisher = Publisher()
+    await audio_publisher.connect()
+
     # Create broker publisher for state events
     state_publisher = Publisher()
     await state_publisher.connect()
@@ -87,8 +91,17 @@ async def main():
     async def onTranscriptionError(data):
         logger.error(f"Transcription error: {data['error']}")
 
+    async def onPlayingAudio(data):
+        await audio_publisher.publish("audio", {
+            "type": "playing",
+            "message_id": data["message_id"],
+            "text": data["text"],
+            "timestamp": asyncio.get_event_loop().time()
+        })
+
     state_machine.transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
     state_machine.transcriber.add_event_listener("transcription_error", onTranscriptionError)
+    state_machine.speech_handler.add_event_listener("playing_audio", onPlayingAudio)
 
     # start session manager ------------------------------------------------------------
     await state_machine.start()

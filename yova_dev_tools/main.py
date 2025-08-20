@@ -11,7 +11,10 @@ async def push_to_talk_changed_callback(event_data):
     try:
         await publisher.connect()
         
-        await publisher.publish("input", {"active": event_data["is_active"]})
+        await publisher.publish("input", {
+            "active": event_data["is_active"],
+            "timestamp": asyncio.get_event_loop().time()
+        })
             
     except Exception as e:
         print(f"Failed to publish to broker: {e}")

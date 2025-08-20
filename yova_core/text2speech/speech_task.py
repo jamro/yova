@@ -3,12 +3,13 @@ import re
 import asyncio
 from time import sleep
 from pydub.playback import _play_with_simpleaudio as play_audio
-from yova_shared import get_clean_logger
+from yova_shared import get_clean_logger, EventEmitter
 from yova_core.text2speech.stream_playback import StreamPlayback
 from yova_core.text2speech.data_playback import DataPlayback
 
-class SpeechTask:
+class SpeechTask(EventEmitter):
     def __init__(self, message_id, api_key, logger):
+        super().__init__(logger)
         self.message_id = message_id
         self.logger = get_clean_logger("speech_task", logger)
         self.api_key = api_key
@@ -72,14 +73,14 @@ class SpeechTask:
                     self.logger.debug(f"Creating streaming response")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
                     await playback.load()
-                    self.audio_queue.append(playback)
+                    self.audio_queue.append({"playback": playback, "text": text})
                 else:
                     self.logger.debug(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
                     await asyncio.sleep(self.wait_time + self.wait_time*len(self.audio_queue))
                     self.logger.debug(f"Creating non-streaming response")
                     playback = DataPlayback(self.client, self.logger, text, self.playback_config)
                     await playback.load()
-                    self.audio_queue.append(playback)
+                    self.audio_queue.append({"playback": playback, "text": text})
                 if not self.audio_task:
                     self.logger.debug(f"Creating audio task")
                     self.audio_task = asyncio.create_task(self.play_audio())
@@ -96,7 +97,9 @@ class SpeechTask:
     async def play_audio(self):
         self.logger.debug(f"Playing audio...")
         while len(self.audio_queue) > 0 and not self.is_stopped:
-            self.current_playback = self.audio_queue.pop(0)
+            item = self.audio_queue.pop(0)
+            await self.emit_event("playing_audio", {"message_id": self.message_id, "text": item["text"]})
+            self.current_playback = item["playback"]
             await self.current_playback.play()
             self.current_playback = None
             

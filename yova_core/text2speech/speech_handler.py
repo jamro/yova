@@ -51,11 +51,18 @@ class SpeechHandler:
         task = self.get_task(message_id)
         if task is None:
             task = SpeechTask(message_id, self.api_key, self.logger)
+            task.add_event_listener("playing_audio", self.on_playing_audio)
             self.tasks.append(task)
 
         await task.append_chunk(text_chunk)
 
-    
+    async def on_playing_audio(self, data):
+        self.logger.info(f"Playing audio:: {data['text']}")
+        await self.event_emitter.emit_event("playing_audio", {
+            "message_id": data["message_id"],
+            "text": data["text"]
+        })
+
     async def process_complete(self, message_id, full_text):
         """
         Process the complete response and speak any remaining text.
@@ -80,7 +87,6 @@ class SpeechHandler:
         """Start the speech handler."""
         self.logger.info("Starting speech handler...")
         self.is_active = True
-
 
     async def stop(self):
         """Stop the speech handler."""

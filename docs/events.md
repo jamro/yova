@@ -64,13 +64,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Data Structure**:
 ```json
 {
-  "active": "boolean"
+  "active": "boolean",
+  "timestamp": "float"
 }
 ```
 - **Description**: Published when the input status changes in the development tools UI
 - **Data**:
   - **`active: true`**: Published when input is activated (status becomes active)
   - **`active: false`**: Published when input is deactivated (status becomes inactive)
+  - **`timestamp`**: Unix timestamp when the input status changed
 - **Use Case**: External systems can monitor input activation status to coordinate with voice processing, implement input state synchronization, or trigger actions based on input availability
 - **Example**: Voice processing systems can subscribe to pause/resume audio recording based on input activation status
 
@@ -95,3 +97,23 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   - **`timestamp`**: Unix timestamp when the state change occurred
 - **Use Case**: External systems can monitor the voice assistant's operational state to coordinate activities, implement state-aware UI updates, or trigger actions based on state transitions
 - **Example**: Dashboard applications can subscribe to show real-time status indicators, or home automation systems can adjust behavior based on whether the assistant is listening, speaking, or idle
+
+### `audio`
+- **Topic**: `audio`
+- **Data Structure**:
+```json
+{
+  "type": "playing",
+  "message_id": "string",
+  "text": "string",
+  "timestamp": "float"
+}
+```
+- **Description**: Published when audio playback begins for a specific message
+- **Data**:
+  - **`type`**: Currently only "playing" - indicates that audio playback has started
+  - **`message_id`**: Unique identifier for the message being played
+  - **`text`**: The text content that is being converted to speech
+  - **`timestamp`**: Unix timestamp when the audio playback started
+- **Use Case**: External systems can monitor when audio playback begins to coordinate with other audio sources, implement audio state synchronization, or trigger actions based on speech output
+- **Example**: Audio mixing systems can subscribe to pause other audio sources when the assistant starts speaking, or logging systems can track which messages are being played back
