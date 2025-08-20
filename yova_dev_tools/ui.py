@@ -11,6 +11,8 @@ class YovaDevToolsUI(EventEmitter):
         self._state = "unknown"  # Add state field
         self._question = ""  # Add question field
         self._answer = ""    # Add answer field
+        self._question_time = 0  # Add question time field (in ms)
+        self._answer_time = 0    # Add answer time field (in ms)
         self.setup_ui()
         
     def setup_ui(self):
@@ -42,6 +44,19 @@ class YovaDevToolsUI(EventEmitter):
         ])
         qa_box = urwid.LineBox(qa_content, title="Q&A")
         
+        # Create response time fields in one row for compact design
+        self.question_time_display = urwid.Text(("time_value", "0 ms"), align="center")
+        self.answer_time_display = urwid.Text(("time_value", "0 ms"), align="center")
+        
+        question_time_box = urwid.LineBox(self.question_time_display, title="Question Time")
+        answer_time_box = urwid.LineBox(self.answer_time_display, title="Answer Time")
+        
+        # Place response times in the same row
+        time_row = urwid.Columns([
+            question_time_box,  # Question time fills available width
+            answer_time_box,    # Answer time fills available width
+        ], dividechars=1)      # Add divider between columns
+        
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
         instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle, T to submit test question"), align="center")
@@ -54,6 +69,8 @@ class YovaDevToolsUI(EventEmitter):
             controls_row,  # State and push-to-talk in same row
             urwid.Text("", align="center"),  # Spacer
             qa_box,
+            urwid.Text("", align="center"),  # Spacer
+            time_row,      # Response times in same row
             urwid.Text("", align="center"),  # Spacer
             urwid.Divider(),
             instructions_text,
@@ -84,6 +101,7 @@ class YovaDevToolsUI(EventEmitter):
             ("question_value", "white", "default"),
             ("answer_value", "white", "default"),
             ("qa_label", "yellow", "default"),
+            ("time_value", "white", "dark green", "bold"),
             ("instructions", "yellow", "default"),
             ("info", "light blue", "default"),
             ("footer", "white", "dark blue"),
@@ -141,6 +159,26 @@ class YovaDevToolsUI(EventEmitter):
         """Set the current answer and update the UI"""
         self._answer = answer
         self.answer_display.set_text(("answer_value", answer))
+    
+    # Question time getter and setter methods
+    def get_question_time(self) -> int:
+        """Get the current question time in milliseconds"""
+        return self._question_time
+    
+    def set_question_time(self, question_time: int):
+        """Set the current question time in milliseconds and update the UI"""
+        self._question_time = question_time
+        self.question_time_display.set_text(("time_value", f"{question_time} ms"))
+    
+    # Answer time getter and setter methods
+    def get_answer_time(self) -> int:
+        """Get the current answer time in milliseconds"""
+        return self._answer_time
+    
+    def set_answer_time(self, answer_time: int):
+        """Set the current answer time in milliseconds and update the UI"""
+        self._answer_time = answer_time
+        self.answer_time_display.set_text(("time_value", f"{answer_time} ms"))
             
     def run(self):
         try:
