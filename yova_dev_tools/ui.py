@@ -10,9 +10,9 @@ class YovaDevToolsUI(EventEmitter):
         self.setup_ui()
         
     def setup_ui(self):
-        # Create the main status button with padding to look like a button
-        self.status_button = urwid.Text(("status_inactive", "  INACTIVE  "), align="center")
-        button_box = urwid.LineBox(self.status_button, title="Status")
+        # Create the main push-to-talk button with padding to look like a button
+        self.push_to_talk_button = urwid.Text(("push_to_talk_inactive", "  INACTIVE  "), align="center")
+        button_box = urwid.LineBox(self.push_to_talk_button, title="Push-to-Talk")
         
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
@@ -45,10 +45,10 @@ class YovaDevToolsUI(EventEmitter):
     def get_palette(self):
         return [
             ("title", "white", "dark blue", "bold"),
-            ("status_label", "white", "default"),
-            ("status_value", "white", "default"),
-            ("status_active", "black", "light green", "bold"),
-            ("status_inactive", "white", "dark red", "bold"),
+            ("push_to_talk_label", "white", "default"),
+            ("push_to_talk_value", "white", "default"),
+            ("push_to_talk_active", "black", "light green", "bold"),
+            ("push_to_talk_inactive", "white", "dark red", "bold"),
             ("instructions", "yellow", "default"),
             ("info", "light blue", "default"),
             ("footer", "white", "dark blue"),
@@ -56,39 +56,39 @@ class YovaDevToolsUI(EventEmitter):
         
     def handle_input(self, key):
         if key == " ":
-            self.toggle_status()
+            self.toggle_push_to_talk()
         elif key in ("q", "Q"):
             raise urwid.ExitMainLoop()
             
-    def toggle_status(self):
+    def toggle_push_to_talk(self):
         self.is_active = not self.is_active
         
         if self.is_active:
-            self.status_button.set_text(("status_active", "  ACTIVE   "))
+            self.push_to_talk_button.set_text(("push_to_talk_active", "  PRESSED  "))
             # Emit active event
             import asyncio
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    loop.create_task(self.emit_event("status_changed", {"status": "active", "is_active": True}))
+                    loop.create_task(self.emit_event("push_to_talk_changed", {"status": "active", "is_active": True}))
                 else:
-                    loop.run_until_complete(self.emit_event("status_changed", {"status": "active", "is_active": True}))
+                    loop.run_until_complete(self.emit_event("push_to_talk_changed", {"status": "active", "is_active": True}))
             except RuntimeError:
                 # No event loop, create a new one
-                asyncio.run(self.emit_event("status_changed", {"status": "active", "is_active": True}))
+                asyncio.run(self.emit_event("push_to_talk_changed", {"status": "active", "is_active": True}))
         else:
-            self.status_button.set_text(("status_inactive", "  INACTIVE  "))
+            self.push_to_talk_button.set_text(("push_to_talk_inactive", "  INACTIVE  "))
             # Emit inactive event
             import asyncio
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    loop.create_task(self.emit_event("status_changed", {"status": "inactive", "is_active": False}))
+                    loop.create_task(self.emit_event("push_to_talk_changed", {"status": "inactive", "is_active": False}))
                 else:
-                    loop.run_until_complete(self.emit_event("status_changed", {"status": "inactive", "is_active": False}))
+                    loop.run_until_complete(self.emit_event("push_to_talk_changed", {"status": "inactive", "is_active": False}))
             except RuntimeError:
                 # No event loop, create a new one
-                asyncio.run(self.emit_event("status_changed", {"status": "inactive", "is_active": False}))
+                asyncio.run(self.emit_event("push_to_talk_changed", {"status": "inactive", "is_active": False}))
             
     def run(self):
         try:
