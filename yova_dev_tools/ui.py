@@ -9,6 +9,8 @@ class YovaDevToolsUI(EventEmitter):
         super().__init__()
         self.is_active = False
         self._state = "unknown"  # Add state field
+        self._question = ""  # Add question field
+        self._answer = ""    # Add answer field
         self.setup_ui()
         
     def setup_ui(self):
@@ -20,6 +22,26 @@ class YovaDevToolsUI(EventEmitter):
         self.state_display = urwid.Text(("state_value", "unknown"), align="center")
         state_box = urwid.LineBox(self.state_display, title="Current State")
         
+        # Place state and push-to-talk in the same row since they are short fields
+        controls_row = urwid.Columns([
+            state_box,      # State fills available width
+            button_box,     # Push-to-talk fills available width
+        ], dividechars=1)  # Add divider between columns
+        
+        # Create question and answer fields (grouped together)
+        self.question_display = urwid.Text(("question_value", ""), align="left")
+        self.answer_display = urwid.Text(("answer_value", ""), align="left")
+        
+        # Group question and answer in a single box
+        qa_content = urwid.Pile([
+            urwid.Text(("qa_label", "Question:"), align="left"),
+            self.question_display,
+            urwid.Divider(),
+            urwid.Text(("qa_label", "Answer:"), align="left"),
+            self.answer_display,
+        ])
+        qa_box = urwid.LineBox(qa_content, title="Q&A")
+        
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
         instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle"), align="center")
@@ -29,9 +51,9 @@ class YovaDevToolsUI(EventEmitter):
             title_text,
             urwid.Divider(),
             urwid.Text("", align="center"),  # Spacer
-            button_box,
+            controls_row,  # State and push-to-talk in same row
             urwid.Text("", align="center"),  # Spacer
-            state_box,
+            qa_box,
             urwid.Text("", align="center"),  # Spacer
             urwid.Divider(),
             instructions_text,
@@ -59,6 +81,9 @@ class YovaDevToolsUI(EventEmitter):
             ("push_to_talk_active", "black", "light green", "bold"),
             ("push_to_talk_inactive", "white", "dark red", "bold"),
             ("state_value", "white", "dark blue", "bold"),
+            ("question_value", "white", "default"),
+            ("answer_value", "white", "default"),
+            ("qa_label", "yellow", "default"),
             ("instructions", "yellow", "default"),
             ("info", "light blue", "default"),
             ("footer", "white", "dark blue"),
@@ -91,6 +116,26 @@ class YovaDevToolsUI(EventEmitter):
         """Set the current state and update the UI"""
         self._state = state
         self.state_display.set_text(("state_value", state))
+    
+    # Question getter and setter methods
+    def get_question(self) -> str:
+        """Get the current question"""
+        return self._question
+    
+    def set_question(self, question: str):
+        """Set the current question and update the UI"""
+        self._question = question
+        self.question_display.set_text(("question_value", question))
+    
+    # Answer getter and setter methods
+    def get_answer(self) -> str:
+        """Get the current answer"""
+        return self._answer
+    
+    def set_answer(self, answer: str):
+        """Set the current answer and update the UI"""
+        self._answer = answer
+        self.answer_display.set_text(("answer_value", answer))
             
     def run(self):
         try:
