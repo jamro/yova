@@ -125,6 +125,15 @@ class RealtimeTranscriber:
         
         return self.transcription_provider.is_session_ready()
     
+    async def start_audio_recording(self):
+        await self.audio_recorder.start_recording()
+        self.logger.info("Audio recorder started")
+
+    async def stop_audio_recording(self):
+        await self.audio_recorder.stop_recording()
+        self.logger.info("Audio recorder stopped")
+        
+
     async def start_realtime_transcription(self):
         """Initialize and start real-time transcription session"""
         try:
@@ -149,10 +158,6 @@ class RealtimeTranscriber:
             if not session_ready:
                 raise Exception("Session not ready within timeout period")
             
-
-            await self.audio_recorder.start_recording()
-            self.logger.info("Audio recorder started")
-
             self._is_session_ready = True
             self.logger.info("Transcription session ready")
 
@@ -168,7 +173,6 @@ class RealtimeTranscriber:
     async def stop_realtime_transcription(self):
         """Stop real-time transcription session"""
         await self.transcription_provider.stop_listening()
-        await self.audio_recorder.stop_recording()
         await self.transcription_provider.close()
     
     def cleanup(self):

@@ -57,7 +57,7 @@ async def main():
         logger.info(f"Received voice command detection event: {data['transcript']}")
         
         # Handle transcription completed logic
-        await transcriber.stop_realtime_transcription()
+        await transcriber.stop_audio_recording()
         print("PROMPT: ", data['transcript'])
 
     # Start listening for voice command events
@@ -89,6 +89,7 @@ async def main():
 
     # start session manager ------------------------------------------------------------
     await transcriber.start_realtime_transcription()
+    await transcriber.start_audio_recording()
     await speech_handler.start()
     await asyncio.get_event_loop().run_in_executor(None, input)
 
@@ -99,6 +100,7 @@ async def main():
     await voice_command_subscriber.close()
     await voice_response_subscriber.close()
     await voice_command_publisher.close()
+    await transcriber.stop_realtime_transcription()
 
 
 def run():
