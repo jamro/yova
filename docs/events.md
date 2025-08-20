@@ -73,3 +73,25 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   - **`active: false`**: Published when input is deactivated (status becomes inactive)
 - **Use Case**: External systems can monitor input activation status to coordinate with voice processing, implement input state synchronization, or trigger actions based on input availability
 - **Example**: Voice processing systems can subscribe to pause/resume audio recording based on input activation status
+
+### `state`
+- **Topic**: `state`
+- **Data Structure**:
+```json
+{
+  "previous_state": "string",
+  "new_state": "string",
+  "timestamp": "float"
+}
+```
+- **Description**: Published when the voice assistant's internal state machine transitions between different states
+- **States**:
+  - **`idle`**: Default state when the system is waiting for input
+  - **`listening`**: Active state when recording and transcribing audio input
+  - **`speaking`**: Active state when generating and playing back AI responses
+- **Data**:
+  - **`previous_state`**: The state the system was in before the transition
+  - **`new_state`**: The state the system transitioned to
+  - **`timestamp`**: Unix timestamp when the state change occurred
+- **Use Case**: External systems can monitor the voice assistant's operational state to coordinate activities, implement state-aware UI updates, or trigger actions based on state transitions
+- **Example**: Dashboard applications can subscribe to show real-time status indicators, or home automation systems can adjust behavior based on whether the assistant is listening, speaking, or idle

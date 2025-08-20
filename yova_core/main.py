@@ -22,6 +22,10 @@ async def main():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
+    # Create broker publisher for state events
+    state_publisher = Publisher()
+    await state_publisher.connect()
+
     # Create state machine
     state_machine = StateMachine(
         logger,
@@ -30,6 +34,11 @@ async def main():
     )
     async def log_state_change(data):
         logger.info(f"State changed: {data['previous_state']} -> {data['new_state']}")
+        await state_publisher.publish("state", {
+            "previous_state": data['previous_state'],
+            "new_state": data['new_state'],
+            "timestamp": asyncio.get_event_loop().time()
+        })
     state_machine.add_event_listener("state_changed", log_state_change)
 
     # Create broker subscriber for input
