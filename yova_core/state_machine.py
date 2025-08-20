@@ -16,6 +16,7 @@ class StateMachine(EventEmitter):
         self.state = State.IDLE
         self.transcriber = transcriber
         self.speech_handler = speech_handler
+        self.speech_handler.add_event_listener("message_completed", self.on_speech_completed)
 
     def get_state(self):
         return self.state
@@ -35,7 +36,17 @@ class StateMachine(EventEmitter):
         self.state = new_state
         await self.emit_event("state_changed", {"previous_state": previous_state.value, "new_state": new_state.value})
 
-    # transition triggers
+    # transition triggers ======================================================
+    async def on_speech_completed(self, data):
+        if self.state == State.IDLE:
+            pass # already idle
+        elif self.state == State.LISTENING:
+            raise Exception("Not implemented")
+        elif self.state == State.SPEAKING:
+            await self._set_state(State.IDLE)
+        else:
+            raise Exception("Invalid state " + self.state)
+
     async def on_response_chunk(self, id, text):
         if self.state == State.IDLE:
             await self._set_state(State.SPEAKING)
@@ -74,9 +85,9 @@ class StateMachine(EventEmitter):
         if self.state == State.IDLE:
             pass # already idle
         elif self.state == State.LISTENING:
+            await self._set_state(State.IDLE)
             await self.transcriber.stop_audio_recording()
             await self.transcriber.stop_realtime_transcription()
-            await self._set_state(State.IDLE)
         elif self.state == State.SPEAKING:
             raise Exception("Not implemented")
         else:

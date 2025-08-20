@@ -76,7 +76,6 @@ class SpeechHandler:
         completion_data = {"id": message_id, "text": full_text}
         await self.event_emitter.emit_event("message_completed", completion_data)
 
-
     async def start(self):
         """Start the speech handler."""
         self.logger.info("Starting speech handler...")

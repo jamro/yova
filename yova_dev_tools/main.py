@@ -3,7 +3,6 @@ from yova_shared.broker.publisher import Publisher
 import asyncio
 from yova_shared.broker.subscriber import Subscriber
 
-
 answer = ''
 
 async def push_to_talk_changed_callback(event_data):
