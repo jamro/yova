@@ -33,7 +33,7 @@ class StateMachine(EventEmitter):
             return
         previous_state = self.state
         self.state = new_state
-        await self.emit_event("state_changed", {"previous_state": previous_state, "new_state": new_state})
+        await self.emit_event("state_changed", {"previous_state": previous_state.value, "new_state": new_state.value})
 
     # transition triggers
     async def on_response_chunk(self, id, text):
