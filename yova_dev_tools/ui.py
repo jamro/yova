@@ -44,7 +44,7 @@ class YovaDevToolsUI(EventEmitter):
         
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
-        instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle"), align="center")
+        instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle, T to submit test question"), align="center")
         
         # Create the main pile widget
         self.main_pile = urwid.Pile([
@@ -92,6 +92,8 @@ class YovaDevToolsUI(EventEmitter):
     def handle_input(self, key):
         if key == " ":
             self.toggle_push_to_talk()
+        elif key == "t":
+            self.ask_test_question()
         elif key in ("q", "Q"):
             raise urwid.ExitMainLoop()
             
@@ -106,6 +108,9 @@ class YovaDevToolsUI(EventEmitter):
             self.push_to_talk_button.set_text(("push_to_talk_inactive", "  INACTIVE  "))
             # Emit inactive event - now simpler with AsyncioEventLoop
             asyncio.create_task(self.emit_event("push_to_talk_changed", {"status": "inactive", "is_active": False}))
+    
+    def ask_test_question(self):
+        asyncio.create_task(self.emit_event("test_question", {}))
     
     # State getter and setter methods
     def get_state(self) -> str:

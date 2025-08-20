@@ -19,6 +19,12 @@ async def push_to_talk_changed_callback(event_data):
     finally:
         await publisher.close()
 
+async def test_question_callback(event_data):
+    """Callback for test question events - publishes to broker"""
+    publisher = Publisher()
+    await publisher.connect()
+    await publisher.publish("voice_command_detected", {"transcript": "Jaka jest stolica Polski?"})
+
 async def subscribe_to_updates(ui):
     global answer
     async def on_state_changed(topic, data):
@@ -60,6 +66,7 @@ def main():
     """Main entry point for the YOVA Development Tools UI."""
     ui = YovaDevToolsUI()
     ui.add_event_listener("push_to_talk_changed", push_to_talk_changed_callback)
+    ui.add_event_listener("test_question", test_question_callback)
     ui.set_state("Unknown")
 
     asyncio.ensure_future(subscribe_to_updates(ui))
