@@ -10,6 +10,7 @@ from yova_shared import EventEmitter
 from yova_shared import get_clean_logger
 from yova_core.speech2text.transcription_provider import TranscriptionProvider
 import logging
+import numpy as np
 
 # WebSocket configuration
 WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
@@ -17,14 +18,10 @@ WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
 # Audio format for API compatibility
 FORMAT = "pcm16"
 EXPLICIT_LANGUAGE = "pl"
+SILENCE_AMPLITUDE_THRESHOLD = 0.15
 
 # Turn detection configuration
-TURN_DETECTION = {
-    "type": "server_vad",
-    "threshold": 0.5,
-    "prefix_padding_ms": 100,
-    "silence_duration_ms": 200,
-}
+TURN_DETECTION = None
 
 def get_session_config():
     """Get the session configuration for transcription"""
@@ -44,6 +41,18 @@ def get_session_config():
         ]
     }
 
+def get_audio_amplitude(audio_chunk):
+    if not audio_chunk:
+        return None
+
+    audio_array = np.frombuffer(audio_chunk, dtype=np.int16)
+    if len(audio_array) == 0:
+        return 0
+    
+    max_amplitude = np.max(np.abs(audio_array))
+    return max_amplitude / 32768.0
+    
+
 class OpenAiTranscriptionProvider(TranscriptionProvider):
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
                  openai_client=None, websocket_connector=None):
@@ -59,6 +68,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         # Use EventEmitter for event handling
         self.event_emitter = EventEmitter(logger)
         self._listening_task = None
+        self._is_buffer_empty = True
         
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """Add an event listener for a specific event type"""
@@ -143,29 +153,39 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
             import traceback
             traceback.print_exc()
             return False
+        
+    async def _send_to_websocket(self, message, content_label="data"):
+        """Send a message to the WebSocket"""
+        try:
+            await self.websocket.send(json.dumps(message))
+            return True
+        except websockets.exceptions.ConnectionClosed as e:
+            self.logger.error(f"WebSocket connection closed while sending {content_label}: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error sending {content_label}: {e}")
+            return False
     
     async def send_audio_data(self, audio_chunk):
         """Send audio data to the WebSocket"""
         if self.is_session_ready():
             # Reset the warning flag since we can now send data
             self._logged_invalid_request = False
-            
+
+            amplitude = get_audio_amplitude(audio_chunk)
+            if amplitude > SILENCE_AMPLITUDE_THRESHOLD and self._is_buffer_empty:
+                self.logger.info("Speech detected")
+                self._is_buffer_empty = False
+
             # Encode audio data as base64
             audio_base64 = base64.b64encode(audio_chunk).decode('utf-8')
             
-            message = {
+            if not await self._send_to_websocket({
                 "type": "input_audio_buffer.append",
                 "audio": audio_base64
-            }
+            }, 'audio_data'):
+                return False
             
-            try:
-                await self.websocket.send(json.dumps(message))
-            except websockets.exceptions.ConnectionClosed as e:
-                self.logger.error(f"WebSocket connection closed while sending audio: {e}")
-                return False
-            except Exception as e:
-                self.logger.error(f"Error sending audio data: {e}")
-                return False
         else:
             if not self._logged_invalid_request:
                 self.logger.warning("Cannot send audio data: WebSocket not connected or session not ready")
@@ -179,16 +199,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         if not self.websocket:
             self.logger.error("Cannot start listening: WebSocket not connected")
             return False
-            
-        try:
-            self._listening_task = asyncio.create_task(self.handle_websocket_messages())
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to start listening: {e}")
-            return False
-    
-    async def stop_listening(self):
-        """Stop listening for transcription events"""
+        
         if self._listening_task:
             self._listening_task.cancel()
             try:
@@ -196,7 +207,38 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
             except asyncio.CancelledError:
                 pass
             self._listening_task = None
+            
+        try:
+            self._is_buffer_empty = True
+            self._listening_task = asyncio.create_task(self.handle_websocket_messages())
+
+            if not await self._send_to_websocket({
+                "type": "input_audio_buffer.clear"
+            }, 'audio_data'):
+                return False
+
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to start listening: {e}")
+            return False
     
+    async def stop_listening(self):
+        """Stop listening for transcription events"""
+
+        if not self._is_buffer_empty:
+            if not await self._send_to_websocket({
+                "type": "input_audio_buffer.commit"
+            }, 'input_audio_buffer.commit'):
+                return False
+        elif self._listening_task:
+            self._listening_task.cancel()
+            self._listening_task = None
+        
+        if self._listening_task:
+            await self._listening_task
+
+        self._listening_task = None
+            
     async def handle_websocket_messages(self):
         """Handle incoming WebSocket messages"""
         if not self.websocket:
@@ -251,6 +293,8 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                     elif message_type == "conversation.item.input_audio_transcription.completed":
                         self.logger.debug(f"Transcription completed: {data['transcript']}")
                         await self._emit_event("transcription_completed", data['transcript'])
+                        self._listening_task = None
+                        return
 
                     else:
                         # Log unknown message types
@@ -274,6 +318,11 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     async def close(self):
         """Close the WebSocket connection"""
         await self.stop_listening()
+
+        if self._listening_task:
+            await self._listening_task
+            self._listening_task = None
+
         if self.websocket:
             await self.websocket.close()
     
