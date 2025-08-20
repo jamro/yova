@@ -1,6 +1,7 @@
 from yova_shared import get_clean_logger
 from enum import Enum
 from yova_shared import EventEmitter
+import asyncio
 
 # define states as enum 
 class State(Enum):
@@ -86,8 +87,8 @@ class StateMachine(EventEmitter):
             pass # already idle
         elif self.state == State.LISTENING:
             await self._set_state(State.IDLE)
-            await self.transcriber.stop_audio_recording()
             await self.transcriber.stop_realtime_transcription()
+            await self.transcriber.stop_audio_recording()
         elif self.state == State.SPEAKING:
             raise Exception("Not implemented")
         else:

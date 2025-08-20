@@ -133,7 +133,6 @@ class RealtimeTranscriber:
         await self.audio_recorder.stop_recording()
         self.logger.info("Audio recorder stopped")
         
-
     async def start_realtime_transcription(self):
         """Initialize and start real-time transcription session"""
         try:
