@@ -202,7 +202,8 @@ class TestSpeechTask:
                     await task.convert_to_speech()
                     
                     assert len(task.audio_queue) == 1
-                    assert task.audio_queue[0] == mock_stream_playback
+                    assert task.audio_queue[0]["playback"] == mock_stream_playback
+                    assert task.audio_queue[0]["text"] == "Test sentence."
                     assert task.audio_task is not None
                     mock_stream_playback.load.assert_called_once()
 
@@ -218,20 +219,28 @@ class TestSpeechTask:
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("First sentence.")
             task.sentence_queue.append("Second sentence.")
-            task.audio_queue.append(Mock())  # Simulate existing audio in queue
+            # Simulate existing audio in queue with proper structure
+            task.audio_queue.append({"playback": Mock(), "text": "Existing text"})
             
             # Mock DataPlayback
             mock_data_playback = AsyncMock()
             with patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback):
                 # Mock the recursive call to prevent infinite recursion
                 with patch.object(task, 'convert_to_speech', wraps=task.convert_to_speech) as mock_recursive:
-                    await task.convert_to_speech()
-                    
-                    # The method should add one item to the queue
-                    assert len(task.audio_queue) == 2
-                    assert task.audio_queue[1] == mock_data_playback
-                    # The load method is called twice due to recursive calls, so we check it was called at least once
-                    assert mock_data_playback.load.call_count >= 1
+                    # Prevent audio task from running by mocking it
+                    with patch.object(task, 'play_audio'):
+                        await task.convert_to_speech()
+                        
+                        # The method should process both sentences and add them to the queue
+                        # The existing item gets processed by play_audio, so we expect 2 new items
+                        assert len(task.audio_queue) == 3
+                        assert task.audio_queue[0]["text"] == "Existing text"  # Existing item
+                        assert task.audio_queue[1]["playback"] == mock_data_playback
+                        assert task.audio_queue[1]["text"] == "First sentence."
+                        assert task.audio_queue[2]["playback"] == mock_data_playback
+                        assert task.audio_queue[2]["text"] == "Second sentence."
+                        # The load method is called for each sentence
+                        assert mock_data_playback.load.call_count == 2
 
     @pytest.mark.asyncio
     async def test_convert_to_speech_exception_handling(self):
@@ -296,9 +305,9 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
-            # Mock playback object
+            # Mock playback object with proper structure
             mock_playback = AsyncMock()
-            task.audio_queue.append(mock_playback)
+            task.audio_queue.append({"playback": mock_playback, "text": "Test text"})
             
             # Mock the recursive call to prevent infinite recursion
             with patch.object(task, 'play_audio', wraps=task.play_audio) as mock_recursive:
@@ -319,10 +328,13 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             
-            # Mock playback objects
+            # Mock playback objects with proper structure
             mock_playback1 = AsyncMock()
             mock_playback2 = AsyncMock()
-            task.audio_queue.extend([mock_playback1, mock_playback2])
+            task.audio_queue.extend([
+                {"playback": mock_playback1, "text": "Text 1"},
+                {"playback": mock_playback2, "text": "Text 2"}
+            ])
             
             # Mock the recursive call to prevent infinite recursion
             with patch.object(task, 'play_audio', wraps=task.play_audio) as mock_recursive:
@@ -597,7 +609,7 @@ class TestSpeechTask:
             task = SpeechTask(message_id, api_key, mock_logger)
             
             mock_playback = AsyncMock()
-            task.audio_queue.append(mock_playback)
+            task.audio_queue.append({"playback": mock_playback, "text": "Test text"})
             
             # Mock the recursive call to prevent infinite recursion
             with patch.object(task, 'play_audio', wraps=task.play_audio) as mock_recursive:
