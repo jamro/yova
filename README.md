@@ -32,6 +32,13 @@ Connect to Raspberry Pi via SSH:
 ssh pi@voice.local
 ```
 
+Install dependencies:
+```bash
+sudo apt update
+sudo apt install -y build-essential python3-dev libasound2-dev libportaudio2 portaudio19-dev libportaudiocpp0 libjack-jackd2-dev
+```
+
+
 Install ReSpeaker HAT drivers:
 ```bash
 curl https://raw.githubusercontent.com/Seeed-Studio/seeed-linux-dtoverlays/refs/heads/master/overlays/rpi/respeaker-2mic-v2_0-overlay.dts -o respeaker-2mic-v2_0-overlay.dts
@@ -73,4 +80,19 @@ pi@voice:~ $ arecord -l
 card 2: seeed2micvoicec [seeed2micvoicec], device 0: 1f000a4000.i2s-tlv320aic3x-hifi tlv320aic3x-hifi-0 [1f000a4000.i2s-tlv320aic3x-hifi tlv320aic3x-hifi-0]
   Subdevices: 1/1
   Subdevice #0: subdevice #0
+```
+
+Adjust the volume by running `alsamixer` and setting the volume up to 100%. Press F6 to enter the menu and select output device `seeed2micvoiceec` and set the volume to 100%. Press F10 to exit the menu. Run `sudo alsactl store` to save the volume settings.
+
+## Software
+
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+echo 'export PATH="/home/pi/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+source ~/.bashrc
+git clone https://github.com/jamro/yova.git
+cd yova
+poetry config keyring.enabled false
+make install
+echo "OPENAI_API_KEY=..." > .env
 ```
