@@ -2,6 +2,9 @@
 
 import pyaudio
 import asyncio
+import os
+import wave
+from datetime import datetime
 from typing import Dict, List, Callable, Any, Awaitable, Optional
 from yova_shared import EventEmitter
 from yova_shared import get_clean_logger
@@ -28,9 +31,11 @@ class AudioRecorder:
         self.logger = get_clean_logger("audio_recorder", logger)
         self.is_recording = False
         self.stream = None
-        # Use EventEmitter for event handling
         self.event_emitter = EventEmitter(logger)
         self.recording_task = None
+        self.audio_logs_path = None
+        self.recording_start_time = None
+        self.audio_chunks = []
         
     def _create_default_stream(self, pyaudio_instance, **kwargs):
         """Default factory method for creating audio streams"""
@@ -68,6 +73,13 @@ class AudioRecorder:
         if self.recording_task:
             self.logger.warning("Recording already started")
             return
+        
+        # Initialize audio logging if enabled
+        if self.audio_logs_path:
+            self.recording_start_time = datetime.now()
+            self.audio_chunks = []
+            self.logger.info(f"Audio logging enabled. Will save to: {self.audio_logs_path}")
+        
         self.recording_task = asyncio.create_task(self._record_and_stream())
     
     async def stop_recording(self):
@@ -83,6 +95,41 @@ class AudioRecorder:
             pass
         self.recording_task = None
         
+        # Save audio file if logging is enabled and recording was longer than 0.5 seconds
+        if self.audio_logs_path and self.audio_chunks:
+            recording_duration = (datetime.now() - self.recording_start_time).total_seconds()
+            if recording_duration > 0.5:
+                await self._save_audio_file()
+            else:
+                self.logger.info(f"Recording too short ({recording_duration:.2f}s), not saving audio file")
+                self.audio_chunks.clear()
+    
+    async def _save_audio_file(self):
+        """Save the recorded audio to a file"""
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(self.audio_logs_path, exist_ok=True)
+            
+            # Generate filename based on recording start time
+            timestamp_str = self.recording_start_time.strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Remove microseconds, keep milliseconds
+            filename = f"audio_{timestamp_str}.wav"
+            filepath = os.path.join(self.audio_logs_path, filename)
+            
+            # Save as WAV file
+            with wave.open(filepath, 'wb') as wav_file:
+                wav_file.setnchannels(CHANNELS)
+                wav_file.setsampwidth(self._pyaudio_instance.get_sample_size(pyaudio.paInt16))
+                wav_file.setframerate(RATE)
+                wav_file.writeframes(b''.join(self.audio_chunks))
+            
+            self.logger.info(f"Audio saved to: {filepath}")
+            
+            # Clear chunks to free memory
+            self.audio_chunks.clear()
+            
+        except Exception as e:
+            self.logger.error(f"Error saving audio file: {e}")
+        
     async def _record_and_stream(self):
         """Record audio and emit chunk events"""
         try:
@@ -93,6 +140,11 @@ class AudioRecorder:
             while self.is_recording:
                 try:
                     audio_chunk = self.stream.read(CHUNK, exception_on_overflow=False)
+                    
+                    # Store audio chunk for logging if enabled
+                    if self.audio_logs_path:
+                        self.audio_chunks.append(audio_chunk)
+                    
                     # Emit audio chunk event instead of directly calling websocket handler
                     await self._emit_event("audio_chunk", {
                         "audio_data": audio_chunk,
