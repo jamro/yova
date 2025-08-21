@@ -194,32 +194,34 @@ class TestAudioRecorder:
         mock_pyaudio_instance = Mock()
         mock_stream = Mock()
         mock_stream_factory = Mock(return_value=mock_stream)
-        
+    
         # Mock audio data
         mock_audio_data = b"fake_audio_data"
         mock_stream.read.return_value = mock_audio_data
-        
+    
         recorder = AudioRecorder(
             logger=mock_logger,
             pyaudio_instance=mock_pyaudio_instance,
             stream_factory=mock_stream_factory
         )
         
-        # Add a listener to capture events
-        captured_events = []
-        async def test_listener(data):
-            captured_events.append(data)
+        # Patch the _play_beep method to avoid audio file loading issues in tests
+        with patch.object(recorder, '_play_beep', new_callable=AsyncMock) as mock_beep:
+            # Add a listener to capture events
+            captured_events = []
+            async def test_listener(data):
+                captured_events.append(data)
         
-        recorder.add_event_listener("audio_chunk", test_listener)
-        await recorder.start_recording()
-
-        # Let background task run briefly
-        await asyncio.sleep(0.1)
-        await recorder.stop_recording()
+            recorder.add_event_listener("audio_chunk", test_listener)
+            await recorder.start_recording()
         
-        # Verify stream was created and used
-        mock_stream_factory.assert_called_once_with(mock_pyaudio_instance)
-        assert mock_stream.read.called
+            # Let background task run briefly - need enough time for the recording loop
+            await asyncio.sleep(0.2)
+            await recorder.stop_recording()
+            
+            # Verify stream was created and used
+            mock_stream_factory.assert_called_once_with(mock_pyaudio_instance)
+            assert mock_stream.read.called
         
         # Verify events were emitted
         assert len(captured_events) > 0
@@ -246,16 +248,18 @@ class TestAudioRecorder:
             stream_factory=mock_stream_factory
         )
         
-        await recorder.start_recording()
+        # Patch the _play_beep method to avoid audio file loading issues in tests
+        with patch.object(recorder, '_play_beep', new_callable=AsyncMock) as mock_beep:
+            await recorder.start_recording()
 
-        # Let background task run - it should log the error and exit the loop gracefully
-        await asyncio.sleep(0.1)
-        await recorder.stop_recording()
-        
-        # Verify error was logged
-        mock_logger.error.assert_called()
-        error_call = mock_logger.error.call_args_list[0]
-        assert "Error during audio streaming" in str(error_call)
+            # Let background task run - it should log the error and exit the loop gracefully
+            await asyncio.sleep(0.2)
+            await recorder.stop_recording()
+            
+            # Verify error was logged
+            mock_logger.error.assert_called()
+            error_call = mock_logger.error.call_args_list[0]
+            assert "Error during audio streaming" in str(error_call)
 
     @pytest.mark.asyncio
     async def test_record_and_stream_recording_exception(self):
@@ -271,16 +275,18 @@ class TestAudioRecorder:
             stream_factory=mock_stream_factory
         )
         
-        await recorder.start_recording()
+        # Patch the _play_beep method to avoid audio file loading issues in tests
+        with patch.object(recorder, '_play_beep', new_callable=AsyncMock) as mock_beep:
+            await recorder.start_recording()
 
-        # Give the background task a moment to hit the exception and log it
-        await asyncio.sleep(0.1)
-        await recorder.stop_recording()
-        
-        # Verify error was logged
-        mock_logger.error.assert_called()
-        error_call = mock_logger.error.call_args_list[0]
-        assert "Error during recording" in str(error_call)
+            # Give the background task a moment to hit the exception and log it
+            await asyncio.sleep(0.2)
+            await recorder.stop_recording()
+            
+            # Verify error was logged
+            mock_logger.error.assert_called()
+            error_call = mock_logger.error.call_args_list[0]
+            assert "Error during recording" in str(error_call)
 
     def test_backward_compatibility(self):
         """Test that the new constructor maintains backward compatibility."""

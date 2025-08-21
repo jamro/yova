@@ -9,6 +9,8 @@ from typing import Dict, List, Callable, Any, Awaitable, Optional
 from yova_shared import EventEmitter
 from yova_shared import get_clean_logger
 import logging
+from pydub import AudioSegment
+from pydub.playback import _play_with_simpleaudio as play_audio
 
 # Audio recording parameters
 CHUNK = 512  # Smaller chunk size for more frequent updates
@@ -36,6 +38,7 @@ class AudioRecorder:
         self.audio_logs_path = None
         self.recording_start_time = None
         self.audio_chunks = []
+        self.prerecord_beep = None
         
     def _create_default_stream(self, pyaudio_instance, **kwargs):
         """Default factory method for creating audio streams"""
@@ -130,12 +133,33 @@ class AudioRecorder:
         except Exception as e:
             self.logger.error(f"Error saving audio file: {e}")
         
+    async def _play_beep(self):
+        """Play the beep11.wav sound file"""
+        if not self.prerecord_beep:
+            return
+        try:
+            # Get the path to the beep11.wav file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            beep_path = os.path.join(current_dir, "..", "assets", self.prerecord_beep)
+            
+            # Load and play the audio file
+            audio = AudioSegment.from_wav(beep_path)
+            playback = await asyncio.to_thread(play_audio, audio)
+            await asyncio.to_thread(playback.wait_done)
+            
+            self.logger.debug("Beep sound played successfully")
+        except Exception as e:
+            self.logger.warning(f"Could not play beep sound: {e}")
+
     async def _record_and_stream(self):
         """Record audio and emit chunk events"""
         try:
             self.stream = self._create_stream()
             
             self.logger.info("Recording and streaming...")
+
+            # Play beep sound at the beginning of recording
+            await self._play_beep()
             
             while self.is_recording:
                 try:

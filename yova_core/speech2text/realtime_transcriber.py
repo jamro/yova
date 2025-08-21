@@ -12,6 +12,7 @@ class RealtimeTranscriber:
     def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None, max_wait_time=10, wait_interval=0.1):
         self.transcription_provider: TranscriptionProvider = transcription_provider
         self.audio_recorder: AudioRecorder = AudioRecorder(logger)
+        self.audio_recorder.prerecord_beep = "beep8.wav"
         self.logger = get_clean_logger("realtime_transcriber", logger)
         
         # Configuration parameters for testing
