@@ -35,6 +35,7 @@ yova = "yova_core.main:run"
 yova-broker = "yova_broker.main:run"
 yova-api-openai = "yova_api_openai.main:run"
 yova-client-dev-tools = "yova_client_dev_tools.main:run"
+yova-client-respeaker-hat = "yova_client_respeaker_hat.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

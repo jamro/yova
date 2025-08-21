@@ -35,7 +35,8 @@ ssh pi@voice.local
 Install dependencies:
 ```bash
 sudo apt update
-sudo apt install -y build-essential python3-dev libasound2-dev libportaudio2 portaudio19-dev libportaudiocpp0 libjack-jackd2-dev
+sudo apt install -y build-essential python3-dev libasound2-dev libportaudio2 portaudio19-dev libportaudiocpp0 libjack-jackd2-dev python3-rpi-lgpio
+sudo usermod -aG gpio pi
 ```
 
 

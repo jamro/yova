@@ -47,6 +47,11 @@ supervisor-follow: ## Follow yova_core logs in real-time
 supervisor-dev: ## Start development supervisor with auto-restart and log streaming
 	poetry run python scripts/supervisor_dev.py
 
+dev-pi-sync: ## Sync dev changes to Raspberry Pi
+	fswatch -o ./ | while read f; do \
+		rsync -az --delete ./ pi@voice.local:/home/pi/yova/; \
+	done
+
 clean: ## Clean up generated files
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete
