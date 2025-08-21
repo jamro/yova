@@ -92,7 +92,8 @@ Adjust the volume by running `alsamixer`
 Press Ctrl+C to exit the menu. Run `sudo alsactl store` to save the volume settings.
 
 Manualy test the audio output and input. If you are not satisfied with the volume, you can adjust it again.
-```
+
+```bash
 arecord -D plughw:2,0 -f S16_LE -c1 -r 16000 -d 5 test.wav
 aplay -D plughw:2,0 test.wav
 ```
@@ -113,4 +114,15 @@ cd yova
 poetry config keyring.enabled false
 make install
 echo "OPENAI_API_KEY=..." > .env
+
+sudo cp scripts/supervisord.service /etc/systemd/system/supervisord.service
+sudo systemctl daemon-reload
+sudo systemctl enable supervisord.service
+sudo systemctl start supervisord.service
+
+sudo systemctl status supervisord.service
+sudo journalctl -u supervisord.service -f
+
+
 ```
+
