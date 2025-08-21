@@ -34,7 +34,7 @@ pytest-asyncio = "^0.21.0"
 yova = "yova_core.main:run"
 yova-broker = "yova_broker.main:run"
 yova-api-openai = "yova_api_openai.main:run"
-yova-dev-tools = "yova_dev_tools.main:run"
+yova-client-dev-tools = "yova_client_dev_tools.main:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,4 +1,4 @@
-from yova_dev_tools.ui import YovaDevToolsUI
+from yova_client_dev_tools.ui import YovaDevToolsUI
 from yova_shared.broker.publisher import Publisher
 import asyncio
 from yova_shared.broker.subscriber import Subscriber
