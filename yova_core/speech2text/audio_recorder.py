@@ -140,7 +140,7 @@ class AudioRecorder:
         try:
             # Get the path to the beep11.wav file
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            beep_path = os.path.join(current_dir, "..", "assets", self.prerecord_beep)
+            beep_path = os.path.join(current_dir, "..", "..", "yova_shared", "assets", self.prerecord_beep)
             
             # Load and play the audio file
             audio = AudioSegment.from_wav(beep_path)
