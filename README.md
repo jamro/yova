@@ -82,7 +82,24 @@ card 2: seeed2micvoicec [seeed2micvoicec], device 0: 1f000a4000.i2s-tlv320aic3x-
   Subdevice #0: subdevice #0
 ```
 
-Adjust the volume by running `alsamixer` and setting the volume up to 100%. Press F6 to enter the menu and select output device `seeed2micvoiceec` and set the volume to 100%. Press F10 to exit the menu. Run `sudo alsactl store` to save the volume settings.
+Adjust the volume by running `alsamixer`
+- Adjust master playback volume (recommended to set to 80%)
+- Press F4 and adjust capture volume (recommended to set to 80%)
+- Press F6 to enter the menu and select output device `seeed2micvoiceec`. 
+- Next press F4 to go to capure settings. Set everything to zero except PGA which sould be on (recommended to set to 25%)
+
+Press Ctrl+C to exit the menu. Run `sudo alsactl store` to save the volume settings.
+
+Manualy test the audio output and input. If you are not satisfied with the volume, you can adjust it again.
+```
+arecord -D plughw:2,0 -f S16_LE -c1 -r 16000 -d 5 test.wav
+aplay -D plughw:2,0 test.wav
+```
+
+If you want to test the audio on your local machine copy the test.wav file:
+```bash
+scp pi@voice.local:/home/pi/test.wav ~/
+```
 
 ## Software
 
