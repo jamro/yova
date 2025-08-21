@@ -53,7 +53,8 @@ class StateMachine(EventEmitter):
             await self._set_state(State.SPEAKING)
             await self.speech_handler.process_chunk(id, text)
         elif self.state == State.LISTENING:
-            raise Exception("Not implemented")
+            await self.speech_handler.terminate_all_tasks()
+            self.speech_handler.ignore_message(id)
         elif self.state == State.SPEAKING:
             await self.speech_handler.process_chunk(id, text)
         else:
@@ -64,7 +65,8 @@ class StateMachine(EventEmitter):
             await self._set_state(State.SPEAKING)
             await self.speech_handler.process_complete(id, text)
         elif self.state == State.LISTENING:
-            raise Exception("Not implemented")
+            await self.speech_handler.terminate_all_tasks()
+            self.speech_handler.ignore_message(id)
         elif self.state == State.SPEAKING:
             await self.speech_handler.process_complete(id, text)
         else:
@@ -78,7 +80,10 @@ class StateMachine(EventEmitter):
         elif self.state == State.LISTENING:
             pass # already listening
         elif self.state == State.SPEAKING:
-            raise Exception("Not implemented")
+            await self.speech_handler.terminate_all_tasks()
+            await self._set_state(State.LISTENING)
+            await self.transcriber.start_realtime_transcription()
+            await self.transcriber.start_audio_recording()
         else:
             raise Exception("Invalid state " + self.state)
     
@@ -90,6 +95,8 @@ class StateMachine(EventEmitter):
             await self.transcriber.stop_realtime_transcription()
             await self.transcriber.stop_audio_recording()
         elif self.state == State.SPEAKING:
-            raise Exception("Not implemented")
+            await self.speech_handler.terminate_all_tasks()
+            await self.transcriber.stop_realtime_transcription()
+            await self.transcriber.stop_audio_recording()
         else:
             raise Exception("Invalid state " + self.state)

@@ -20,7 +20,14 @@ class SpeechHandler:
         self.api_key = api_key
         self.tasks = []
         self.is_active = False
+        self.ignored_messages = []
         self.event_emitter = EventEmitter(logger=logger)
+
+    def ignore_message(self, message_id):
+        if message_id in self.ignored_messages:
+            return
+        self.ignored_messages.append(message_id)
+        self.logger.info(f"Ignoring message: {message_id}")
 
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         self.event_emitter.add_event_listener(event_type, listener)
@@ -45,7 +52,7 @@ class SpeechHandler:
             message_id: The message id of the chunk
             text_chunk: The text chunk to process
         """
-        if not self.is_active:
+        if not self.is_active or message_id in self.ignored_messages:
             return
         
         task = self.get_task(message_id)
@@ -62,6 +69,12 @@ class SpeechHandler:
             "message_id": data["message_id"],
             "text": data["text"]
         })
+
+    async def terminate_all_tasks(self):
+        for task in self.tasks:
+            self.ignore_message(task.message_id)
+            await task.stop()
+        self.tasks = []
 
     async def process_complete(self, message_id, full_text):
         """
