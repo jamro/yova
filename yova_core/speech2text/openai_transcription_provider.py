@@ -19,6 +19,9 @@ WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
 FORMAT = "pcm16"
 EXPLICIT_LANGUAGE = "pl"
 SILENCE_AMPLITUDE_THRESHOLD = 0.15
+SAMPLE_RATE = 16000
+AUDIO_CHANNELS = 1
+MIN_SPEECH_LENGTH = 0.5
 
 # Turn detection configuration
 TURN_DETECTION = None
@@ -51,7 +54,17 @@ def get_audio_amplitude(audio_chunk):
     
     max_amplitude = np.max(np.abs(audio_array))
     return max_amplitude / 32768.0
-    
+
+def get_audio_len(audio_chunk): # returns length in seconds
+    if not audio_chunk:
+        return 0
+
+    audio_array = np.frombuffer(audio_chunk, dtype=np.int16)
+    if len(audio_array) == 0:
+        return 0
+
+    seconds = len(audio_array) / (SAMPLE_RATE * AUDIO_CHANNELS)
+    return seconds
 
 class OpenAiTranscriptionProvider(TranscriptionProvider):
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
@@ -69,6 +82,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         self.event_emitter = EventEmitter(logger)
         self._listening_task = None
         self._is_buffer_empty = True
+        self._buffer_length = 0
         
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """Add an event listener for a specific event type"""
@@ -177,6 +191,9 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                 self.logger.info("Speech detected")
                 self._is_buffer_empty = False
 
+            self._buffer_length += get_audio_len(audio_chunk)
+            self.logger.info(f"Buffer length: {self._buffer_length}")
+
             # Encode audio data as base64
             audio_base64 = base64.b64encode(audio_chunk).decode('utf-8')
             
@@ -210,6 +227,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
             
         try:
             self._is_buffer_empty = True
+            self._buffer_length = 0
             self._listening_task = asyncio.create_task(self.handle_websocket_messages())
 
             if not await self._send_to_websocket({
@@ -225,7 +243,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     async def stop_listening(self):
         """Stop listening for transcription events"""
 
-        if not self._is_buffer_empty:
+        if not self._is_buffer_empty and self._buffer_length >= MIN_SPEECH_LENGTH:
             if not await self._send_to_websocket({
                 "type": "input_audio_buffer.commit"
             }, 'input_audio_buffer.commit'):
