@@ -103,6 +103,34 @@ If you want to test the audio on your local machine copy the test.wav file:
 scp pi@voice.local:/home/pi/test.wav ~/
 ```
 
+
+Tell PortAudio exactly which ALSA device to use 
+
+```bash
+aplay -l
+```
+
+Example output: `card 2: seeed2micvoicec [seeed2micvoicec], device 0: ...`
+Here:
+	-	Card = 2 (seeed2micvoicec)
+	-	Device = 0
+
+Create `/etc/asound.conf` file:
+
+```
+pcm.!default {
+    type plug
+    slave.pcm "hw:2,0"     # adjust to your card,device
+    slave.rate 16000       
+}
+ctl.!default {
+    type hw
+    card 2                 # same card number as above
+}
+```
+
+Reboot the Raspberry Pi `sudo reboot`
+
 ## Software
 
 ```bash
@@ -115,14 +143,11 @@ poetry config keyring.enabled false
 make install
 echo "OPENAI_API_KEY=..." > .env
 
-sudo cp scripts/supervisord.service /etc/systemd/system/supervisord.service
+sudo cp /home/pi/yova/scripts/supervisord.service /etc/systemd/system/supervisord.service
 sudo systemctl daemon-reload
 sudo systemctl enable supervisord.service
 sudo systemctl start supervisord.service
 
 sudo systemctl status supervisord.service
 sudo journalctl -u supervisord.service -f
-
-
 ```
-
