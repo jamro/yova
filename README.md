@@ -151,7 +151,12 @@ cd yova
 poetry config keyring.enabled false
 make install
 echo "OPENAI_API_KEY=..." > .env
+cp yova.config.default.json yova.config.json
+```
 
+Edit `yova.config.json` and add your OpenAI API key.
+
+```bash
 sudo cp /home/pi/yova/scripts/supervisord.service /etc/systemd/system/supervisord.service
 sudo systemctl daemon-reload
 sudo systemctl enable supervisord.service

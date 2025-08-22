@@ -1,22 +1,20 @@
 import asyncio
 import os
-from dotenv import load_dotenv
 from yova_core.speech2text import RealtimeTranscriber
 from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
-from yova_shared import setup_logging, get_clean_logger
+from yova_shared import setup_logging, get_clean_logger, get_config
 from yova_core.text2speech.speech_handler import SpeechHandler
 from yova_shared.broker import Publisher, Subscriber  
 from yova_core.state_machine import StateMachine
 
-load_dotenv()
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_config("open_ai.api_key")
 
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY is not set")
+    if not api_key or len(api_key) < 20:
+        raise ValueError("open_ai.api_key is not set")
     
     # Set up clean logging
     root_logger = setup_logging(level="INFO")

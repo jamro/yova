@@ -1,0 +1,11 @@
+{
+  "open_ai": {
+    "api_key": "sk-proj-..."
+  },
+  "text2speech": {
+    "model": "gpt-4o-mini-tts",
+    "voice": "coral",
+    "speed": 1.25,
+    "instructions": "Speak in a friendly, engaging tone. Always answer in English."
+  }
+}
