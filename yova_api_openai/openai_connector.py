@@ -6,20 +6,28 @@ from openai import AsyncOpenAI
 from yova_shared.api import ApiConnector
 from yova_shared import get_clean_logger
 from yova_shared import EventEmitter
+from .conversation_history import ConversationHistory
 
 
 class OpenAIConnector(ApiConnector):
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, max_history_messages: int = 50, max_history_tokens: int = 10000):
         super().__init__()
         self.logger = get_clean_logger("openai_connector", logger)
         self.event_emitter = EventEmitter(logger=logger)
         self.client: Optional[AsyncOpenAI] = None
         self.api_key: Optional[str] = None
         self.model: str = "gpt-4o"
-        self.system_prompt: str = "You are a helpful AI assistant."
+        self.system_prompt: str = "You are a helpful AI assistant. Always begin your response with a natural, human-like short phrase of 1-3 words (e.g., 'Sounds good,' 'Got it,' 'Absolutely', 'No problem'). After that, continue with your full answer in a helpful and conversational tone."
         self.max_tokens: int = 1000
-        self.temperature: float = 0.7
+        self.temperature: float = 0.8
         self.is_connected: bool = False
+        
+        # Initialize conversation history
+        self.conversation_history = ConversationHistory(
+            max_messages=max_history_messages,
+            max_tokens=max_history_tokens,
+            logger=logger
+        )
 
     async def configure(self, config: Any):
         """Configure the OpenAI connector with API key and optional parameters."""
@@ -35,6 +43,12 @@ class OpenAIConnector(ApiConnector):
         self.system_prompt = config.get("system_prompt", self.system_prompt)
         self.max_tokens = config.get("max_tokens", self.max_tokens)
         self.temperature = config.get("temperature", self.temperature)
+        
+        # Configure conversation history if specified
+        if "max_history_messages" in config:
+            self.conversation_history.max_messages = config["max_history_messages"]
+        if "max_history_tokens" in config:
+            self.conversation_history.max_tokens = config["max_history_tokens"]
         
         self.logger.info(f"OpenAIConnector: Configured with model {self.model}")
 
@@ -64,14 +78,20 @@ class OpenAIConnector(ApiConnector):
         # Generate unique message ID for correlation
         message_id = str(uuid.uuid4())
         
+        # Add user message to conversation history
+        self.conversation_history.add_user_message(text, message_id)
+        
         try:
+            # Get conversation history for context
+            messages = self.conversation_history.get_messages_for_api(
+                include_system=True,
+                system_prompt=self.system_prompt
+            )
+            
             # Create the chat completion with streaming
             stream = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": text}
-                ],
+                messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 stream=True
@@ -89,6 +109,9 @@ class OpenAIConnector(ApiConnector):
                     chunk_data = {"id": message_id, "text": content}
                     await self.event_emitter.emit_event("message_chunk", chunk_data)
                     self.logger.debug(f"OpenAIConnector: Emitted chunk: {chunk_data}")
+            
+            # Add assistant response to conversation history
+            self.conversation_history.add_assistant_message(full_response, message_id)
             
             # Emit completion event with same ID and full text
             completion_data = {"id": message_id, "text": full_response}
@@ -111,4 +134,22 @@ class OpenAIConnector(ApiConnector):
 
     def clear_event_listeners(self, event_type: str = None):
         """Clear all event listeners or listeners for a specific event type."""
-        self.event_emitter.clear_event_listeners(event_type) 
+        self.event_emitter.clear_event_listeners(event_type)
+
+    # Conversation history management methods
+    def get_conversation_history(self) -> ConversationHistory:
+        """Get the conversation history manager."""
+        return self.conversation_history
+
+    def clear_conversation_history(self):
+        """Clear all conversation history."""
+        self.conversation_history.clear_history()
+        self.logger.info("OpenAIConnector: Cleared conversation history")
+
+    def get_conversation_statistics(self):
+        """Get statistics about the current conversation."""
+        return self.conversation_history.get_statistics()
+
+    def export_conversation(self, format_type: str = "json") -> str:
+        """Export conversation history in specified format."""
+        return self.conversation_history.export_history(format_type) 
