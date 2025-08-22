@@ -8,6 +8,15 @@ except ImportError:
     print("Please ensure you're running on a Raspberry Pi with RPi.GPIO installed.")
     print("Install with: pip install RPi.GPIO")
     sys.exit(1)
+
+try:
+    import spidev
+except ImportError:
+    print("Error: spidev module not found.")
+    print("This application requires spidev access.")
+    print("Please ensure you're running on a Raspberry Pi with spidev installed.")
+    print("Install with: pip install spidev")
+    sys.exit(1)
  
 import time
 import signal

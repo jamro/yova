@@ -131,6 +131,15 @@ ctl.!default {
 
 Reboot the Raspberry Pi `sudo reboot`
 
+
+Enable SPI (required for the ReSpeaker HAT LED)
+```bash
+sudo raspi-config
+```
+- Select `Interfacing Options`
+- Select `SPI`
+- Select `Yes`
+
 ## Software
 
 ```bash

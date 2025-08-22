@@ -30,6 +30,12 @@ pytest = "^7.0.0"
 pytest-cov = "^4.0.0"
 pytest-asyncio = "^0.21.0"
 
+[tool.poetry.group.rpi]
+optional = true
+
+[tool.poetry.group.rpi.dependencies]
+spidev = "*"
+
 [tool.poetry.scripts]
 yova = "yova_core.main:run"
 yova-broker = "yova_broker.main:run"

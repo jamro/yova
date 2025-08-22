@@ -6,10 +6,10 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$1, $$2}'
 
 install: ## Install production dependencies
-	poetry install --only main -vvv
+	poetry install --only main -vvv --with rpi
 
 install-dev: ## Install all dependencies (including dev)
-	poetry install
+	poetry install -vvv
 
 test: ## Run tests
 	export PATH="$$HOME/Library/Python/3.9/bin:$$PATH" && poetry run pytest
