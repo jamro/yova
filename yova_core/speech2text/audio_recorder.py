@@ -39,6 +39,7 @@ class AudioRecorder:
         self.recording_start_time = None
         self.audio_chunks = []
         self.prerecord_beep = None
+        self.beep_volume_reduction = 18 
         
     def _create_default_stream(self, pyaudio_instance, **kwargs):
         """Default factory method for creating audio streams"""
@@ -144,8 +145,8 @@ class AudioRecorder:
             
             # Load and play the audio file
             audio = AudioSegment.from_wav(beep_path)
-            # Reduce volume to 50%
-            audio = audio - 6  # -6 dB = approximately 50% volume
+            # Reduce volume
+            audio = audio - self.beep_volume_reduction
             playback = await asyncio.to_thread(play_audio, audio)
             await asyncio.to_thread(playback.wait_done)
             
