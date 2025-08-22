@@ -22,7 +22,7 @@ import time
 import signal
 import asyncio
 from queue import Queue, Empty
-from yova_shared.broker.publisher import Publisher
+from yova_shared.broker import Publisher, Subscriber
 from yova_shared import setup_logging, get_clean_logger
 from yova_client_respeaker_hat.anim import Animator
 
@@ -68,7 +68,8 @@ async def process_button_events(logger):
             logger.info(f"Button {'PRESSED' if is_active else 'RELEASED'}")
             await notify_input_state(is_active, logger)
         except Empty:
-            # No events, continue
+            # No events, yield control to event loop
+            await asyncio.sleep(0.01)
             continue
         except Exception as e:
             logger.error(f"Error processing button event: {e}")
@@ -93,20 +94,41 @@ async def main_async():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
+    async def on_state_changed(topic, data):
+        if data['new_state'] == "listening":
+            animator.play('listening', repetitions=0, brightness=0.5)
+        elif data['new_state'] == "idle":
+            animator.stop()
+    state_subscriber = Subscriber()
+    await state_subscriber.connect()
+    await state_subscriber.subscribe("state")
+    asyncio.create_task(state_subscriber.listen(on_state_changed))
+
+    async def on_audio(topic, data):
+        if data['type'] == "playing":
+            animator.play('speaking', repetitions=0, brightness=0.1)
+
+    audio_subsciber = Subscriber()
+    await audio_subsciber.connect()
+    await audio_subsciber.subscribe("audio")
+    asyncio.create_task(audio_subsciber.listen(on_audio))
+
     logger.info("Starting GPIO Button Monitor...")
     logger.info(f"Monitoring GPIO{BUTTON_PIN} for button presses")
-    
+
     try:
         setup_gpio()
         
-        # Start processing button events
-        await process_button_events(logger)
+        # Start processing button events concurrently with subscriber
+        button_task = asyncio.create_task(process_button_events(logger))
+        
+        # Wait for both tasks to complete (or until interrupted)
+        await asyncio.gather(button_task, return_exceptions=True)
             
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received.")
     finally:
         cleanup_gpio()
-
 
 def run():
     """Main function to run the async event loop."""
