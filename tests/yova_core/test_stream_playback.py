@@ -21,7 +21,7 @@ class TestStreamPlayback:
         assert playback.text == text
         assert playback.stream_context_manager is None
         assert playback.model == "gpt-4o-mini-tts"
-        assert playback.voice == "coral"
+        assert playback.voice == "nova"
         assert playback.speed == 1
         assert playback.instructions == ""
         assert playback.format == "pcm"
@@ -68,7 +68,7 @@ class TestStreamPlayback:
         # Verify the API call
         mock_client.audio.speech.with_streaming_response.create.assert_called_once_with(
             model="gpt-4o-mini-tts",
-            voice="coral",
+            voice="nova",
             input=text,
             speed=1,
             response_format="pcm",

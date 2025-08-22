@@ -18,27 +18,24 @@ WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
 
 # Audio format for API compatibility
 FORMAT = "pcm16"
-EXPLICIT_LANGUAGE = "pl"
-SILENCE_AMPLITUDE_THRESHOLD = 0.15
 SAMPLE_RATE = 16000
 AUDIO_CHANNELS = 1
-MIN_SPEECH_LENGTH = 0.5
 
 # Turn detection configuration
 TURN_DETECTION = None
 
-def get_session_config():
+def get_session_config(model="gpt-4o-transcribe", language="en", noise_reduction="near_field"):
     """Get the session configuration for transcription"""
     return {
         "input_audio_format": FORMAT,
         "input_audio_transcription": {
-            "model": "gpt-4o-transcribe",
+            "model": model,
             "prompt": "",
-            "language": EXPLICIT_LANGUAGE
+            "language": language
         },
         "turn_detection": TURN_DETECTION,
         "input_audio_noise_reduction": {
-            "type": "near_field"
+            "type": noise_reduction
         },
         "include": [
             "item.input_audio_transcription.logprobs"
@@ -69,7 +66,9 @@ def get_audio_len(audio_chunk): # returns length in seconds
 
 class OpenAiTranscriptionProvider(TranscriptionProvider):
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
-                 openai_client=None, websocket_connector=None, audio_buffer=None):
+                 openai_client=None, websocket_connector=None, audio_buffer=None,
+                 model="gpt-4o-transcribe", language="en", noise_reduction="near_field",
+                 min_speech_length=0.5, silence_amplitude_threshold=0.15, audio_buffer_age=30.0):
         self.api_key = api_key
         self.websocket_uri = websocket_uri
         # Dependency injection for testability - fallback to default implementation
@@ -85,8 +84,13 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         self._is_buffer_empty = True
         self._buffer_length = 0
         # Audio chunk buffer for when session is not ready
-        self._audio_buffer = audio_buffer or AudioBuffer(self.logger, SAMPLE_RATE, AUDIO_CHANNELS)
-        
+        self._audio_buffer = audio_buffer or AudioBuffer(self.logger, SAMPLE_RATE, AUDIO_CHANNELS, max_age_threshold=audio_buffer_age)
+        self.model = model
+        self.language = language
+        self.noise_reduction = noise_reduction
+        self.min_speech_length = min_speech_length
+        self.silence_amplitude_threshold = silence_amplitude_threshold
+
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """Add an event listener for a specific event type"""
         self.event_emitter.add_event_listener(event_type, listener)
@@ -107,7 +111,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         """Initialize the transcription session"""
         try:
             self.logger.info("Creating transcription session...")
-            session_config = get_session_config()
+            session_config = get_session_config(self.model, self.language, self.noise_reduction)
             response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
             self.logger.info(f"Session created successfully, client_secret type: {type(response.client_secret)}")
             
@@ -128,7 +132,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         """Create a transcription session and get ephemeral token"""
         try:
             self.logger.info("Creating transcription session...")
-            session_config = get_session_config()
+            session_config = get_session_config(self.model, self.language, self.noise_reduction)
             response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
             self.logger.info(f"Session created successfully, client_secret type: {type(response.client_secret)}")
             return response.client_secret
@@ -157,7 +161,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
             # Send session configuration
             session_config = {
                 "type": "transcription_session.update",
-                "session": get_session_config()
+                "session": get_session_config(self.model, self.language, self.noise_reduction)
             }
             
             self.logger.info("Sending session configuration...")
@@ -198,7 +202,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                 await self._flush_buffered_audio_chunks()
 
             amplitude = get_audio_amplitude(audio_chunk)
-            if amplitude > SILENCE_AMPLITUDE_THRESHOLD and self._is_buffer_empty:
+            if amplitude > self.silence_amplitude_threshold and self._is_buffer_empty:
                 self.logger.info("Speech detected")
                 self._is_buffer_empty = False
 
@@ -318,7 +322,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     async def stop_listening(self):
         """Stop listening for transcription events"""
 
-        if not self._is_buffer_empty and self._buffer_length >= MIN_SPEECH_LENGTH:
+        if not self._is_buffer_empty and self._buffer_length >= self.min_speech_length:
             if not await self._send_to_websocket({
                 "type": "input_audio_buffer.commit"
             }, 'input_audio_buffer.commit'):

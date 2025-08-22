@@ -8,7 +8,7 @@ from yova_core.text2speech.stream_playback import StreamPlayback
 from yova_core.text2speech.data_playback import DataPlayback
 
 class SpeechTask(EventEmitter):
-    def __init__(self, message_id, api_key, logger):
+    def __init__(self, message_id, api_key, logger, playback_config=None):
         super().__init__(logger)
         self.message_id = message_id
         self.logger = get_clean_logger("speech_task", logger)
@@ -23,12 +23,18 @@ class SpeechTask(EventEmitter):
         self.audio_task = None
         self.conversion_task = None
         self.current_playback = None
-        self.playback_config = {
-            "model": "gpt-4o-mini-tts",
-            "voice": "coral",
-            "speed": 1.25,
-            "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
-        }
+        
+        # Use provided playback_config or default values
+        if playback_config is not None:
+            self.playback_config = playback_config
+        else:
+            self.playback_config = {
+                "model": "gpt-4o-mini-tts",
+                "voice": "coral",
+                "speed": 1.25,
+                "instructions": "Speak in a friendly, engaging tone."
+            }
+        
         self.is_stopped = False
         self.wait_time = 1
 

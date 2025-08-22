@@ -4,8 +4,16 @@
   },
   "text2speech": {
     "model": "gpt-4o-mini-tts",
-    "voice": "coral",
+    "voice": "nova",
     "speed": 1.25,
     "instructions": "Speak in a friendly, engaging tone. Always answer in English."
+  },
+  "speech2text": {
+    "model": "gpt-4o-transcribe",
+    "language": "en",
+    "noise_reduction": "near_field",
+    "min_speech_length": 0.5,
+    "silence_amplitude_threshold": 0.15,
+    "audio_buffer_age": 30.0
   }
 }

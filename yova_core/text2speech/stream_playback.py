@@ -11,7 +11,7 @@ class StreamPlayback(Playback):
         self.text = text
         self.stream_audio_player = LocalAudioPlayer()
         self.model = config.get("model", "gpt-4o-mini-tts")
-        self.voice = config.get("voice", "coral")
+        self.voice = config.get("voice", "nova")
         self.speed = config.get("speed", 1)
         self.instructions = config.get("instructions", "")
         self.format = config.get("format", "pcm")

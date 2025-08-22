@@ -8,16 +8,18 @@ from yova_shared import EventEmitter
 from typing import Any, Awaitable, Callable
 
 class SpeechHandler:
-    def __init__(self, logger,api_key):
+    def __init__(self, logger, api_key, playback_config=None):
         """
         Initialize SpeechHandler for streaming text-to-speech.
         
         Args:
-            voice: The voice to use for speech synthesis (coral, alloy, echo, fable, onyx, nova, shimmer)
-            min_chunk_length: Minimum characters before processing a chunk
+            logger: Logger instance
+            api_key: OpenAI API key
+            playback_config: Optional playback configuration dictionary
         """
         self.logger = get_clean_logger("realtime_transcriber", logger)
         self.api_key = api_key
+        self.playback_config = playback_config
         self.tasks = []
         self.is_active = False
         self.ignored_messages = []
@@ -57,7 +59,7 @@ class SpeechHandler:
         
         task = self.get_task(message_id)
         if task is None:
-            task = SpeechTask(message_id, self.api_key, self.logger)
+            task = SpeechTask(message_id, self.api_key, self.logger, self.playback_config)
             task.add_event_listener("playing_audio", self.on_playing_audio)
             self.tasks.append(task)
 

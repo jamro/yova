@@ -20,6 +20,14 @@ async def main():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
+    # Define playback configuration
+    playback_config = {
+        "model": get_config("text2speech.model"),
+        "voice": get_config("text2speech.voice"),
+        "speed": get_config("text2speech.speed"),
+        "instructions": get_config("text2speech.instructions")
+    }
+
     # Create broker publisher for audio events
     audio_publisher = Publisher()
     await audio_publisher.connect()
@@ -29,10 +37,18 @@ async def main():
     await state_publisher.connect()
 
     # Create state machine
+    transcription_provider = OpenAiTranscriptionProvider(api_key, logger,
+        model=get_config("speech2text.model"),
+        language=get_config("speech2text.language"),
+        noise_reduction=get_config("speech2text.noise_reduction"),
+        min_speech_length=get_config("speech2text.min_speech_length"),
+        silence_amplitude_threshold=get_config("speech2text.silence_amplitude_threshold"),
+        audio_buffer_age=get_config("speech2text.audio_buffer_age")
+    )
     state_machine = StateMachine(
         logger,
-        SpeechHandler(logger, api_key),
-        RealtimeTranscriber(OpenAiTranscriptionProvider(api_key, logger), logger=logger)
+        SpeechHandler(logger, api_key, playback_config),
+        RealtimeTranscriber(transcription_provider, logger=logger)
     )
     async def log_state_change(data):
         logger.info(f"State changed: {data['previous_state']} -> {data['new_state']}")

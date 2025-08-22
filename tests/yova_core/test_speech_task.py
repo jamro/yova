@@ -43,12 +43,12 @@ class TestSpeechTask:
         assert task.conversion_task is None
         assert task.current_playback is None
         assert task.is_stopped is False
-        assert task.wait_time == 0.01  # Verify low wait_time is set
+        assert task.wait_time == 0.01  # Verify low wait_time is set for faster tests
         assert task.playback_config == {
             "model": "gpt-4o-mini-tts",
             "voice": "coral",
             "speed": 1.25,
-            "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
+            "instructions": "Speak in a friendly, engaging tone."
         }
 
     def test_clean_chunk(self):
