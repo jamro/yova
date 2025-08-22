@@ -134,16 +134,18 @@ class AudioRecorder:
             self.logger.error(f"Error saving audio file: {e}")
         
     async def _play_beep(self):
-        """Play the beep11.wav sound file"""
+        """Play the beep sound file"""
         if not self.prerecord_beep:
             return
         try:
-            # Get the path to the beep11.wav file
+            # Get the path to the beep file
             current_dir = os.path.dirname(os.path.abspath(__file__))
             beep_path = os.path.join(current_dir, "..", "..", "yova_shared", "assets", self.prerecord_beep)
             
             # Load and play the audio file
             audio = AudioSegment.from_wav(beep_path)
+            # Reduce volume to 50%
+            audio = audio - 6  # -6 dB = approximately 50% volume
             playback = await asyncio.to_thread(play_audio, audio)
             await asyncio.to_thread(playback.wait_done)
             
