@@ -75,15 +75,15 @@ class StateMachine(EventEmitter):
     async def on_input_activated(self):
         if self.state == State.IDLE:
             await self._set_state(State.LISTENING)
-            await self.transcriber.start_realtime_transcription()
             await self.transcriber.start_audio_recording()
+            await self.transcriber.start_realtime_transcription()
         elif self.state == State.LISTENING:
             pass # already listening
         elif self.state == State.SPEAKING:
             await self.speech_handler.terminate_all_tasks()
             await self._set_state(State.LISTENING)
-            await self.transcriber.start_realtime_transcription()
             await self.transcriber.start_audio_recording()
+            await self.transcriber.start_realtime_transcription()
         else:
             raise Exception("Invalid state " + self.state)
     

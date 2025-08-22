@@ -137,6 +137,7 @@ class RealtimeTranscriber:
     async def start_realtime_transcription(self):
         """Initialize and start real-time transcription session"""
         try:
+
             # Initialize transcription session
             initialized = await self.transcription_provider.initialize_session()
             if not initialized:

@@ -2,8 +2,9 @@
 
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+from yova_core.speech2text.audio_buffer import AudioBuffer
 
 class TestOpenAiTranscriptionProvider:
     """Test cases for the OpenAiTranscriptionProvider class."""
@@ -169,7 +170,9 @@ class TestOpenAiTranscriptionProvider:
         audio_chunk = b"\x00\x00\x01\x00\x02\x00"  # 6 bytes = 3 int16 values
         result = await handler.send_audio_data(audio_chunk)
         
-        assert result is False
+        assert result is True  # Now returns True because audio is successfully buffered
+        assert handler.has_buffered_audio() is True
+        assert handler.get_buffered_audio_info()['chunk_count'] == 1
         mock_logger.warning.assert_called()
     
     @pytest.mark.asyncio
@@ -326,3 +329,220 @@ class TestOpenAiTranscriptionProvider:
         result = handler.get_session_id()
         
         assert result == "test_session_id" 
+    
+    def test_has_buffered_audio(self):
+        """Test checking if there are buffered audio chunks."""
+        mock_logger = Mock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = False
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        # Initially no buffered audio
+        assert handler.has_buffered_audio() is False
+        
+        # Mock the audio buffer to have some chunks
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        
+        assert handler.has_buffered_audio() is True
+    
+    def test_get_buffered_audio_info(self):
+        """Test getting information about buffered audio."""
+        mock_logger = Mock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.get_buffered_audio_info.return_value = {'chunk_count': 0, 'total_length': 0.0, 'is_empty': True}
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        # Initially no buffered audio
+        info = handler.get_buffered_audio_info()
+        assert info['chunk_count'] == 0
+        assert info['total_length'] == 0.0
+        assert info['is_session_ready'] is False
+        
+        # Mock the audio buffer to have some chunks
+        mock_buffer_info = {'chunk_count': 2, 'total_length': 0.5, 'is_empty': False}
+        mock_audio_buffer.get_buffered_audio_info.return_value = mock_buffer_info
+        handler.session_id = "test_session"
+        mock_websocket = Mock()
+        mock_websocket.closed = False
+        handler.websocket = mock_websocket  # Need websocket for is_session_ready to return True
+        
+        info = handler.get_buffered_audio_info()
+        assert info['chunk_count'] == 2
+        assert info['total_length'] == 0.5
+        assert info['is_session_ready'] is True
+    
+    def test_clear_audio_buffer(self):
+        """Test clearing the audio buffer."""
+        mock_logger = Mock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        handler.clear_audio_buffer()
+        
+        # Verify that clear_buffer was called on the audio buffer
+        mock_audio_buffer.clear_buffer.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_flush_audio_buffer_no_buffer(self):
+        """Test flushing audio buffer when there's nothing to flush."""
+        mock_logger = Mock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = False
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        result = await handler.flush_audio_buffer()
+        
+        assert result is True
+        mock_logger.info.assert_called_with("No buffered audio to flush")
+    
+    @pytest.mark.asyncio
+    async def test_flush_audio_buffer_session_not_ready(self):
+        """Test flushing audio buffer when session is not ready."""
+        mock_logger = Mock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        result = await handler.flush_audio_buffer()
+        
+        assert result is False
+        mock_logger.warning.assert_called_with("Cannot flush audio buffer: session not ready")
+    
+    @pytest.mark.asyncio
+    async def test_flush_audio_buffer_success(self):
+        """Test successful flushing of audio buffer."""
+        mock_logger = Mock()
+        mock_websocket = AsyncMock()
+        mock_websocket.closed = False
+        mock_websocket.send = AsyncMock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        mock_audio_buffer.get_buffered_audio_info.return_value = {'chunk_count': 1, 'total_length': 0.5, 'is_empty': False}
+        mock_audio_buffer.get_buffered_chunks.return_value = [b"\x00\x00\x01\x00\x02\x00"]
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        handler.websocket = mock_websocket
+        handler.session_id = "test_session"
+        
+        result = await handler.flush_audio_buffer()
+        
+        assert result is True
+        mock_websocket.send.assert_called_once()
+        # Verify that clear_buffer was called on the audio buffer
+        mock_audio_buffer.clear_buffer.assert_called_once()
+        mock_logger.info.assert_called_with("Successfully flushed all buffered audio chunks")
+    
+    @pytest.mark.asyncio
+    async def test_send_audio_data_with_buffering_and_flush(self):
+        """Test sending audio data with buffering and subsequent flush when session becomes ready."""
+        mock_logger = Mock()
+        mock_websocket = AsyncMock()
+        mock_websocket.closed = False
+        mock_websocket.send = AsyncMock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = False
+        mock_audio_buffer.get_buffered_audio_info.return_value = {'chunk_count': 0, 'total_length': 0.0, 'is_empty': True}
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        
+        # Initially no websocket (session not ready)
+        audio_chunk = b"\x00\x00\x01\x00\x02\x00"  # 6 bytes = 3 int16 values
+        
+        # Send audio data when session not ready - should buffer
+        result1 = await handler.send_audio_data(audio_chunk)
+        assert result1 is True
+        # Mock the buffer to show it has audio after buffering
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        mock_audio_buffer.get_buffered_audio_info.return_value = {'chunk_count': 1, 'total_length': 0.5, 'is_empty': False}
+        assert handler.has_buffered_audio() is True
+        assert handler.get_buffered_audio_info()['chunk_count'] == 1
+        
+        # Now establish session
+        handler.websocket = mock_websocket
+        handler.session_id = "test_session"
+        
+        # Ensure the session is ready
+        assert handler.is_session_ready() is True
+        
+        # Test that the session is properly configured
+        assert handler.websocket == mock_websocket
+        assert handler.session_id == "test_session"
+    
+    @pytest.mark.asyncio
+    async def test_session_created_flushes_buffer(self):
+        """Test that session creation automatically flushes buffered audio."""
+        mock_logger = Mock()
+        mock_websocket = AsyncMock()
+        mock_websocket.closed = False
+        mock_websocket.send = AsyncMock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        mock_audio_buffer.get_buffered_audio_info.return_value = {'chunk_count': 1, 'total_length': 0.5, 'is_empty': False}
+        mock_audio_buffer.get_buffered_chunks.return_value = [b"\x00\x00\x01\x00\x02\x00"]
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        handler.websocket = mock_websocket
+        
+        # Add some buffered audio before session is ready
+        audio_chunk = b"\x00\x00\x01\x00\x02\x00"  # 6 bytes = 3 int16 values
+        
+        # Create a proper async iterator for session creation
+        async def async_iter():
+            yield '{"type": "transcription_session.created", "session": {"id": "test_session_id"}}'
+        
+        mock_websocket.__aiter__ = lambda self: async_iter()
+        
+        # Handle the session creation message
+        result = await handler.handle_websocket_messages()
+        
+        assert result is True
+        assert handler.session_id == "test_session_id"
+        # Verify that the buffer was flushed by checking that clear_buffer was called
+        mock_audio_buffer.clear_buffer.assert_called_once()
+        # Check that the buffer was flushed (either by the session created message or by the flush method)
+        mock_logger.info.assert_any_call("Session ready, flushing buffered audio chunks...")
+    
+    @pytest.mark.asyncio
+    async def test_close_clears_buffer(self):
+        """Test that closing the provider clears the audio buffer."""
+        mock_logger = Mock()
+        mock_websocket = AsyncMock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        handler.websocket = mock_websocket
+        
+        await handler.close()
+        
+        # Verify that clear_buffer was called on the audio buffer
+        mock_audio_buffer.clear_buffer.assert_called_once()
+        # Check that the buffer was cleared (either by the close method or by the clear method)
+        mock_logger.info.assert_any_call("Clearing audio buffer before closing")
+        mock_websocket.close.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_start_listening_clears_buffer(self):
+        """Test that starting listening clears any existing audio buffer."""
+        mock_logger = Mock()
+        mock_websocket = AsyncMock()
+        mock_websocket.closed = False
+        mock_websocket.send = AsyncMock()
+        mock_audio_buffer = Mock()
+        mock_audio_buffer.has_buffered_audio.return_value = True
+        
+        handler = OpenAiTranscriptionProvider("test_api_key", mock_logger, audio_buffer=mock_audio_buffer)
+        handler.websocket = mock_websocket
+        handler.session_id = "test_session"
+        
+        result = await handler.start_listening()
+        
+        assert result is True
+        # Verify that the WebSocket message was sent to clear the input audio buffer
+        mock_websocket.send.assert_called_once_with('{"type": "input_audio_buffer.clear"}') 

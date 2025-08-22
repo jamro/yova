@@ -9,6 +9,7 @@ from typing import Dict, List, Callable, Any, Awaitable
 from yova_shared import EventEmitter
 from yova_shared import get_clean_logger
 from yova_core.speech2text.transcription_provider import TranscriptionProvider
+from yova_core.speech2text.audio_buffer import AudioBuffer
 import logging
 import numpy as np
 
@@ -68,7 +69,7 @@ def get_audio_len(audio_chunk): # returns length in seconds
 
 class OpenAiTranscriptionProvider(TranscriptionProvider):
     def __init__(self, api_key, logger, websocket_uri=WEBSOCKET_URI, 
-                 openai_client=None, websocket_connector=None):
+                 openai_client=None, websocket_connector=None, audio_buffer=None):
         self.api_key = api_key
         self.websocket_uri = websocket_uri
         # Dependency injection for testability - fallback to default implementation
@@ -83,6 +84,8 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         self._listening_task = None
         self._is_buffer_empty = True
         self._buffer_length = 0
+        # Audio chunk buffer for when session is not ready
+        self._audio_buffer = audio_buffer or AudioBuffer(self.logger, SAMPLE_RATE, AUDIO_CHANNELS)
         
     def add_event_listener(self, event_type: str, listener: Callable[[Any], Awaitable[None]]):
         """Add an event listener for a specific event type"""
@@ -103,10 +106,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     async def initialize_session(self) -> bool:
         """Initialize the transcription session"""
         try:
-            self.logger.debug("Creating transcription session...")
+            self.logger.info("Creating transcription session...")
             session_config = get_session_config()
             response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
-            self.logger.debug(f"Session created successfully, client_secret type: {type(response.client_secret)}")
+            self.logger.info(f"Session created successfully, client_secret type: {type(response.client_secret)}")
             
             # Connect to WebSocket
             connected = await self.connect_websocket(response.client_secret)
@@ -124,10 +127,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
     async def create_transcription_session(self):
         """Create a transcription session and get ephemeral token"""
         try:
-            self.logger.debug("Creating transcription session...")
+            self.logger.info("Creating transcription session...")
             session_config = get_session_config()
             response = self._openai_client.beta.realtime.transcription_sessions.create(**session_config)
-            self.logger.debug(f"Session created successfully, client_secret type: {type(response.client_secret)}")
+            self.logger.info(f"Session created successfully, client_secret type: {type(response.client_secret)}")
             return response.client_secret
         except Exception as e:
             self.logger.error(f"Failed to create transcription session: {e}")
@@ -146,10 +149,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         }
         
         try:
-            self.logger.debug(f"Connecting to WebSocket: {uri}")
-            self.logger.debug(f"Headers: {headers}")
+            self.logger.info(f"Connecting to WebSocket: {uri}")
+            self.logger.info(f"Headers: {headers}")
             self.websocket = await self._websocket_connector(uri, extra_headers=headers)
-            self.logger.debug("WebSocket connection established")
+            self.logger.info("WebSocket connection established")
             
             # Send session configuration
             session_config = {
@@ -157,9 +160,9 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                 "session": get_session_config()
             }
             
-            self.logger.debug("Sending session configuration...")
+            self.logger.info("Sending session configuration...")
             await self.websocket.send(json.dumps(session_config))
-            self.logger.debug("Session configuration sent")
+            self.logger.info("Session configuration sent")
             
             return True
         except Exception as e:
@@ -170,6 +173,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         
     async def _send_to_websocket(self, message, content_label="data"):
         """Send a message to the WebSocket"""
+        if not self.websocket or self.websocket.closed:
+            self.logger.error(f"Cannot send {content_label}: WebSocket not connected or closed")
+            return False
+            
         try:
             await self.websocket.send(json.dumps(message))
             return True
@@ -185,6 +192,10 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         if self.is_session_ready():
             # Reset the warning flag since we can now send data
             self._logged_invalid_request = False
+
+            # Flush any buffered audio chunks first
+            if self._audio_buffer.has_buffered_audio():
+                await self._flush_buffered_audio_chunks()
 
             amplitude = get_audio_amplitude(audio_chunk)
             if amplitude > SILENCE_AMPLITUDE_THRESHOLD and self._is_buffer_empty:
@@ -204,15 +215,79 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                 return False
             
         else:
+            # Session not ready, buffer the audio chunk
+            self._audio_buffer.add_audio_chunk(audio_chunk)
+            
             if not self._logged_invalid_request:
-                self.logger.warning("Cannot send audio data: WebSocket not connected or session not ready")
+                self.logger.warning("Cannot send audio data: WebSocket not connected or session not ready. Audio chunks are being buffered.")
                 self._logged_invalid_request = True
-            return False
+            return True  # Return True since we're successfully buffering
         
         return True
     
+    async def _flush_buffered_audio_chunks(self):
+        """Flush all buffered audio chunks to the WebSocket"""
+        if not self._audio_buffer.has_buffered_audio():
+            return True
+            
+        if not self.is_session_ready():
+            self.logger.warning("Cannot flush buffered audio chunks: session not ready")
+            return False
+            
+        buffered_info = self._audio_buffer.get_buffered_audio_info()
+        self.logger.info(f"Flushing {buffered_info['chunk_count']} buffered audio chunks (total length: {buffered_info['total_length']:.2f}s)")
+        
+        try:
+            buffered_chunks = self._audio_buffer.get_buffered_chunks()
+            for i, audio_chunk in enumerate(buffered_chunks):
+                # Encode audio data as base64
+                audio_base64 = base64.b64encode(audio_chunk).decode('utf-8')
+                
+                if not await self._send_to_websocket({
+                    "type": "input_audio_buffer.append",
+                    "audio": audio_base64
+                }, f'buffered_audio_data_{i+1}'):
+                    self.logger.error(f"Failed to send buffered audio chunk {i+1}/{len(buffered_chunks)}")
+                    return False
+            
+            # Clear the buffer after successful flush
+            self._audio_buffer.clear_buffer()
+            self.logger.info("Successfully flushed all buffered audio chunks")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error flushing buffered audio chunks: {e}")
+            return False
+    
+    def has_buffered_audio(self) -> bool:
+        """Check if there are buffered audio chunks waiting to be sent"""
+        return self._audio_buffer.has_buffered_audio()
+    
+    def get_buffered_audio_info(self) -> dict:
+        """Get information about buffered audio chunks"""
+        buffer_info = self._audio_buffer.get_buffered_audio_info()
+        buffer_info['is_session_ready'] = self.is_session_ready()
+        return buffer_info
+    
+    def clear_audio_buffer(self):
+        """Clear the audio chunk buffer (useful for cleanup or reset scenarios)"""
+        self._audio_buffer.clear_buffer()
+    
+    async def flush_audio_buffer(self) -> bool:
+        """Manually flush the audio buffer if session is ready"""
+        if not self.has_buffered_audio():
+            self.logger.info("No buffered audio to flush")
+            return True
+            
+        if not self.is_session_ready():
+            self.logger.warning("Cannot flush audio buffer: session not ready")
+            return False
+            
+        return await self._flush_buffered_audio_chunks()
+    
     async def start_listening(self) -> bool:
         """Start listening for transcription events"""
+
         if not self.websocket:
             self.logger.error("Cannot start listening: WebSocket not connected")
             return False
@@ -270,7 +345,7 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                     message_type = data.get("type", "unknown")
                     
                     # Log all messages for debugging (can be commented out in production)
-                    self.logger.debug(f"Received message type: {message_type}")
+                    self.logger.info(f"Received message type: {message_type}")
                     
                     # Emit the event to all registered listeners
                     await self._emit_event(message_type, data)
@@ -279,15 +354,15 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                     if message_type == "input_audio_buffer.committed":
                         # Audio buffer was committed, can be used for ordering
                         item_id = data.get("item_id", "unknown")
-                        self.logger.debug(f"Audio buffer committed - Item ID: {item_id}")
+                        self.logger.info(f"Audio buffer committed - Item ID: {item_id}")
                         
                     elif message_type == "input_audio_buffer.speech_started":
                         # Speech started in audio buffer
-                        self.logger.debug(f"Speech started - Item ID: {data.get('item_id', 'unknown')}")
+                        self.logger.info(f"Speech started - Item ID: {data.get('item_id', 'unknown')}")
                         
                     elif message_type == "input_audio_buffer.speech_stopped":
                         # Speech stopped in audio buffer
-                        self.logger.debug(f"Speech stopped - Item ID: {data.get('item_id', 'unknown')}")
+                        self.logger.info(f"Speech stopped - Item ID: {data.get('item_id', 'unknown')}")
                         
                     elif message_type == "error":
                         error_data = data.get('error', {})
@@ -300,24 +375,31 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
                     elif message_type == "transcription_session.created":
                         session_data = data.get('session', {})
                         self.session_id = session_data.get('id')
-                        self.logger.debug(f"Session created with ID: {self.session_id}")
+                        self.logger.info(f"Session created with ID: {self.session_id}")
+                        
+                        # Flush any buffered audio chunks now that session is ready
+                        if self._audio_buffer.has_buffered_audio():
+                            self.logger.info("Session ready, flushing buffered audio chunks...")
+                            await self._flush_buffered_audio_chunks()
+                        else:
+                            self.logger.info("No buffered audio to flush, session is ready")
                         
                     elif message_type == "transcription_session.update":
-                        self.logger.debug(f"Session updated: {data.get('status', 'unknown')}")
+                        self.logger.info(f"Session updated: {data.get('status', 'unknown')}")
                         
                     elif message_type == "conversation.item.input_audio_transcription.delta":
                         # print the delta
-                        self.logger.debug(f"Delta: {data['delta']}")
+                        self.logger.info(f"Delta: {data['delta']}")
 
                     elif message_type == "conversation.item.input_audio_transcription.completed":
-                        self.logger.debug(f"Transcription completed: {data['transcript']}")
+                        self.logger.info(f"Transcription completed: {data['transcript']}")
                         await self._emit_event("transcription_completed", data['transcript'])
                         self._listening_task = None
                         return
 
                     else:
                         # Log unknown message types
-                        self.logger.debug(f"Unknown message type '{message_type}': {json.dumps(data, indent=2)}")
+                        self.logger.info(f"Unknown message type '{message_type}': {json.dumps(data, indent=2)}")
                         
                 except json.JSONDecodeError as e:
                     self.logger.error(f"Failed to parse WebSocket message as JSON: {e}")
@@ -341,6 +423,11 @@ class OpenAiTranscriptionProvider(TranscriptionProvider):
         if self._listening_task:
             await self._listening_task
             self._listening_task = None
+
+        # Clear any buffered audio chunks
+        if self._audio_buffer.has_buffered_audio():
+            self.logger.info("Clearing audio buffer before closing")
+            self.clear_audio_buffer()
 
         if self.websocket:
             await self.websocket.close()
