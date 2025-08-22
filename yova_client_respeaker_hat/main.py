@@ -24,8 +24,11 @@ import asyncio
 from queue import Queue, Empty
 from yova_shared.broker.publisher import Publisher
 from yova_shared import setup_logging, get_clean_logger
+from yova_client_respeaker_hat.anim import Animator
 
 BUTTON_PIN = 17
+
+animator = Animator()
 
 # Global queue for button events
 button_events = Queue()
@@ -56,7 +59,6 @@ def button_callback(channel):
     button_state = GPIO.input(BUTTON_PIN)
     button_events.put(button_state == GPIO.LOW)
 
-
 async def process_button_events(logger):
     """Process button events from the queue."""
     while True:
@@ -73,17 +75,20 @@ async def process_button_events(logger):
 
 def cleanup_gpio():
     """Clean up GPIO configuration."""
-    GPIO.cleanup()
-    print("\nGPIO cleanup completed. Exiting...")
-
-def signal_handler(sig, frame):
-    """Handle Ctrl+C gracefully."""
-    print("\nReceived interrupt signal. Cleaning up...")
-    cleanup_gpio()
-    sys.exit(0)
+    try:
+        # Remove event detection before cleanup
+        GPIO.remove_event_detect(BUTTON_PIN)
+        GPIO.cleanup()
+        print("\nGPIO cleanup completed.")
+    except Exception as e:
+        print(f"\nError during GPIO cleanup: {e}")
+    finally:
+        print("Exiting...")
 
 async def main_async():
     """Main async function to monitor button presses."""
+
+    animator.play('welcome', repetitions=1, brightness=0.05)
 
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
@@ -93,7 +98,6 @@ async def main_async():
     
     try:
         setup_gpio()
-        signal.signal(signal.SIGINT, signal_handler)
         
         # Start processing button events
         await process_button_events(logger)
@@ -110,8 +114,8 @@ def run():
         asyncio.run(main_async())
     except KeyboardInterrupt:
         print("\nKeyboard interrupt received.")
-    finally:
-        cleanup_gpio()
+    except Exception as e:
+        print(f"\nUnexpected error: {e}")
 
 if __name__ == "__main__":
     run()
