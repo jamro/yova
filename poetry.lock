@@ -993,7 +993,7 @@ version = "3.7"
 description = "Python bindings for Linux SPI access through spidev"
 optional = false
 python-versions = "*"
-groups = ["hw"]
+groups = ["rpi"]
 files = [
     {file = "spidev-3.7-cp39-cp39-linux_armv7l.whl", hash = "sha256:6f9a51d72eac0785d3b7a839c5ee1b6a16a9b711fe053d56adecdf18786e2550"},
     {file = "spidev-3.7.tar.gz", hash = "sha256:ce628a5ff489f45132679879bff5f455a66abf9751af01843850155b06ae92f0"},
@@ -1218,4 +1218,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8"
-content-hash = "99437a3dad63f66710736f4f9b664099f4bb0bb6c4b0050dbd0eb1522f93d53c"
+content-hash = "01e4ba9e884873ae743f2962369a00a7468fe9f1e7f5075cc7d5a2d495eb0cd5"
