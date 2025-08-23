@@ -375,6 +375,12 @@ install_yova() {
 configure_systemd() {
     print_status "Configuring systemd service..."
     
+    # Check if systemd service is already configured
+    if systemctl is-enabled supervisord.service &>/dev/null; then
+        print_warning "Systemd service already configured and enabled, skipping configuration step"
+        return 0
+    fi
+    
     if [ -f "scripts/supervisord.service" ]; then
         sudo cp scripts/supervisord.service /etc/systemd/system/
         sudo systemctl daemon-reload
