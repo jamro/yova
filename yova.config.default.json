@@ -11,7 +11,7 @@
   "speech2text": {
     "model": "gpt-4o-transcribe",
     "language": "en",
-    "noise_reduction": "near_field",
+    "noise_reduction": "far_field",
     "min_speech_length": 0.5,
     "silence_amplitude_threshold": 0.15,
     "audio_buffer_age": 30.0,
