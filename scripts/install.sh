@@ -386,26 +386,107 @@ configure_systemd() {
     fi
 }
 
-# Function to test audio devices
-test_audio_devices() {
-    print_status "Testing audio devices..."
-    
-    echo "Available playback devices:"
-    aplay -l
-    
+# Function to test audio playback
+test_playback() {
+    print_status "Testing audio playback..."
     echo ""
-    echo "Available capture devices:"
-    arecord -l
+    echo "This test will play a test sound through your ReSpeaker HAT."
+    echo "Please ensure your speaker is connected and volume is set appropriately."
+    echo ""
     
-    if [ -n "$RESPEAKER_CARD" ] && [ -n "$RESPEAKER_DEVICE" ]; then
+    read -p "Press Enter to continue with the audio test..."
+    
+    local test_success=false
+    local test_attempts=0
+    local max_attempts=5
+    
+    while [ "$test_success" = false ] && [ $test_attempts -lt $max_attempts ]; do
+        test_attempts=$((test_attempts + 1))
         echo ""
-        print_success "ReSpeaker HAT configured for card $RESPEAKER_CARD, device $RESPEAKER_DEVICE"
-        print_warning "Please verify that 'seeed2micvoicec' appears in the device list"
-    else
-        print_warning "ReSpeaker HAT device not detected, please verify manually"
-    fi
+        print_status "Audio test attempt $test_attempts of $max_attempts"
+        echo "Playing test sound..."
+        
+        # Check if test file exists
+        local test_file="/home/pi/yova/yova_shared/assets/beep1.wav"
+        if [ ! -f "$test_file" ]; then
+            print_error "Test audio file not found: $test_file"
+            echo "Please ensure YOVA is properly installed."
+            exit 1
+        fi
+        
+        # Play the test sound
+        if aplay -D "plughw:${RESPEAKER_CARD},${RESPEAKER_DEVICE}" "$test_file" 2>/dev/null; then
+            echo ""
+            echo "Test sound played successfully."
+            read -p "Did you hear the sound clearly? (y/n): " -n 1 -r
+            echo ""
+            
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_success "Audio playback test passed!"
+                test_success=true
+            else
+                echo ""
+                print_warning "Sound was not heard clearly or was too quiet."
+                echo ""
+                echo "Let's adjust the audio settings:"
+                echo "1. Run 'alsamixer' to adjust volume settings"
+                echo "2. Recommended settings:"
+                echo "   - Master playback: 80%"
+                echo "   - Press F4 for capture, set PGA to 25%"
+                echo "   - Press F6, select 'seeed2micvoicec'"
+                echo "   - Set capture volume to 80%"
+                echo "   - Save settings with 'sudo alsactl store'"
+                echo ""
+                
+                read -p "Press Enter after adjusting settings, or 'q' to quit testing: " -n 1 -r
+                echo ""
+                
+                if [[ $REPLY =~ ^[Qq]$ ]]; then
+                    print_error "Audio testing aborted by user."
+                    echo ""
+                    echo "Please resolve the audio configuration issue before continuing."
+                    echo "You can run 'alsamixer' manually to adjust settings."
+                    echo ""
+                    echo "Installation cannot continue without working audio."
+                    exit 1
+                fi
+            fi
+        else
+            print_error "Failed to play test sound. Please check your audio configuration."
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Verify speaker connection"
+            echo "2. Check if ReSpeaker HAT is properly detected"
+            echo "3. Run 'aplay -l' to verify audio devices"
+            echo "4. Check ALSA configuration in /etc/asound.conf"
+            echo ""
+            
+            read -p "Press Enter to try again, or 'q' to quit: " -n 1 -r
+            echo ""
+            
+            if [[ $REPLY =~ ^[Qq]$ ]]; then
+                print_error "Audio testing aborted due to playback failure."
+                echo ""
+                echo "Please resolve the audio configuration issue before continuing."
+                echo "Installation cannot continue without working audio."
+                exit 1
+            fi
+        fi
+    done
     
-    print_warning "If devices are not showing correctly, a reboot may be required"
+    if [ "$test_success" = false ]; then
+        print_error "Audio testing failed after $max_attempts attempts."
+        echo ""
+        echo "Please resolve the audio configuration issue before continuing."
+        echo "You can:"
+        echo "1. Check hardware connections"
+        echo "2. Verify ReSpeaker HAT detection"
+        echo "3. Adjust volume settings with 'alsamixer'"
+        echo "4. Check system logs for audio errors"
+        echo ""
+        echo "Installation cannot continue without working audio."
+        exit 1
+    fi
 }
 
 # Function to provide post-installation instructions
@@ -479,6 +560,7 @@ main() {
     echo "- Set up YOVA with Python Poetry"
     echo "- Prompt for and configure your OpenAI API key"
     echo "- Set up systemd services"
+    echo "- Test audio playback to ensure proper configuration"
     echo ""
     
     # Pre-flight checks
@@ -506,10 +588,9 @@ main() {
 
     # Handle reboot if needed
     handle_reboot
-
-    test_audio_devices
     
     # Post-installation
+    test_playback # Call the new test_playback function
     post_install_instructions
 }
 
