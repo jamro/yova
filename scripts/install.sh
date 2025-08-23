@@ -404,7 +404,7 @@ test_playback() {
     
     local test_success=false
     local test_attempts=0
-    local max_attempts=5
+    local max_attempts=10
     
     while [ "$test_success" = false ] && [ $test_attempts -lt $max_attempts ]; do
         test_attempts=$((test_attempts + 1))
@@ -446,10 +446,12 @@ test_playback() {
                 echo "Focus on playback volume only (skip recording/capture settings for now)."
                 echo ""
                 echo "Recommended settings:"
-                echo "- Master playback volume: 80%"
-                echo "- Output device volume: 80%"
+                echo "1. Press F6 to select output device"
+                echo "2. Select 'seeed2micvoicec' from the device list"
+                echo "3. Set PCM to 100%"
+                echo "4. Set Line DAC to 100%"
                 echo ""
-                echo "To exit alsamixer: Press ESC key or CTRL+C"
+                echo "To exit alsamixer: Press ESC key"
                 echo ""
                 
                 read -p "Press Enter to open alsamixer for volume adjustment..."
@@ -465,7 +467,13 @@ test_playback() {
             echo ""
             echo "Let's adjust the audio settings using alsamixer."
             echo ""
-            echo "To exit alsamixer: Press ESC key or CTRL+C"
+            echo "Recommended settings:"
+            echo "1. Press F6 to select output device"
+            echo "2. Select 'seeed2micvoicec' from the device list"
+            echo "3. Set PCM to 100%"
+            echo "4. Set Line DAC to 100%"
+            echo ""
+            echo "To exit alsamixer: Press ESC key"
             echo ""
             
             read -p "Press Enter to open alsamixer for volume adjustment..."
@@ -512,9 +520,9 @@ post_install_instructions() {
     echo "4. View logs: sudo journalctl -u supervisord.service -f"
     echo ""
     echo "For manual volume adjustment:"
-    echo "- Run 'alsamixer' and adjust master playback to 80%"
-    echo "- Press F4 for capture, set PGA to 25%"
-    echo "- Press F6, select 'seeed2micvoicec', set capture to 80%"
+    echo "- Press F6 to select output device 'seeed2micvoicec'"
+    echo "- Set PCM to 100%"
+    echo "- Set Line DAC to 100%"
     echo "- Save settings: sudo alsactl store"
 }
 
