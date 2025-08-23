@@ -501,6 +501,130 @@ test_playback() {
     fi
 }
 
+# Function to test audio recording
+test_recording() {
+    print_status "Testing audio recording..."
+    echo ""
+    echo "This test will record audio from your ReSpeaker HAT microphone for 5 seconds."
+    echo "Please speak clearly into the microphone during the recording."
+    echo ""
+    
+    read -p "Press Enter to continue with the recording test..."
+    
+    local test_success=false
+    local test_attempts=0
+    local max_attempts=10
+    
+    while [ "$test_success" = false ] && [ $test_attempts -lt $max_attempts ]; do
+        test_attempts=$((test_attempts + 1))
+        echo ""
+        print_status "Recording test attempt $test_attempts of $max_attempts"
+        echo "Recording audio for 5 seconds... Please speak clearly."
+        
+        # Record audio
+        if arecord -D "plughw:${RESPEAKER_CARD},${RESPEAKER_DEVICE}" -f S16_LE -c1 -r 16000 -d 5 rec_test.wav 2>/dev/null; then
+            echo ""
+            echo "Recording completed successfully."
+            echo "Now playing back the recorded audio..."
+            
+            # Play back the recorded audio
+            if aplay -D "plughw:${RESPEAKER_CARD},${RESPEAKER_DEVICE}" rec_test.wav 2>/dev/null; then
+                echo ""
+                echo "Playback completed."
+                read -p "Did you hear your voice clearly in the playback? (y/n): " -n 1 -r
+                echo ""
+                
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    print_success "Audio recording test passed!"
+                    test_success=true
+                    
+                    # Clean up test file
+                    rm -f rec_test.wav
+                else
+                    echo ""
+                    print_warning "Recording was not clear or too quiet."
+                    echo ""
+                    echo "Let's adjust the audio recording settings using alsamixer."
+                    echo "Focus on capture/recording volume settings."
+                    echo ""
+                    echo "Recommended settings:"
+                    echo "1. Press F6 to select input device"
+                    echo "2. Select 'seeed2micvoicec' from the device list"
+                    echo "3. Set PGA to 25%"
+                    echo "4. Set capture volume to 80%"
+                    echo ""
+                    echo "To exit alsamixer: Press ESC key"
+                    echo ""
+                    
+                    read -p "Press Enter to open alsamixer for recording volume adjustment..."
+                    
+                    # Run alsamixer for the user
+                    alsamixer
+                    
+                    echo ""
+                    print_status "alsamixer closed. Let's test the recording again..."
+                fi
+            else
+                print_error "Failed to play back recorded audio."
+                echo ""
+                echo "Let's adjust the audio settings using alsamixer."
+                echo ""
+                echo "Recommended settings:"
+                echo "1. Press F6 to select input device"
+                echo "2. Select 'seeed2micvoicec' from the device list"
+                echo "3. Set PGA to 25%"
+                echo "4. Set capture volume to 80%"
+                echo ""
+                echo "To exit alsamixer: Press ESC key"
+                echo ""
+                
+                read -p "Press Enter to open alsamixer for recording volume adjustment..."
+                
+                # Run alsamixer for the user
+                alsamixer
+                
+                echo ""
+                print_status "alsamixer closed. Let's try the recording test again..."
+            fi
+        else
+            print_error "Failed to record audio. Please check your microphone configuration."
+            echo ""
+            echo "Let's adjust the audio settings using alsamixer."
+            echo ""
+            echo "Recommended settings:"
+            echo "1. Press F6 to select input device"
+            echo "2. Select 'seeed2micvoicec' from the device list"
+            echo "3. Set PGA to 25%"
+            echo "4. Set capture volume to 80%"
+            echo ""
+            echo "To exit alsamixer: Press ESC key"
+            echo ""
+            
+            read -p "Press Enter to open alsamixer for recording volume adjustment..."
+            
+            # Run alsamixer for the user
+            alsamixer
+            
+            echo ""
+            print_status "alsamixer closed. Let's try the recording test again..."
+        fi
+    done
+    
+    if [ "$test_success" = false ]; then
+        print_error "Audio recording test failed after $max_attempts attempts."
+        echo ""
+        echo "Please resolve the audio recording configuration issue before continuing."
+        echo "You can:"
+        echo "1. Check microphone connection"
+        echo "2. Verify ReSpeaker HAT detection"
+        echo "3. Adjust recording volume settings with 'alsamixer'"
+        echo "4. Check system logs for audio errors"
+        echo ""
+        echo "Installation cannot continue without working audio recording."
+        exit 1
+    fi
+}
+
 # Function to provide post-installation instructions
 post_install_instructions() {
     print_success "Installation completed!"
@@ -573,6 +697,7 @@ main() {
     echo "- Prompt for and configure your OpenAI API key"
     echo "- Set up systemd services"
     echo "- Test audio playback to ensure proper configuration"
+    echo "- Test audio recording to ensure microphone functionality"
     echo ""
     
     # Pre-flight checks
@@ -602,7 +727,8 @@ main() {
     handle_reboot
     
     # Post-installation
-    test_playback # Call the new test_playback function
+    test_playback 
+    test_recording
     post_install_instructions
 }
 
