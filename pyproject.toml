@@ -35,6 +35,7 @@ optional = true
 
 [tool.poetry.group.rpi.dependencies]
 spidev = "*"
+rpi-lgpio = "*"
 
 [tool.poetry.scripts]
 yova = "yova_core.main:run"
