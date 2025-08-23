@@ -537,6 +537,14 @@ test_recording() {
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     print_success "Audio recording test passed!"
                     test_success=true
+
+                    # Store ALSA settings after successful test
+                    print_status "Storing ALSA settings..."
+                    if sudo alsactl store; then
+                        print_success "ALSA settings stored successfully"
+                    else
+                        print_warning "Failed to store ALSA settings, but audio is working"
+                    fi
                     
                     # Clean up test file
                     rm -f rec_test.wav
