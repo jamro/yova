@@ -5,8 +5,8 @@ from .base_animation import BaseAnimation
 
 DARK = (0, 0, 0)
 
-DURATION_MIN = 60
-DURATION_MAX = 80
+DURATION_MIN = 2
+DURATION_MAX = 20
 
 class SparkAnimation(BaseAnimation):
     """Light up animation - light up the LEDs one by one."""

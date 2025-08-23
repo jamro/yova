@@ -31,6 +31,15 @@ Connect to Raspberry Pi via SSH:
 ssh pi@voice.local
 ```
 
+
+## Automatic installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh | sudo bash
+```
+
+## Manual installation
+
 Install dependencies:
 ```bash
 sudo apt update
@@ -149,7 +158,6 @@ git clone https://github.com/jamro/yova.git
 cd yova
 poetry config keyring.enabled false
 make install
-echo "OPENAI_API_KEY=..." > .env
 cp yova.config.default.json yova.config.json
 ```
 

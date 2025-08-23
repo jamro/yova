@@ -1,0 +1,289 @@
+#!/bin/bash
+
+# YOVA Installation Script for Raspberry Pi
+# This script automates the manual installation process
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Function to check if running on Raspberry Pi
+check_raspberry_pi() {
+    if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+        print_error "This script must be run on a Raspberry Pi"
+        exit 1
+    fi
+    print_success "Raspberry Pi detected"
+}
+
+# Function to check if running as root
+check_root() {
+    if [[ $EUID -eq 0 ]]; then
+        print_error "This script should not be run as root. Please run as pi user."
+        exit 1
+    fi
+}
+
+# Function to check if pi user exists
+check_pi_user() {
+    if ! id "pi" &>/dev/null; then
+        print_error "User 'pi' does not exist. Please create it first."
+        exit 1
+    fi
+    print_success "User 'pi' found"
+}
+
+# Function to update system
+update_system() {
+    print_status "Updating system packages..."
+    sudo apt update
+    DEBIAN_FRONTEND=noninteractive sudo apt upgrade -y -o Dpkg::Options::="--force-confnew"
+    print_success "System updated"
+}
+
+# Function to install dependencies
+install_dependencies() {
+    print_status "Installing system dependencies..."
+    sudo apt install -y build-essential python3-dev libasound2-dev libportaudio2 \
+        portaudio19-dev libportaudiocpp0 libjack-jackd2-dev python3-rpi-lgpio \
+        curl alsa-utils
+    print_success "Dependencies installed"
+}
+
+# Function to configure GPIO access
+configure_gpio() {
+    print_status "Configuring GPIO access..."
+    sudo usermod -aG gpio pi
+    print_success "GPIO access configured"
+}
+
+# Function to install ReSpeaker HAT drivers
+install_respeaker_drivers() {
+    print_status "Installing ReSpeaker HAT drivers..."
+    
+    # Download and compile device tree overlay
+    curl -s https://raw.githubusercontent.com/Seeed-Studio/seeed-linux-dtoverlays/refs/heads/master/overlays/rpi/respeaker-2mic-v2_0-overlay.dts -o respeaker-2mic-v2_0-overlay.dts
+    
+    if [ ! -f respeaker-2mic-v2_0-overlay.dts ]; then
+        print_error "Failed to download ReSpeaker overlay file"
+        exit 1
+    fi
+    
+    # Compile DTS to DTB
+    dtc -I dts respeaker-2mic-v2_0-overlay.dts -o respeaker-2mic-v2_0-overlay.dtbo
+    
+    if [ ! -f respeaker-2mic-v2_0-overlay.dtbo ]; then
+        print_error "Failed to compile ReSpeaker overlay"
+        exit 1
+    fi
+    
+    # Install overlay
+    # TODO: check if this is really necessary
+    # sudo dtoverlay respeaker-2mic-v2_0-overlay.dtbo
+    sudo cp respeaker-2mic-v2_0-overlay.dtbo /boot/firmware/overlays/
+    
+    # Clean up temporary files
+    rm -f respeaker-2mic-v2_0-overlay.dts respeaker-2mic-v2_0-overlay.dtbo
+    
+    print_success "ReSpeaker HAT drivers installed"
+}
+
+# Function to configure boot config
+configure_boot_config() {
+    print_status "Configuring boot configuration..."
+    
+    # Backup original config
+    sudo cp /boot/firmware/config.txt /boot/firmware/config.txt.backup
+    
+    # Check if overlays are already configured
+    if ! grep -q "respeaker-2mic-v2_0-overlay" /boot/firmware/config.txt; then
+        echo "" | sudo tee -a /boot/firmware/config.txt
+        echo "# ReSpeaker HAT" | sudo tee -a /boot/firmware/config.txt
+        echo "dtoverlay=respeaker-2mic-v2_0-overlay" | sudo tee -a /boot/firmware/config.txt
+        echo "dtoverlay=i2s-mmap" | sudo tee -a /boot/firmware/config.txt
+        print_success "Boot configuration updated"
+    else
+        print_warning "ReSpeaker overlays already configured in boot config"
+    fi
+}
+
+# Function to configure ALSA
+configure_alsa() {
+    print_status "Configuring ALSA..."
+    
+    # Create ALSA configuration
+    sudo tee /etc/asound.conf > /dev/null <<EOF
+pcm.!default {
+    type plug
+    slave.pcm "hw:2,0"
+    slave.rate 16000
+}
+ctl.!default {
+    type hw
+    card 2
+}
+EOF
+    
+    print_success "ALSA configuration created"
+}
+
+# Function to enable SPI
+enable_spi() {
+    print_status "Enabling SPI interface..."
+    
+    # Check if SPI is already enabled
+    if ! grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
+        echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt
+        print_success "SPI enabled in boot config"
+    else
+        print_warning "SPI already enabled in boot config"
+    fi
+}
+
+# Function to install Python Poetry
+install_poetry() {
+    print_status "Installing Python Poetry..."
+    
+    if ! command -v poetry &> /dev/null; then
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo 'export PATH="/home/pi/.local/bin:$PATH"' >> ~/.bashrc
+        export PATH="/home/pi/.local/bin:$PATH"
+        print_success "Poetry installed"
+    else
+        print_warning "Poetry already installed"
+    fi
+}
+
+# Function to clone and install YOVA
+install_yova() {
+    print_status "Installing YOVA..."
+    
+    # Ensure we're in the pi user's home directory
+    cd /home/pi
+    
+    if [ ! -d "yova" ]; then
+        git clone https://github.com/jamro/yova.git
+        cd yova
+    else
+        print_warning "YOVA directory already exists, updating..."
+        cd yova
+        git pull
+    fi
+    
+    # Configure Poetry
+    poetry config keyring.enabled false
+    
+    # Install dependencies
+    poetry install
+    
+    # Copy configuration
+    if [ ! -f "yova.config.json" ]; then
+        cp yova.config.default.json yova.config.json
+        print_warning "Configuration file created. Please edit yova.config.json with your OpenAI API key."
+    fi
+    
+    print_success "YOVA installed at /home/pi/yova"
+}
+
+# Function to configure systemd service
+configure_systemd() {
+    print_status "Configuring systemd service..."
+    
+    if [ -f "scripts/supervisord.service" ]; then
+        sudo cp scripts/supervisord.service /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable supervisord.service
+        print_success "Systemd service configured"
+    else
+        print_warning "supervisord.service not found, skipping systemd configuration"
+    fi
+}
+
+# Function to test audio devices
+test_audio_devices() {
+    print_status "Testing audio devices..."
+    
+    echo "Available playback devices:"
+    aplay -l
+    
+    echo ""
+    echo "Available capture devices:"
+    arecord -l
+    
+    print_warning "Please verify that 'seeed2micvoicec' appears in the device list"
+    print_warning "If devices are not showing correctly, a reboot may be required"
+}
+
+# Function to provide post-installation instructions
+post_install_instructions() {
+    print_success "Installation completed!"
+    echo ""
+    echo "Next steps:"
+    echo "1. Edit yova.config.json and add your OpenAI API key"
+    echo "2. Reboot the Raspberry Pi: sudo reboot"
+    echo "3. After reboot, test audio devices: aplay -l && arecord -l"
+    echo "4. Adjust audio volume: alsamixer"
+    echo "5. Start YOVA: sudo systemctl start supervisord.service"
+    echo "6. Check status: sudo systemctl status supervisord.service"
+    echo "7. View logs: sudo journalctl -u supervisord.service -f"
+    echo ""
+    echo "For manual volume adjustment:"
+    echo "- Run 'alsamixer' and adjust master playback to 80%"
+    echo "- Press F4 for capture, set PGA to 25%"
+    echo "- Press F6, select 'seeed2micvoicec', set capture to 80%"
+    echo "- Save settings: sudo alsactl store"
+}
+
+# Main installation function
+main() {
+    echo "=========================================="
+    echo "    YOVA Installation Script"
+    echo "=========================================="
+    echo ""
+    
+    # Pre-flight checks
+    check_raspberry_pi
+    check_root
+    check_pi_user
+    
+    # Installation steps
+    update_system
+    install_dependencies
+    configure_gpio
+    install_respeaker_drivers
+    configure_boot_config
+    configure_alsa
+    enable_spi
+    install_poetry
+    install_yova
+    configure_systemd
+    test_audio_devices
+    
+    # Post-installation
+    post_install_instructions
+}
+
+# Run main function
+main "$@"
