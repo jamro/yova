@@ -108,5 +108,5 @@ The following beep sounds are available in `yova_shared/assets/`:
 
 ### Common Issues
 1. **API Key Errors**: Ensure your OpenAI API key is valid and has sufficient credits
-2. **Audio Quality**: Adjust noise reduction, threshold settings, and capture/playback volume for your environment. See [Installation Guide](install.md) for more details.
+2. **Audio Quality**: Adjust noise reduction, threshold settings, and capture/playback volume for your environment. See [Troubleshooting Guide](troubleshooting.md) for more details.
 3. **Language Mismatch**: Ensure the language setting matches your speech and instructions
