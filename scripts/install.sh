@@ -425,7 +425,6 @@ download_test_audio() {
     
     if curl -L -o "$test_file" "$download_url" 2>/dev/null; then
         print_success "Test audio file downloaded successfully: $test_file"
-        echo "$test_file"
     else
         print_error "Failed to download test audio file"
         return 1
@@ -442,11 +441,16 @@ test_playback() {
     
     read -p "Press Enter to continue with the audio test..."
     
-    # Download test audio file
-    local test_file=$(download_test_audio)
-    if [ $? -ne 0 ] || [ -z "$test_file" ]; then
-        print_error "Failed to download test audio file. Cannot proceed with audio testing."
-        exit 1
+    # Check if test file exists, download if it doesn't
+    local test_file="test_sound.wav"
+    if [ ! -f "$test_file" ]; then
+        print_status "Test audio file not found, downloading..."
+        if ! download_test_audio >/dev/null 2>&1; then
+            print_error "Failed to download test audio file. Cannot proceed with audio testing."
+            exit 1
+        fi
+    else
+        print_status "Using existing test audio file: $test_file"
     fi
     
     local test_success=false
