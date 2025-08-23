@@ -125,10 +125,24 @@ configure_boot_config() {
     
     # Check if overlays are already configured
     if ! grep -q "respeaker-2mic-v2_0-overlay" /boot/firmware/config.txt; then
-        echo "" | sudo tee -a /boot/firmware/config.txt
-        echo "# ReSpeaker HAT" | sudo tee -a /boot/firmware/config.txt
-        echo "dtoverlay=respeaker-2mic-v2_0-overlay" | sudo tee -a /boot/firmware/config.txt
-        echo "dtoverlay=i2s-mmap" | sudo tee -a /boot/firmware/config.txt
+        # Check if [all] section exists
+        if grep -q "^\[all\]" /boot/firmware/config.txt; then
+            # [all] section exists, add dtoverlay entries under it
+            # Find the line number of [all] section
+            local all_section_line=$(grep -n "^\[all\]" /boot/firmware/config.txt | cut -d: -f1)
+            # Insert dtoverlay entries after [all] section
+            sudo sed -i "${all_section_line}a\\
+# ReSpeaker HAT\\
+dtoverlay=respeaker-2mic-v2_0-overlay\\
+dtoverlay=i2s-mmap" /boot/firmware/config.txt
+        else
+            # [all] section doesn't exist, add it at the end with dtoverlay entries
+            echo "" | sudo tee -a /boot/firmware/config.txt
+            echo "[all]" | sudo tee -a /boot/firmware/config.txt
+            echo "# ReSpeaker HAT" | sudo tee -a /boot/firmware/config.txt
+            echo "dtoverlay=respeaker-2mic-v2_0-overlay" | sudo tee -a /boot/firmware/config.txt
+            echo "dtoverlay=i2s-mmap" | sudo tee -a /boot/firmware/config.txt
+        fi
         print_success "Boot configuration updated"
         REBOOT_NEEDED=true
     else
@@ -178,7 +192,7 @@ interactive_device_selection() {
     
     echo ""
     print_warning "Please identify which card and device correspond to your ReSpeaker HAT"
-    print_warning "Look for a device named 'seeed2micvoicec' or similar"
+    print_warning "Look for a device named 'seeed2micvoicec' or similar. CTRL+C to cancel."
     
     # Get user input
     read -p "Enter card number: " card_input
