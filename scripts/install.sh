@@ -317,12 +317,33 @@ enable_spi() {
     print_status "Enabling SPI interface..."
     
     # Check if SPI is already enabled
-    if ! grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
-        echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt
-        print_success "SPI enabled in boot config"
+    if grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
+        print_warning "SPI already enabled in boot config"
+        return 0
+    fi
+    
+    echo ""
+    echo "SPI interface needs to be enabled for the ReSpeaker HAT to work properly."
+    echo ""
+    echo "Instructions:"
+    echo "1. Navigate to 'Interface Options'"
+    echo "2. Select 'SPI'"
+    echo "3. Choose 'Yes' to enable SPI"
+    echo "4. Select 'Finish' to exit raspi-config"
+    echo ""
+    echo "Press Enter to open raspi-config..."
+    read -p ""
+    
+    # Launch raspi-config
+    sudo raspi-config
+    
+    # Check if SPI was enabled
+    if grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
+        print_success "SPI enabled successfully"
         REBOOT_NEEDED=true
     else
-        print_warning "SPI already enabled in boot config"
+        print_warning "SPI may not have been enabled. Please ensure SPI is enabled in raspi-config."
+        echo "You can re-run this step later if needed."
     fi
 }
 
@@ -673,7 +694,15 @@ post_install_instructions() {
     echo "   - Ask a question (e.g., 'Tell me a joke' or 'What is artificial intelligence?')"
     echo "   - Wait for YOVA to respond"
     echo ""
-    echo "2. If you need to check service status:"
+    echo "2. Review and customize configuration:"
+    echo "   - Edit: nano ~/yova/yova.config.json"
+    echo "   - Common customizations:"
+    echo "     * Change language
+    echo "     * Adjust audio settings
+    echo "   - After config changes, restart the service:"
+    echo "     sudo systemctl restart supervisord.service"
+    echo ""
+    echo "3. If you need to check service status:"
     echo "   - Status: sudo systemctl status supervisord.service"
     echo "   - Logs: sudo journalctl -u supervisord.service -f"
 }
