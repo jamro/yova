@@ -34,7 +34,7 @@ ssh pi@yova.local
 ## Automatic installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh -o install.sh && bash install.sh
+curl -fsSL https://raw.githubusercontent.com/jamro/yova/main/scripts/install.sh -o install.sh && bash install.sh
 ```
 
 ## Manual installation

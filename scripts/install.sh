@@ -316,34 +316,33 @@ EOF
 enable_spi() {
     print_status "Enabling SPI interface..."
     
-    # Check if SPI is already enabled
-    if grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
+    # Check if SPI is already enabled (not commented out)
+    if grep -q "^[[:space:]]*dtparam=spi=on" /boot/firmware/config.txt; then
         print_warning "SPI already enabled in boot config"
         return 0
     fi
     
-    echo ""
-    echo "SPI interface needs to be enabled for the ReSpeaker HAT to work properly."
-    echo ""
-    echo "Instructions:"
-    echo "1. Navigate to 'Interface Options'"
-    echo "2. Select 'SPI'"
-    echo "3. Choose 'Yes' to enable SPI"
-    echo "4. Select 'Finish' to exit raspi-config"
-    echo ""
-    echo "Press Enter to open raspi-config..."
-    read -p ""
+    # Check if SPI line exists but is commented out
+    if grep -q "^[[:space:]]*#[[:space:]]*dtparam=spi=on" /boot/firmware/config.txt; then
+        print_status "SPI line found but commented out, enabling it..."
+        # Uncomment the existing line
+        sudo sed -i 's/^[[:space:]]*#[[:space:]]*dtparam=spi=on/dtparam=spi=on/' /boot/firmware/config.txt
+        print_success "SPI enabled by uncommenting existing line"
+        REBOOT_NEEDED=true
+        return 0
+    fi
     
-    # Launch raspi-config
-    sudo raspi-config
+    # If no SPI line exists, add it
+    print_status "Adding SPI configuration to boot config..."
+    echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt > /dev/null
     
-    # Check if SPI was enabled
-    if grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
-        print_success "SPI enabled successfully"
+    # Verify the change was made
+    if grep -q "^[[:space:]]*dtparam=spi=on" /boot/firmware/config.txt; then
+        print_success "SPI configuration added successfully"
         REBOOT_NEEDED=true
     else
-        print_warning "SPI may not have been enabled. Please ensure SPI is enabled in raspi-config."
-        echo "You can re-run this step later if needed."
+        print_error "Failed to add SPI configuration"
+        return 1
     fi
 }
 
