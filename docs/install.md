@@ -109,3 +109,16 @@ Run the automated installation script:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jamro/yova/main/scripts/install.sh -o install.sh && bash install.sh
 ```
+
+## Next Steps
+
+After installation, you may need to:
+
+- **Configure your OpenAI API key** - Edit `~/yova/yova.config.json` and add your API key
+- **Test audio functionality** - Use the test commands in the troubleshooting guide
+- **Customize settings** - Modify configuration files as needed
+
+## Additional Documentation
+
+- **[Troubleshooting Guide](troubleshooting.md)** - Solutions for common issues, audio configuration, and service management
+- **[Configuration Guide](config.md)** - Detailed configuration options and settings
