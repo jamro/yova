@@ -723,7 +723,7 @@ handle_reboot() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Rebooting in 5 seconds... Press Ctrl+C to cancel."
             print_status "REMEMBER: After reboot, re-run install command!"
-            print ""
+            echo ""
             sleep 2
             print_status "Rebooting in 3 seconds... Press Ctrl+C to cancel."
             sleep 1
