@@ -18,7 +18,7 @@ graph TD
 ## What makes YOVA useful:
  - **Runs on Raspberry Pi**: lightweight enough for edge devices, always ready to listen.
  - **Compact form factor**: a small device you can keep on your desk, in your room, or integrate into other projects.
- - **3D printed case**:** comes with customizable 3D models so you can print your own version or tweak the design.
+ - **3D printed case**: comes with customizable 3D models so you can print your own version or tweak the design.
  - **Modular architecture** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
  - **Flexible integration**: connect it to any backend you want to build.
  - **Ready after install** ships with a working ChatGPT integration as a simple example, so you can start using it right away.
