@@ -385,6 +385,7 @@ configure_systemd() {
         sudo cp scripts/supervisord.service /etc/systemd/system/
         sudo systemctl daemon-reload
         sudo systemctl enable supervisord.service
+        sudo systemctl start supervisord.service
         print_success "Systemd service configured"
         REBOOT_NEEDED=true
     else
@@ -645,17 +646,32 @@ post_install_instructions() {
         echo ""
     fi
     
-    echo "Next steps:"
-    echo "1. Adjust audio volume: alsamixer"
-    echo "2. Start YOVA: sudo systemctl start supervisord.service"
-    echo "3. Check status: sudo systemctl status supervisord.service"
-    echo "4. View logs: sudo journalctl -u supervisord.service -f"
+    # Check if service is configured and running
+    echo "Checking YOVA service status..."
+    if systemctl is-enabled supervisord.service &>/dev/null; then
+        print_success "✓ YOVA service is configured and enabled"
+    else
+        print_warning "✗ YOVA service is not configured"
+    fi
+    
+    if systemctl is-active supervisord.service &>/dev/null; then
+        print_success "✓ YOVA service is running"
+    else
+        print_warning "✗ YOVA service is not running"
+        echo "   To start: sudo systemctl start supervisord.service"
+    fi
+    
     echo ""
-    echo "For manual volume adjustment:"
-    echo "- Press F6 to select output device 'seeed2micvoicec'"
-    echo "- Set PCM to 100%"
-    echo "- Set Line DAC to 100%"
-    echo "- Save settings: sudo alsactl store"
+    echo "Next steps:"
+    echo "1. Test YOVA functionality:"
+    echo "   - Press the push-to-talk button on your ReSpeaker HAT"
+    echo "   - Wait for the beep sound to confirm it's listening"
+    echo "   - Ask a question (e.g., 'Tell me a joke' or 'What is artificial intelligence?')"
+    echo "   - Wait for YOVA to respond"
+    echo ""
+    echo "2. If you need to check service status:"
+    echo "   - Status: sudo systemctl status supervisord.service"
+    echo "   - Logs: sudo journalctl -u supervisord.service -f"
 }
 
 # Function to handle reboot confirmation and execution
@@ -726,6 +742,9 @@ main() {
     
     # Continue with remaining steps after potential reboot
     configure_alsa
+    test_playback 
+    test_recording
+    
     install_poetry
     install_yova
     configure_openai_api
@@ -735,8 +754,6 @@ main() {
     handle_reboot
     
     # Post-installation
-    test_playback 
-    test_recording
     post_install_instructions
 }
 
