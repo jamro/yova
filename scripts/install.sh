@@ -380,6 +380,7 @@ configure_systemd() {
         sudo systemctl daemon-reload
         sudo systemctl enable supervisord.service
         print_success "Systemd service configured"
+        REBOOT_NEEDED=true
     else
         print_warning "supervisord.service not found, skipping systemd configuration"
     fi
@@ -420,12 +421,10 @@ post_install_instructions() {
     fi
     
     echo "Next steps:"
-    echo "1. Reboot the Raspberry Pi: sudo reboot"
-    echo "2. After reboot, test audio devices: aplay -l && arecord -l"
-    echo "3. Adjust audio volume: alsamixer"
-    echo "4. Start YOVA: sudo systemctl start supervisord.service"
-    echo "5. Check status: sudo systemctl status supervisord.service"
-    echo "6. View logs: sudo journalctl -u supervisord.service -f"
+    echo "1. Adjust audio volume: alsamixer"
+    echo "2. Start YOVA: sudo systemctl start supervisord.service"
+    echo "3. Check status: sudo systemctl status supervisord.service"
+    echo "4. View logs: sudo journalctl -u supervisord.service -f"
     echo ""
     echo "For manual volume adjustment:"
     echo "- Run 'alsamixer' and adjust master playback to 80%"
@@ -504,6 +503,10 @@ main() {
     install_yova
     configure_openai_api
     configure_systemd
+
+    # Handle reboot if needed
+    handle_reboot
+
     test_audio_devices
     
     # Post-installation
