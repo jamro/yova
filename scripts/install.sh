@@ -531,7 +531,7 @@ test_recording() {
             if aplay -D "plughw:${RESPEAKER_CARD},${RESPEAKER_DEVICE}" rec_test.wav 2>/dev/null; then
                 echo ""
                 echo "Playback completed."
-                read -p "Did you hear your voice clearly in the playback? (y/n): " -n 1 -r
+                read -p "Did you hear your voice clearly in the playback? It should be loud but without audio clipping. (y/n): " -n 1 -r
                 echo ""
                 
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -550,8 +550,8 @@ test_recording() {
                     echo "Recommended settings:"
                     echo "1. Press F6 to select input device"
                     echo "2. Select 'seeed2micvoicec' from the device list"
-                    echo "3. Set PGA to 25%"
-                    echo "4. Set capture volume to 80%"
+                    echo "3. Press F4 to filter capture settings"
+                    echo "4. Set Capture (PGA) to 30% (recommended)"
                     echo ""
                     echo "To exit alsamixer: Press ESC key"
                     echo ""
@@ -572,8 +572,8 @@ test_recording() {
                 echo "Recommended settings:"
                 echo "1. Press F6 to select input device"
                 echo "2. Select 'seeed2micvoicec' from the device list"
-                echo "3. Set PGA to 25%"
-                echo "4. Set capture volume to 80%"
+                echo "3. Press F4 to filter capture settings"
+                echo "4. Set Capture (PGA) to 30% (recommended)"
                 echo ""
                 echo "To exit alsamixer: Press ESC key"
                 echo ""
@@ -594,8 +594,8 @@ test_recording() {
             echo "Recommended settings:"
             echo "1. Press F6 to select input device"
             echo "2. Select 'seeed2micvoicec' from the device list"
-            echo "3. Set PGA to 25%"
-            echo "4. Set capture volume to 80%"
+            echo "3. Press F4 to filter capture settings"
+            echo "4. Set Capture (PGA) to 30% (recommended)"
             echo ""
             echo "To exit alsamixer: Press ESC key"
             echo ""
