@@ -22,3 +22,13 @@ graph TD
  - **Modular architecture** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
  - **Flexible integration**: connect it to any backend you want to build.
  - **Ready after install** ships with a working ChatGPT integration as a simple example, so you can start using it right away.
+
+## Getting Started
+
+To get started with YOVA, you'll need a Raspberry Pi 5 and a ReSpeaker 2-Mic HAT. The installation process involves:
+
+1. **Hardware Assembly** - 3D print the case and assemble the components
+2. **Software Installation** - Run the automated install script on your Raspberry Pi
+3. **Configuration** - Connect to your preferred AI backend
+
+For detailed step-by-step instructions, see the [Installation Guide](docs/install.md).
