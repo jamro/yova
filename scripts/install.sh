@@ -646,6 +646,10 @@ post_install_instructions() {
         echo ""
     fi
     
+    # Restart service to ensure it's running fresh
+    echo "Restarting YOVA service..."
+    sudo systemctl restart supervisord.service
+    
     # Check if service is configured and running
     echo "Checking YOVA service status..."
     if systemctl is-enabled supervisord.service &>/dev/null; then
