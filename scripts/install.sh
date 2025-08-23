@@ -365,8 +365,14 @@ handle_reboot() {
         
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Rebooting in 5 seconds... Press Ctrl+C to cancel."
-            print_warning "REMEMBER: After reboot, re-run install command!"
-            sleep 5
+            print_status "REMEMBER: After reboot, re-run install command!"
+            sleep 2
+            print_status "Rebooting in 3 seconds... Press Ctrl+C to cancel."
+            sleep 1
+            print_status "Rebooting in 2 seconds... Press Ctrl+C to cancel."
+            sleep 1
+            print_status "Rebooting in 1 second... Press Ctrl+C to cancel."
+            sleep 1
             print_status "Rebooting now..."
             sudo reboot
         else
