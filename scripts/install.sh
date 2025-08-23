@@ -68,6 +68,7 @@ configure_openai_api() {
     # Validate API key format
     if [[ ! "$api_key" =~ ^sk-[a-zA-Z0-9_\-]{20,}$ ]]; then
         print_error "Invalid API key format. API key should start with 'sk-' and be at least 20 characters long."
+        print_error "Provided key: $api_key"
         return 1
     fi
     
