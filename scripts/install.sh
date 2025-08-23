@@ -35,6 +35,67 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Function to prompt for OpenAI API key and inject it into config
+configure_openai_api() {
+    print_status "Configuring OpenAI API key..."
+    
+    # Check if API key is already configured (different from default placeholder)
+    local current_key=$(grep -o '"api_key": "[^"]*"' yova.config.json | cut -d'"' -f4)
+    if [ "$current_key" != "sk-proj-..." ] && [ -n "$current_key" ]; then
+        print_warning "OpenAI API key already configured, skipping configuration step"
+        return 0
+    fi
+    
+    echo ""
+    echo "Please provide your OpenAI API key:"
+    echo "- You can find it at: https://platform.openai.com/api-keys"
+    echo "- The key should start with 'sk-proj-' or 'sk-'"
+    echo ""
+    
+    # Prompt for API key (hidden input)
+    read -s -p "Enter your OpenAI API key: " api_key
+    echo ""
+    
+    # Validate API key format
+    if [[ ! "$api_key" =~ ^sk-[a-zA-Z0-9]{20,}$ ]]; then
+        print_error "Invalid API key format. API key should start with 'sk-' and be at least 20 characters long."
+        return 1
+    fi
+    
+    # Update the API key in the config file
+    if command -v jq &> /dev/null; then
+        # Use jq if available for safer JSON manipulation
+        print_status "Using jq for safe JSON manipulation"
+        jq --arg key "$api_key" '.open_ai.api_key = $key' yova.config.json > yova.config.json.tmp
+        mv yova.config.json.tmp yova.config.json
+    else
+        # Fallback to sed if jq is not available
+        print_warning "jq not found, using sed fallback (less safe)"
+        sed -i "s/\"api_key\": \"[^\"]*\"/\"api_key\": \"$api_key\"/" yova.config.json
+    fi
+    
+    # Verify the update
+    local updated_key=$(grep -o '"api_key": "[^"]*"' yova.config.json | cut -d'"' -f4)
+    if [ "$updated_key" = "$api_key" ]; then
+        # Validate JSON syntax if jq is available
+        if command -v jq &> /dev/null; then
+            if jq empty yova.config.json 2>/dev/null; then
+                print_success "OpenAI API key configured successfully"
+                return 0
+            else
+                print_error "Configuration file contains invalid JSON after update"
+                return 1
+            fi
+        else
+            print_success "OpenAI API key configured successfully"
+            return 0
+        fi
+    else
+        print_error "Failed to update API key in configuration"
+        return 1
+    fi
+}
+
 # Function to check if running on Raspberry Pi
 check_raspberry_pi() {
     if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
@@ -74,7 +135,7 @@ install_dependencies() {
     print_status "Installing system dependencies..."
     sudo apt install -y build-essential python3-dev libasound2-dev libportaudio2 \
         portaudio19-dev libportaudiocpp0 libjack-jackd2-dev python3-rpi-lgpio \
-        curl alsa-utils
+        curl alsa-utils jq
     print_success "Dependencies installed"
 }
 
@@ -294,7 +355,7 @@ install_yova() {
     # Copy configuration
     if [ ! -f "yova.config.json" ]; then
         cp yova.config.default.json yova.config.json
-        print_warning "Configuration file created. Please edit yova.config.json with your OpenAI API key."
+        print_success "Configuration file created from template"
     fi
     
     print_success "YOVA installed at /home/pi/yova"
@@ -349,13 +410,12 @@ post_install_instructions() {
     fi
     
     echo "Next steps:"
-    echo "1. Edit yova.config.json and add your OpenAI API key"
-    echo "2. Reboot the Raspberry Pi: sudo reboot"
-    echo "3. After reboot, test audio devices: aplay -l && arecord -l"
-    echo "4. Adjust audio volume: alsamixer"
-    echo "5. Start YOVA: sudo systemctl start supervisord.service"
-    echo "6. Check status: sudo systemctl status supervisord.service"
-    echo "7. View logs: sudo journalctl -u supervisord.service -f"
+    echo "1. Reboot the Raspberry Pi: sudo reboot"
+    echo "2. After reboot, test audio devices: aplay -l && arecord -l"
+    echo "3. Adjust audio volume: alsamixer"
+    echo "4. Start YOVA: sudo systemctl start supervisord.service"
+    echo "5. Check status: sudo systemctl status supervisord.service"
+    echo "6. View logs: sudo journalctl -u supervisord.service -f"
     echo ""
     echo "For manual volume adjustment:"
     echo "- Run 'alsamixer' and adjust master playback to 80%"
@@ -380,6 +440,7 @@ handle_reboot() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Rebooting in 5 seconds... Press Ctrl+C to cancel."
             print_status "REMEMBER: After reboot, re-run install command!"
+            print ""
             sleep 2
             print_status "Rebooting in 3 seconds... Press Ctrl+C to cancel."
             sleep 1
@@ -403,6 +464,13 @@ main() {
     echo "    YOVA Installation Script"
     echo "=========================================="
     echo ""
+    echo "This script will automatically:"
+    echo "- Install all system dependencies"
+    echo "- Configure ReSpeaker HAT audio"
+    echo "- Set up YOVA with Python Poetry"
+    echo "- Prompt for and configure your OpenAI API key"
+    echo "- Set up systemd services"
+    echo ""
     
     # Pre-flight checks
     check_raspberry_pi
@@ -424,6 +492,7 @@ main() {
     configure_alsa
     install_poetry
     install_yova
+    configure_openai_api
     configure_systemd
     test_audio_devices
     
