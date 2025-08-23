@@ -48,7 +48,12 @@ async def main():
     state_machine = StateMachine(
         logger,
         SpeechHandler(logger, api_key, playback_config),
-        RealtimeTranscriber(transcription_provider, logger=logger)
+        RealtimeTranscriber(
+            transcription_provider, 
+            logger=logger,
+            audio_logs_path=get_config("speech2text.audio_logs_path"),
+            prerecord_beep=get_config("speech2text.prerecord_beep"),
+        )
     )
     async def log_state_change(data):
         logger.info(f"State changed: {data['previous_state']} -> {data['new_state']}")

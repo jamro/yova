@@ -9,10 +9,12 @@ from yova_shared import get_clean_logger
 import logging
 
 class RealtimeTranscriber:
-    def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None, max_wait_time=10, wait_interval=0.1):
+    def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None, 
+                 max_wait_time=10, wait_interval=0.1, prerecord_beep="beep7.wav", audio_logs_path=None):
         self.transcription_provider: TranscriptionProvider = transcription_provider
         self.audio_recorder: AudioRecorder = AudioRecorder(logger)
-        self.audio_recorder.prerecord_beep = "beep7.wav"
+        self.audio_recorder.prerecord_beep = prerecord_beep
+        self.audio_recorder.audio_logs_path = audio_logs_path or None
         self.logger = get_clean_logger("realtime_transcriber", logger)
         
         # Configuration parameters for testing
