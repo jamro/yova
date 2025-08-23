@@ -414,6 +414,24 @@ configure_systemd() {
     fi
 }
 
+# Function to download test audio file
+download_test_audio() {
+    print_status "Downloading test audio file..."
+    
+    local test_file="test_sound.wav"
+    local download_url="https://github.com/jamro/yova/raw/refs/heads/main/yova_shared/assets/test_sound.wav"
+    
+    echo "Downloading from: $download_url"
+    
+    if curl -L -o "$test_file" "$download_url" 2>/dev/null; then
+        print_success "Test audio file downloaded successfully: $test_file"
+        echo "$test_file"
+    else
+        print_error "Failed to download test audio file"
+        return 1
+    fi
+}
+
 # Function to test audio playback
 test_playback() {
     print_status "Testing audio playback..."
@@ -423,6 +441,13 @@ test_playback() {
     echo ""
     
     read -p "Press Enter to continue with the audio test..."
+    
+    # Download test audio file
+    local test_file=$(download_test_audio)
+    if [ $? -ne 0 ] || [ -z "$test_file" ]; then
+        print_error "Failed to download test audio file. Cannot proceed with audio testing."
+        exit 1
+    fi
     
     local test_success=false
     local test_attempts=0
@@ -435,7 +460,6 @@ test_playback() {
         echo "Playing test sound..."
         
         # Check if test file exists
-        local test_file="/home/pi/yova/yova_shared/assets/test_sound.wav"
         if [ ! -f "$test_file" ]; then
             print_error "Test audio file not found: $test_file"
             echo "Please ensure YOVA is properly installed."
@@ -459,6 +483,12 @@ test_playback() {
                     print_success "ALSA settings stored successfully"
                 else
                     print_warning "Failed to store ALSA settings, but audio is working"
+                fi
+                
+                # Clean up test file
+                if [ -f "$test_file" ]; then
+                    rm -f "$test_file"
+                    print_status "Test file cleaned up"
                 fi
             else
                 echo ""
@@ -509,6 +539,12 @@ test_playback() {
     done
     
     if [ "$test_success" = false ]; then
+        # Clean up test file before exiting
+        if [ -f "$test_file" ]; then
+            rm -f "$test_file"
+            print_status "Test file cleaned up"
+        fi
+        
         print_error "Audio testing failed after $max_attempts attempts."
         echo ""
         echo "Please resolve the audio configuration issue before continuing."
