@@ -380,7 +380,7 @@ install_yova() {
     poetry config keyring.enabled false
     
     # Install dependencies
-    poetry install
+    make install
     
     # Copy configuration
     if [ ! -f "yova.config.json" ]; then
