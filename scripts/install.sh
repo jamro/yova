@@ -407,7 +407,7 @@ test_playback() {
         echo "Playing test sound..."
         
         # Check if test file exists
-        local test_file="/home/pi/yova/yova_shared/assets/beep1.wav"
+        local test_file="/home/pi/yova/yova_shared/assets/test_sound.wav"
         if [ ! -f "$test_file" ]; then
             print_error "Test audio file not found: $test_file"
             echo "Please ensure YOVA is properly installed."
