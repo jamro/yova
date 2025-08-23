@@ -49,7 +49,7 @@ supervisor-dev: ## Start development supervisor with auto-restart and log stream
 
 dev-pi-sync: ## Sync dev changes to Raspberry Pi
 	fswatch -o ./ | while read f; do \
-		rsync -az --delete ./ pi@voice.local:/home/pi/yova/; \
+		rsync -az --delete ./ pi@yova.local:/home/pi/yova/; \
 	done
 
 clean: ## Clean up generated files

@@ -15,6 +15,8 @@ NC='\033[0m' # No Color
 # Global variables for ReSpeaker HAT device
 RESPEAKER_CARD=""
 RESPEAKER_DEVICE=""
+# Global variable to track if reboot is needed
+REBOOT_NEEDED=false
 
 # Function to print colored output
 print_status() {
@@ -128,6 +130,7 @@ configure_boot_config() {
         echo "dtoverlay=respeaker-2mic-v2_0-overlay" | sudo tee -a /boot/firmware/config.txt
         echo "dtoverlay=i2s-mmap" | sudo tee -a /boot/firmware/config.txt
         print_success "Boot configuration updated"
+        REBOOT_NEEDED=true
     else
         print_warning "ReSpeaker overlays already configured in boot config"
     fi
@@ -232,6 +235,7 @@ enable_spi() {
     if ! grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
         echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt
         print_success "SPI enabled in boot config"
+        REBOOT_NEEDED=true
     else
         print_warning "SPI already enabled in boot config"
     fi
@@ -346,6 +350,33 @@ post_install_instructions() {
     echo "- Save settings: sudo alsactl store"
 }
 
+# Function to handle reboot confirmation and execution
+handle_reboot() {
+    if [ "$REBOOT_NEEDED" = true ]; then
+        echo ""
+        print_warning "A reboot is required to apply the boot configuration changes."
+        echo "The reboot is necessary before continuing to the next installation steps."
+        echo ""
+        echo "After reboot, you must re-run the install script to complete the installation."
+        echo ""
+        
+        read -p "Do you agree to reboot the machine now to apply changes? (y/N): " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Rebooting in 5 seconds... Press Ctrl+C to cancel."
+            print_warning "REMEMBER: After reboot, re-run install command!"
+            sleep 5
+            print_status "Rebooting now..."
+            sudo reboot
+        else
+            print_warning "Reboot cancelled. Please reboot manually when ready and re-run this script."
+            print_warning "Installation cannot continue without a reboot."
+            exit 0
+        fi
+    fi
+}
+
 # Main installation function
 main() {
     echo "=========================================="
@@ -364,8 +395,13 @@ main() {
     configure_gpio
     install_respeaker_drivers
     configure_boot_config
-    configure_alsa
     enable_spi
+    
+    # Handle reboot if needed
+    handle_reboot
+    
+    # Continue with remaining steps after potential reboot
+    configure_alsa
     install_poetry
     install_yova
     configure_systemd

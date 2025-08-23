@@ -14,7 +14,7 @@ Prepare Rasperry PI SD card with [Raspberry Pi Imager](https://www.raspberrypi.c
 - Operating System: Raspberry Pi OS (64-bit)
 - Configuration (Edit Settings)
   - General:
-    - Set hostname: `voice.local`
+    - Set hostname: `yova.local`
     - Set username and password: **checked**
     - Set username: `pi`
     - Set password: `your password`
@@ -28,14 +28,13 @@ Prepare Rasperry PI SD card with [Raspberry Pi Imager](https://www.raspberrypi.c
 
 Connect to Raspberry Pi via SSH:
 ```bash
-ssh pi@voice.local
+ssh pi@yova.local
 ```
-
 
 ## Automatic installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh -o install.sh && bash install.sh
 ```
 
 ## Manual installation
@@ -108,7 +107,7 @@ aplay -D plughw:2,0 test.wav
 
 If you want to test the audio on your local machine copy the test.wav file:
 ```bash
-scp pi@voice.local:/home/pi/test.wav ~/
+scp pi@yova.local:/home/pi/test.wav ~/
 ```
 
 
