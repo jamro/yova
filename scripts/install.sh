@@ -12,6 +12,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Global variables for ReSpeaker HAT device
+RESPEAKER_CARD=""
+RESPEAKER_DEVICE=""
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -129,24 +133,95 @@ configure_boot_config() {
     fi
 }
 
+# Function to detect ReSpeaker HAT device
+detect_respeaker_device() {
+    print_status "Detecting ReSpeaker HAT device..."
+    
+    # Get list of audio devices
+    local aplay_output=$(aplay -l 2>/dev/null)
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to get audio device list"
+        return 1
+    fi
+    
+    # Look for ReSpeaker HAT device
+    local respeaker_line=$(echo "$aplay_output" | grep -i "seeed2micvoicec\|seeed-2mic-voicec\|respeaker")
+    
+    if [ -n "$respeaker_line" ]; then
+        # Extract card and device numbers
+        local card=$(echo "$respeaker_line" | sed -n 's/.*card \([0-9]*\):.*/\1/p')
+        local device=$(echo "$respeaker_line" | sed -n 's/.*device \([0-9]*\):.*/\1/p')
+        
+        if [ -n "$card" ] && [ -n "$device" ]; then
+            print_success "Detected ReSpeaker HAT: card $card, device $device"
+            RESPEAKER_CARD=$card
+            RESPEAKER_DEVICE=$device
+            return 0
+        fi
+    fi
+    
+    print_warning "Could not automatically detect ReSpeaker HAT device"
+    return 1
+}
+
+# Function for interactive device selection
+interactive_device_selection() {
+    print_status "Interactive device selection..."
+    
+    echo ""
+    echo "Available audio devices:"
+    aplay -l
+    
+    echo ""
+    print_warning "Please identify which card and device correspond to your ReSpeaker HAT"
+    print_warning "Look for a device named 'seeed2micvoicec' or similar"
+    
+    # Get user input
+    read -p "Enter card number: " card_input
+    read -p "Enter device number: " device_input
+    
+    # Validate input
+    if [[ "$card_input" =~ ^[0-9]+$ ]] && [[ "$device_input" =~ ^[0-9]+$ ]]; then
+        RESPEAKER_CARD=$card_input
+        RESPEAKER_DEVICE=$device_input
+        print_success "Using card $RESPEAKER_CARD, device $RESPEAKER_DEVICE"
+        return 0
+    else
+        print_error "Invalid input. Please enter numeric values."
+        return 1
+    fi
+}
+
 # Function to configure ALSA
 configure_alsa() {
     print_status "Configuring ALSA..."
+    
+    # Try automatic detection first
+    if ! detect_respeaker_device; then
+        # Fall back to interactive detection
+        if ! interactive_device_selection; then
+            # Final fallback to hardcoded values
+            print_warning "Using fallback values: card 2, device 0"
+            RESPEAKER_CARD=2
+            RESPEAKER_DEVICE=0
+        fi
+    fi
     
     # Create ALSA configuration
     sudo tee /etc/asound.conf > /dev/null <<EOF
 pcm.!default {
     type plug
-    slave.pcm "hw:2,0"
+    slave.pcm "hw:${RESPEAKER_CARD},${RESPEAKER_DEVICE}"
     slave.rate 16000
 }
 ctl.!default {
     type hw
-    card 2
+    card ${RESPEAKER_CARD}
 }
 EOF
     
-    print_success "ALSA configuration created"
+    print_success "ALSA configuration created with card ${RESPEAKER_CARD}, device ${RESPEAKER_DEVICE}"
 }
 
 # Function to enable SPI
@@ -232,7 +307,14 @@ test_audio_devices() {
     echo "Available capture devices:"
     arecord -l
     
-    print_warning "Please verify that 'seeed2micvoicec' appears in the device list"
+    if [ -n "$RESPEAKER_CARD" ] && [ -n "$RESPEAKER_DEVICE" ]; then
+        echo ""
+        print_success "ReSpeaker HAT configured for card $RESPEAKER_CARD, device $RESPEAKER_DEVICE"
+        print_warning "Please verify that 'seeed2micvoicec' appears in the device list"
+    else
+        print_warning "ReSpeaker HAT device not detected, please verify manually"
+    fi
+    
     print_warning "If devices are not showing correctly, a reboot may be required"
 }
 
@@ -240,6 +322,14 @@ test_audio_devices() {
 post_install_instructions() {
     print_success "Installation completed!"
     echo ""
+    
+    if [ -n "$RESPEAKER_CARD" ] && [ -n "$RESPEAKER_DEVICE" ]; then
+        echo "ReSpeaker HAT detected and configured:"
+        echo "- Card: $RESPEAKER_CARD"
+        echo "- Device: $RESPEAKER_DEVICE"
+        echo ""
+    fi
+    
     echo "Next steps:"
     echo "1. Edit yova.config.json and add your OpenAI API key"
     echo "2. Reboot the Raspberry Pi: sudo reboot"
