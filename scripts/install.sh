@@ -52,6 +52,15 @@ configure_openai_api() {
     echo "- The key should start with 'sk-proj-' or 'sk-'"
     echo ""
     
+    # Ask user if they want to configure the API key now
+    read -p "Do you want to configure the OpenAI API key now? (Y/n): " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        print_warning "OpenAI API key configuration skipped. You can configure it later by editing yova.config.json"
+        return 0
+    fi
+    
     # Prompt for API key (hidden input)
     read -s -p "Enter your OpenAI API key: " api_key
     echo ""
