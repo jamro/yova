@@ -35,7 +35,7 @@ ssh pi@voice.local
 ## Automatic installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/jamro/yova/refs/heads/main/scripts/install.sh | bash
 ```
 
 ## Manual installation
