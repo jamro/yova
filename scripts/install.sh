@@ -430,53 +430,51 @@ test_playback() {
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 print_success "Audio playback test passed!"
                 test_success=true
+                
+                # Store ALSA settings after successful test
+                print_status "Storing ALSA settings..."
+                if sudo alsactl store; then
+                    print_success "ALSA settings stored successfully"
+                else
+                    print_warning "Failed to store ALSA settings, but audio is working"
+                fi
             else
                 echo ""
                 print_warning "Sound was not heard clearly or was too quiet."
                 echo ""
-                echo "Let's adjust the audio settings:"
-                echo "1. Run 'alsamixer' to adjust volume settings"
-                echo "2. Recommended settings:"
-                echo "   - Master playback: 80%"
-                echo "   - Press F4 for capture, set PGA to 25%"
-                echo "   - Press F6, select 'seeed2micvoicec'"
-                echo "   - Set capture volume to 80%"
-                echo "   - Save settings with 'sudo alsactl store'"
+                echo "Let's adjust the audio volume settings using alsamixer."
+                echo "Focus on playback volume only (skip recording/capture settings for now)."
+                echo ""
+                echo "Recommended settings:"
+                echo "- Master playback volume: 80%"
+                echo "- Output device volume: 80%"
+                echo ""
+                echo "To exit alsamixer: Press ESC key or CTRL+C"
                 echo ""
                 
-                read -p "Press Enter after adjusting settings, or 'q' to quit testing: " -n 1 -r
-                echo ""
+                read -p "Press Enter to open alsamixer for volume adjustment..."
                 
-                if [[ $REPLY =~ ^[Qq]$ ]]; then
-                    print_error "Audio testing aborted by user."
-                    echo ""
-                    echo "Please resolve the audio configuration issue before continuing."
-                    echo "You can run 'alsamixer' manually to adjust settings."
-                    echo ""
-                    echo "Installation cannot continue without working audio."
-                    exit 1
-                fi
+                # Run alsamixer for the user
+                alsamixer
+                
+                echo ""
+                print_status "alsamixer closed. Let's test the audio again..."
             fi
         else
             print_error "Failed to play test sound. Please check your audio configuration."
             echo ""
-            echo "Troubleshooting steps:"
-            echo "1. Verify speaker connection"
-            echo "2. Check if ReSpeaker HAT is properly detected"
-            echo "3. Run 'aplay -l' to verify audio devices"
-            echo "4. Check ALSA configuration in /etc/asound.conf"
+            echo "Let's adjust the audio settings using alsamixer."
+            echo ""
+            echo "To exit alsamixer: Press ESC key or CTRL+C"
             echo ""
             
-            read -p "Press Enter to try again, or 'q' to quit: " -n 1 -r
-            echo ""
+            read -p "Press Enter to open alsamixer for volume adjustment..."
             
-            if [[ $REPLY =~ ^[Qq]$ ]]; then
-                print_error "Audio testing aborted due to playback failure."
-                echo ""
-                echo "Please resolve the audio configuration issue before continuing."
-                echo "Installation cannot continue without working audio."
-                exit 1
-            fi
+            # Run alsamixer for the user
+            alsamixer
+            
+            echo ""
+            print_status "alsamixer closed. Let's try the audio test again..."
         fi
     done
     
