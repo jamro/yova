@@ -21,8 +21,9 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Data Structure**:
 ```json
 {
+  "id": "string",
   "transcript": "string",
-  "timestamp": "float",
+  "timestamp": "float"
 }
 ```
 - **Description**: Published when a voice command is detected and transcribed
@@ -103,17 +104,17 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Data Structure**:
 ```json
 {
-  "type": "playing",
-  "message_id": "string",
+  "type": "playing|recording",
+  "id": "string",
   "text": "string",
   "timestamp": "float"
 }
 ```
-- **Description**: Published when audio playback begins for a specific message
+- **Description**: Published when audio playback begins or recording starts for a specific message
 - **Data**:
-  - **`type`**: Currently only "playing" - indicates that audio playback has started
-  - **`message_id`**: Unique identifier for the message being played
-  - **`text`**: The text content that is being converted to speech
-  - **`timestamp`**: Unix timestamp when the audio playback started
-- **Use Case**: External systems can monitor when audio playback begins to coordinate with other audio sources, implement audio state synchronization, or trigger actions based on speech output
-- **Example**: Audio mixing systems can subscribe to pause other audio sources when the assistant starts speaking, or logging systems can track which messages are being played back
+  - **`type`**: Either "playing" (audio playback started) or "recording" (audio recording started)
+  - **`id`**: Unique identifier for the message
+  - **`text`**: The text content - for "playing" events this contains the text being converted to speech, for "recording" events this field is empty since transcription hasn't occurred yet
+  - **`timestamp`**: Unix timestamp when the audio event started
+- **Use Case**: External systems can monitor when audio playback begins to coordinate with other audio sources, implement audio state synchronization, or trigger actions based on speech output. Recording events can be used to indicate when the system is actively listening.
+- **Example**: Audio mixing systems can subscribe to pause other audio sources when the assistant starts speaking, or logging systems can track which messages are being played back. Recording events can trigger visual indicators or mute other audio inputs.

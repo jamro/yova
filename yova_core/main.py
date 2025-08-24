@@ -101,6 +101,7 @@ async def main():
         # Publish voice command detection event
         try:
             await voice_command_publisher.publish("voice_command_detected", {
+                "id": str(data['id']),
                 "transcript": data['transcript'],
                 "timestamp": asyncio.get_event_loop().time()
             })
@@ -113,15 +114,24 @@ async def main():
     async def onPlayingAudio(data):
         await audio_publisher.publish("audio", {
             "type": "playing",
-            "message_id": data["message_id"],
+            "id": data["message_id"],
             "text": data["text"],
+            "timestamp": asyncio.get_event_loop().time()
+        })
+
+    async def onAudioRecordingStarted(data):
+        await audio_publisher.publish("audio", {
+            "type": "recording",
+            "id": data["id"],
+            "text": "",
             "timestamp": asyncio.get_event_loop().time()
         })
 
     state_machine.transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
     state_machine.transcriber.add_event_listener("transcription_error", onTranscriptionError)
     state_machine.speech_handler.add_event_listener("playing_audio", onPlayingAudio)
-
+    state_machine.transcriber.add_event_listener("audio_recording_started", onAudioRecordingStarted)
+    
     # start session manager ------------------------------------------------------------
     await state_machine.start()
     await asyncio.get_event_loop().run_in_executor(None, input)

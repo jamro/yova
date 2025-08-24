@@ -11,6 +11,7 @@ from yova_shared import get_clean_logger
 import logging
 from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio as play_audio
+import uuid
 
 # Audio recording parameters
 CHUNK = 512  # Smaller chunk size for more frequent updates
@@ -163,6 +164,7 @@ class AudioRecorder:
 
             # Play beep sound at the beginning of recording
             await self._play_beep()
+            await self._emit_event("audio_recording_started", {})
             
             while self.is_recording:
                 try:

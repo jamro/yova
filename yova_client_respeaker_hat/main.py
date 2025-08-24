@@ -95,9 +95,7 @@ async def main_async():
     logger = get_clean_logger("main", root_logger)
 
     async def on_state_changed(topic, data):
-        if data['new_state'] == "listening":
-            animator.play('listening', repetitions=0, brightness=0.5)
-        elif data['new_state'] == "idle":
+        if data['new_state'] == "idle":
             animator.stop()
     state_subscriber = Subscriber()
     await state_subscriber.connect()
@@ -107,6 +105,8 @@ async def main_async():
     async def on_audio(topic, data):
         if data['type'] == "playing":
             animator.play('speaking', repetitions=0, brightness=0.1)
+        elif data['type'] == "recording":
+            animator.play('listening', repetitions=0, brightness=0.5)
 
     audio_subsciber = Subscriber()
     await audio_subsciber.connect()

@@ -7,6 +7,7 @@ from typing import Dict, List, Callable, Any, Awaitable
 from yova_shared import EventEmitter
 from yova_shared import get_clean_logger
 import logging
+import uuid
 
 class RealtimeTranscriber:
     def __init__(self, transcription_provider: TranscriptionProvider, logger=None, onCompleted=None, 
@@ -70,10 +71,20 @@ class RealtimeTranscriber:
         )
     
         self.audio_recorder.add_event_listener(
+            "audio_recording_started",
+            self._on_audio_recording_started
+        )
+        self.audio_recorder.add_event_listener(
             "audio_chunk",
             self._on_audio_chunk
         )
-    
+
+    async def _on_audio_recording_started(self, data):
+        """Handle audio recording started event"""
+        await self._emit_event("audio_recording_started", {
+            "id": str(uuid.uuid4()),
+        })
+
     async def _on_audio_chunk(self, data):
         """Handle audio chunk event from AudioRecorder and forward to transcription provider"""
         audio_data = data.get("audio_data")
@@ -87,6 +98,7 @@ class RealtimeTranscriber:
     async def _on_transcription_completed(self, data):
         """Handle transcription completed event"""
         await self._emit_event("transcription_completed", {
+            "id": str(uuid.uuid4()),
             "transcript": data,
             "timestamp": asyncio.get_event_loop().time()
         })

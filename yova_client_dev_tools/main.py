@@ -2,6 +2,7 @@ from yova_client_dev_tools.ui import YovaDevToolsUI
 from yova_shared.broker.publisher import Publisher
 import asyncio
 from yova_shared.broker.subscriber import Subscriber
+import uuid
 
 answer = ''
 input_timestamp = None
@@ -33,7 +34,11 @@ async def test_question_callback(event_data):
     """Callback for test question events - publishes to broker"""
     publisher = Publisher()
     await publisher.connect()
-    await publisher.publish("voice_command_detected", {"transcript": "Jaka jest stolica Polski?"})
+    await publisher.publish("voice_command_detected", {
+        "id": str(uuid.uuid4()),
+        "transcript": "Jaka jest stolica Polski?",
+        "timestamp": asyncio.get_event_loop().time()
+    })
 
 async def subscribe_to_updates(ui):
     global answer, input_timestamp, answer_timestamp, chunk_counter
@@ -48,10 +53,11 @@ async def subscribe_to_updates(ui):
 
     async def on_audio(topic, data):
         global answer_timestamp
-        if answer_timestamp is not None:
-            dt = asyncio.get_event_loop().time() - answer_timestamp
-            answer_timestamp = None
-            ui.set_answer_time(round(dt*1000))
+        if data['type'] == "playing":
+            if answer_timestamp is not None:
+                dt = asyncio.get_event_loop().time() - answer_timestamp
+                answer_timestamp = None
+                ui.set_answer_time(round(dt*1000))
 
     audio_subsciber = Subscriber()
     await audio_subsciber.connect()
