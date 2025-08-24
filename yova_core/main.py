@@ -112,6 +112,7 @@ async def main():
         logger.error(f"Transcription error: {data['error']}")
 
     async def onPlayingAudio(data):
+        logger.info(f"onPlayingAudio Data: {data}")
         await audio_publisher.publish("audio", {
             "type": "playing",
             "id": data["message_id"],

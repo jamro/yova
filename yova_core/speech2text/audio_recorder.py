@@ -163,8 +163,8 @@ class AudioRecorder:
             self.logger.info("Recording and streaming...")
 
             # Play beep sound at the beginning of recording
-            await self._play_beep()
             await self._emit_event("audio_recording_started", {})
+            await self._play_beep()
             
             while self.is_recording:
                 try:

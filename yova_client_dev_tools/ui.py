@@ -11,6 +11,7 @@ class YovaDevToolsUI(EventEmitter):
         self._state = "unknown"  # Add state field
         self._question = ""  # Add question field
         self._answer = ""    # Add answer field
+        self._input_time = 0     # Add input time field (in ms)
         self._question_time = 0  # Add question time field (in ms)
         self._answer_time = 0    # Add answer time field (in ms)
         self.setup_ui()
@@ -45,17 +46,20 @@ class YovaDevToolsUI(EventEmitter):
         qa_box = urwid.LineBox(qa_content, title="Q&A")
         
         # Create response time fields in one row for compact design
+        self.input_time_display = urwid.Text(("time_value", "0 ms"), align="center")
         self.question_time_display = urwid.Text(("time_value", "0 ms"), align="center")
         self.answer_time_display = urwid.Text(("time_value", "0 ms"), align="center")
         
+        input_time_box = urwid.LineBox(self.input_time_display, title="Input Time")
         question_time_box = urwid.LineBox(self.question_time_display, title="Question Time")
         answer_time_box = urwid.LineBox(self.answer_time_display, title="Answer Time")
         
         # Place response times in the same row
         time_row = urwid.Columns([
-            question_time_box,  # Question time fills available width
-            answer_time_box,    # Answer time fills available width
-        ], dividechars=1)      # Add divider between columns
+            input_time_box,      # Input time fills available width
+            question_time_box,   # Question time fills available width
+            answer_time_box,     # Answer time fills available width
+        ], dividechars=1)       # Add divider between columns
         
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
@@ -179,6 +183,16 @@ class YovaDevToolsUI(EventEmitter):
         """Set the current answer time in milliseconds and update the UI"""
         self._answer_time = answer_time
         self.answer_time_display.set_text(("time_value", f"{answer_time} ms"))
+    
+    # Input time getter and setter methods
+    def get_input_time(self) -> int:
+        """Get the current input time in milliseconds"""
+        return self._input_time
+    
+    def set_input_time(self, input_time: int):
+        """Set the current input time in milliseconds and update the UI"""
+        self._input_time = input_time
+        self.input_time_display.set_text(("time_value", f"{input_time} ms"))
             
     def run(self):
         try:

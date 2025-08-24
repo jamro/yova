@@ -66,9 +66,9 @@ class SpeechHandler:
         await task.append_chunk(text_chunk)
 
     async def on_playing_audio(self, data):
-        self.logger.info(f"Playing audio:: {data['text']}")
+        self.logger.info(f"Playing audio: {data['text']}")
         await self.event_emitter.emit_event("playing_audio", {
-            "id": data["message_id"],
+            "message_id": data["message_id"],
             "text": data["text"]
         })
 
