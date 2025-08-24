@@ -68,12 +68,14 @@ async def main():
     input_subsciber = Subscriber()
     await input_subsciber.connect()
     await input_subsciber.subscribe("input")
-    async def onInput(topic, data):
+    async def on_input(topic, data):
         if data['active'] == True:
+            dt = asyncio.get_event_loop().time() - data['timestamp']
+            logger.info(f"Input activation event arrived after {dt} seconds")
             await state_machine.on_input_activated()
         else:
             await state_machine.on_input_deactivated()
-    input_listener_task = asyncio.create_task(input_subsciber.listen(onInput))
+    input_listener_task = asyncio.create_task(input_subsciber.listen(on_input))
 
     # Create broker publisher for voice command events
     voice_command_publisher = Publisher()
@@ -97,7 +99,7 @@ async def main():
     )
 
     # Handle transcription completed events from the broker
-    async def onTranscriptionCompleted(data):
+    async def on_transcription_completed(data):
         # Publish voice command detection event
         try:
             await voice_command_publisher.publish("voice_command_detected", {
@@ -108,11 +110,10 @@ async def main():
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")
 
-    async def onTranscriptionError(data):
+    async def on_transcription_error(data):
         logger.error(f"Transcription error: {data['error']}")
 
-    async def onPlayingAudio(data):
-        logger.info(f"onPlayingAudio Data: {data}")
+    async def on_playing_audio(data):
         await audio_publisher.publish("audio", {
             "type": "playing",
             "id": data["message_id"],
@@ -120,7 +121,7 @@ async def main():
             "timestamp": asyncio.get_event_loop().time()
         })
 
-    async def onAudioRecordingStarted(data):
+    async def on_audio_recording_started(data):
         await audio_publisher.publish("audio", {
             "type": "recording",
             "id": data["id"],
@@ -128,10 +129,10 @@ async def main():
             "timestamp": asyncio.get_event_loop().time()
         })
 
-    state_machine.transcriber.add_event_listener("transcription_completed", onTranscriptionCompleted)
-    state_machine.transcriber.add_event_listener("transcription_error", onTranscriptionError)
-    state_machine.speech_handler.add_event_listener("playing_audio", onPlayingAudio)
-    state_machine.transcriber.add_event_listener("audio_recording_started", onAudioRecordingStarted)
+    state_machine.transcriber.add_event_listener("transcription_completed", on_transcription_completed)
+    state_machine.transcriber.add_event_listener("transcription_error", on_transcription_error)
+    state_machine.speech_handler.add_event_listener("playing_audio", on_playing_audio)
+    state_machine.transcriber.add_event_listener("audio_recording_started", on_audio_recording_started)
     
     # start session manager ------------------------------------------------------------
     await state_machine.start()
