@@ -4,9 +4,11 @@ from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio as play_audio
 from io import BytesIO
 import asyncio
+from yova_shared import EventEmitter
 
 class DataPlayback(Playback):
     def __init__(self, client, logger, text, config={}):
+        super().__init__()
         self.client = client
         self.logger = get_clean_logger("data_playback", logger)
         self.text = text
@@ -18,6 +20,19 @@ class DataPlayback(Playback):
         self.format = config.get("format", "mp3")
         self.current_playback = None
         self.is_stopped = False
+        self.event_emitter = EventEmitter(logger=logger)
+
+    def add_event_listener(self, event_type: str, listener):
+        """Add an event listener for a specific event type."""
+        self.event_emitter.add_event_listener(event_type, listener)
+
+    def remove_event_listener(self, event_type: str, listener):
+        """Remove an event listener for a specific event type."""
+        self.event_emitter.remove_event_listener(event_type, listener)
+
+    def clear_event_listeners(self, event_type: str = None):
+        """Clear all event listeners or listeners for a specific event type."""
+        self.event_emitter.clear_event_listeners(event_type)
 
     async def load(self) -> None:
         response = await self.client.audio.speech.create(
@@ -34,6 +49,7 @@ class DataPlayback(Playback):
     
     async def play(self) -> None:
         self.logger.debug(f"Playing data for text: {self.text}")
+        await self.event_emitter.emit_event("playing_audio", {"text": self.text})
         audio = AudioSegment.from_file(BytesIO(self.audio_data), format=self.format)
         self.current_playback = await asyncio.to_thread(play_audio, audio)
         await asyncio.to_thread(self.current_playback.wait_done)

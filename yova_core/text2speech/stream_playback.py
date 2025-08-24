@@ -1,10 +1,11 @@
 from yova_core.text2speech.playback import Playback
-from yova_shared import get_clean_logger
+from yova_shared import get_clean_logger, EventEmitter
 from openai.helpers import LocalAudioPlayer
 import asyncio
 
 class StreamPlayback(Playback):
     def __init__(self, client, logger, text, config={}):
+        super().__init__()
         self.client = client
         self.logger = get_clean_logger("stream_playback", logger)
         self.stream_context_manager = None
@@ -17,6 +18,19 @@ class StreamPlayback(Playback):
         self.format = config.get("format", "pcm")
         self.is_stopped = False
         self.playback_task = None
+        self.event_emitter = EventEmitter(logger=logger)
+
+    def add_event_listener(self, event_type: str, listener):
+        """Add an event listener for a specific event type."""
+        self.event_emitter.add_event_listener(event_type, listener)
+
+    def remove_event_listener(self, event_type: str, listener):
+        """Remove an event listener for a specific event type."""
+        self.event_emitter.remove_event_listener(event_type, listener)
+
+    def clear_event_listeners(self, event_type: str = None):
+        """Clear all event listeners or listeners for a specific event type."""
+        self.event_emitter.clear_event_listeners(event_type)
 
     async def load(self) -> None:
         self.stream_context_manager = self.client.audio.speech.with_streaming_response.create(
@@ -58,6 +72,7 @@ class StreamPlayback(Playback):
         if self.is_stopped:
             return
         try:
+            await self.event_emitter.emit_event("playing_audio", {"text": self.text})
             await self.stream_audio_player.play(audio)
         except asyncio.CancelledError:
             self.logger.debug("Audio playback was cancelled")

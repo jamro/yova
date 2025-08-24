@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from yova_shared import EventSource
 
-class Playback(ABC):
+class Playback(EventSource):
     
     @abstractmethod
     async def load(self) -> None:

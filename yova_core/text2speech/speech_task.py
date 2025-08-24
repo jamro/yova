@@ -101,11 +101,16 @@ class SpeechTask(EventEmitter):
         self.conversion_task = None
 
     async def play_audio(self):
+        
+        async def on_playback(data):
+            self.logger.info(f"Playing audio::: {data}")
+            await self.emit_event("playing_audio", {"message_id": self.message_id, "text": data["text"]})
+
         self.logger.debug(f"Playing audio...")
         while len(self.audio_queue) > 0 and not self.is_stopped:
             item = self.audio_queue.pop(0)
-            await self.emit_event("playing_audio", {"message_id": self.message_id, "text": item["text"]})
             self.current_playback = item["playback"]
+            self.current_playback.add_event_listener("playing_audio", on_playback)
             await self.current_playback.play()
             self.current_playback = None
             
