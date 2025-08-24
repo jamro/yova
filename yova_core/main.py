@@ -1,12 +1,10 @@
 import asyncio
 import os
-from yova_core.speech2text import RealtimeTranscriber
-from yova_core.speech2text.openai_transcription_provider import OpenAiTranscriptionProvider
+from yova_core.speech2text import Transcriber, RealtimeApi
 from yova_shared import setup_logging, get_clean_logger, get_config
 from yova_core.text2speech.speech_handler import SpeechHandler
 from yova_shared.broker import Publisher, Subscriber  
 from yova_core.state_machine import StateMachine
-
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -37,22 +35,22 @@ async def main():
     await state_publisher.connect()
 
     # Create state machine
-    transcription_provider = OpenAiTranscriptionProvider(api_key, logger,
-        model=get_config("speech2text.model"),
-        language=get_config("speech2text.language"),
-        noise_reduction=get_config("speech2text.noise_reduction"),
-        min_speech_length=get_config("speech2text.min_speech_length"),
-        silence_amplitude_threshold=get_config("speech2text.silence_amplitude_threshold"),
-        audio_buffer_age=get_config("speech2text.audio_buffer_age")
-    )
     state_machine = StateMachine(
         logger,
         SpeechHandler(logger, api_key, playback_config),
-        RealtimeTranscriber(
-            transcription_provider, 
+        Transcriber(
             logger=logger,
+            realtime_api=RealtimeApi(
+                api_key, 
+                logger,
+                model=get_config("speech2text.model"),
+                language=get_config("speech2text.language"),
+                noise_reduction=get_config("speech2text.noise_reduction"),
+            ),
             audio_logs_path=get_config("speech2text.audio_logs_path"),
             prerecord_beep=get_config("speech2text.prerecord_beep"),
+            min_speech_length=get_config("speech2text.min_speech_length"),
+            silence_amplitude_threshold=get_config("speech2text.silence_amplitude_threshold"),
         )
     )
     async def log_state_change(data):
@@ -110,9 +108,6 @@ async def main():
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")
 
-    async def on_transcription_error(data):
-        logger.error(f"Transcription error: {data['error']}")
-
     async def on_playing_audio(data):
         await audio_publisher.publish("audio", {
             "type": "playing",
@@ -130,7 +125,6 @@ async def main():
         })
 
     state_machine.transcriber.add_event_listener("transcription_completed", on_transcription_completed)
-    state_machine.transcriber.add_event_listener("transcription_error", on_transcription_error)
     state_machine.speech_handler.add_event_listener("playing_audio", on_playing_audio)
     state_machine.transcriber.add_event_listener("audio_recording_started", on_audio_recording_started)
     

@@ -24,11 +24,11 @@ class StateMachine(EventEmitter):
     
     async def start(self):
         await self.speech_handler.start()
+        await self.transcriber.initialize()
 
     async def close(self):
         await self.speech_handler.stop()
-        await self.transcriber.stop_realtime_transcription()
-        await self.transcriber.stop_audio_recording()
+        await self.transcriber.cleanup()
     
     async def _set_state(self, new_state):
         if self.state == new_state:
@@ -75,15 +75,13 @@ class StateMachine(EventEmitter):
     async def on_input_activated(self):
         if self.state == State.IDLE:
             await self._set_state(State.LISTENING)
-            await self.transcriber.start_audio_recording()
-            await self.transcriber.start_realtime_transcription()
+            await self.transcriber.start_listening()
         elif self.state == State.LISTENING:
             pass # already listening
         elif self.state == State.SPEAKING:
             await self.speech_handler.terminate_all_tasks()
             await self._set_state(State.LISTENING)
-            await self.transcriber.start_audio_recording()
-            await self.transcriber.start_realtime_transcription()
+            await self.transcriber.start_listening()
         else:
             raise Exception("Invalid state " + self.state)
     
@@ -92,11 +90,9 @@ class StateMachine(EventEmitter):
             pass # already idle
         elif self.state == State.LISTENING:
             await self._set_state(State.IDLE)
-            await self.transcriber.stop_realtime_transcription()
-            await self.transcriber.stop_audio_recording()
+            await self.transcriber.stop_listening()
         elif self.state == State.SPEAKING:
             await self.speech_handler.terminate_all_tasks()
-            await self.transcriber.stop_realtime_transcription()
-            await self.transcriber.stop_audio_recording()
+            await self.transcriber.stop_listening()
         else:
             raise Exception("Invalid state " + self.state)

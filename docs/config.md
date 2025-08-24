@@ -53,7 +53,6 @@ The configuration is organized into three main sections:
     "noise_reduction": "far_field",
     "min_speech_length": 0.5,
     "silence_amplitude_threshold": 0.15,
-    "audio_buffer_age": 30.0,
     "audio_logs_path": "/path/to/audio/logs/",
     "prerecord_beep": "beep1.wav"
   }
@@ -66,7 +65,6 @@ The configuration is organized into three main sections:
 - `noise_reduction` (string): Noise reduction setting for audio processing (see [OpenAI API documentation](https://platform.openai.com/docs/guides/realtime-transcription#noise-reduction) for more details)
 - `min_speech_length` (float): Minimum length of speech segment in seconds
 - `silence_amplitude_threshold` (float): Threshold for detecting silence
-- `audio_buffer_age` (float): Maximum age (in seconds) to keep pre-recorded audio in the buffer before transcription starts. This buffer stores audio captured before the transcription session is active, helping to reduce latency.
 - `audio_logs_path` (string): Path to store audio logs; if set, all recorded commands will be saved to disk (empty string disables logging)
 - `prerecord_beep` (string): Audio file to play before recording (from `yova_shared/assets/`)
 
@@ -102,7 +100,6 @@ The following beep sounds are available in `yova_shared/assets/`:
 ### Speech Detection
 - Adjust `min_speech_length` based on your speaking style
 - Lower `silence_amplitude_threshold` values make the system more sensitive to quiet speech
-- Higher `audio_buffer_age` values allow longer audio retention but use more memory
 
 ## Troubleshooting
 
