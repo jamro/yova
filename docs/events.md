@@ -35,7 +35,7 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Data Structure**:
 ```json
 {
-  "type": "chunk|completed",
+  "type": "chunk|completed|processing_started|processing_completed",
   "id": "string",
   "text": "string",
   "timestamp": "float"
@@ -45,6 +45,8 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Types**:
   - **`chunk`**: Individual text chunks as they arrive from the AI service
   - **`completed`**: Final complete response when the AI has finished generating
+  - **`processing_started`**: Published when the AI is processing the request. Text is empty.
+  - **`processing_completed`**: Published when the AI has finished processing the request. Text is empty.
 - **Use Case**: External systems can monitor AI responses in real-time, implement streaming UI updates, or trigger actions based on response completion
 - **Example**: Web interfaces can subscribe to show real-time typing indicators and update displays as responses stream in
 

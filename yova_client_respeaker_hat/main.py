@@ -94,7 +94,7 @@ async def main_async():
 
     subscriber = Subscriber()
     await subscriber.connect()
-    await subscriber.subscribe_all(["state", "audio"])
+    await subscriber.subscribe_all(["state", "audio", "voice_response"])
 
     async def on_message(topic, data):
         # audio ========================================================================
@@ -107,6 +107,13 @@ async def main_async():
         # state ========================================================================
         if topic == "state":
             if data['new_state'] == "idle":
+                animator.stop()
+
+        # voice_response ========================================================================
+        if topic == "voice_response":
+            if data['type'] == "processing_started":
+                animator.play('thinking', repetitions=0, brightness=0.1)
+            elif data['type'] == "processing_completed" and animator.get_current_animation_id() == "thinking":
                 animator.stop()
     
     # start subscriber

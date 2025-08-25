@@ -81,6 +81,8 @@ class OpenAIConnector(ApiConnector):
         # Add user message to conversation history
         self.conversation_history.add_user_message(text, message_id)
         
+        await self.event_emitter.emit_event("processing_started", {"id": message_id})
+
         try:
             # Get conversation history for context
             messages = self.conversation_history.get_messages_for_api(
@@ -100,10 +102,15 @@ class OpenAIConnector(ApiConnector):
             full_response = ""
             
             # Process the streaming response
+            first_chunk = True
             async for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
                     content = chunk.choices[0].delta.content
                     full_response += content
+
+                    if first_chunk:
+                        await self.event_emitter.emit_event("processing_completed", {"id": message_id})
+                        first_chunk = False
                     
                     # Emit chunk event with ID and text
                     chunk_data = {"id": message_id, "text": content}

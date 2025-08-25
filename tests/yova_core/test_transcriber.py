@@ -107,7 +107,7 @@ class TestTranscriber:
         assert transcriber.watchdog_task is None
         
         # Test watchdog default values
-        assert transcriber.max_session_duration == 600  # 10 minutes
+        assert transcriber.max_session_duration == 900  # 15 minutes
         assert transcriber.max_inactive_duration == 300  # 5 minutes
         assert transcriber.watchdog_check_interval == 30  # 30 seconds
 

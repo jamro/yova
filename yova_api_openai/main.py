@@ -23,8 +23,8 @@ async def main():
     api_connector = OpenAIConnector(logger)
     
     # Create broker publisher for voice command events
-    voice_response_publisher = Publisher()
-    await voice_response_publisher.connect()
+    publisher = Publisher()
+    await publisher.connect()
 
     # Create broker subscriber for voice command events
     subscriber = Subscriber()
@@ -34,7 +34,7 @@ async def main():
     async def onMessageChunk(chunk):
         # Emit voice response chunk event
         try:
-            await voice_response_publisher.publish("voice_response", {
+            await publisher.publish("voice_response", {
                 "type": "chunk",
                 "id": chunk['id'],
                 "text": chunk['text'],
@@ -46,7 +46,7 @@ async def main():
     async def onMessageCompleted(full_response):
         # Emit voice response completed event
         try:
-            await voice_response_publisher.publish("voice_response", {
+            await publisher.publish("voice_response", {
                 "type": "completed",
                 "id": full_response['id'],
                 "text": full_response['text'],
@@ -55,8 +55,27 @@ async def main():
         except Exception as e:
             logger.error(f"Failed to publish voice response completed event: {e}")
 
+    async def onProcessingStarted(data):
+        await publisher.publish("voice_response", {
+            "type": "processing_started",
+            "id": data['id'],
+            "text": "",
+            "timestamp": asyncio.get_event_loop().time()
+        })
+        
+    async def onProcessingCompleted(data):
+        await publisher.publish("voice_response", {
+            "type": "processing_completed",
+            "id": data['id'],
+            "text": "",
+            "timestamp": asyncio.get_event_loop().time()
+        })  
+
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
+    api_connector.add_event_listener("processing_started", onProcessingStarted)
+    api_connector.add_event_listener("processing_completed", onProcessingCompleted)
+
     await api_connector.configure({"api_key": api_key})
     await api_connector.connect()
 
@@ -75,7 +94,7 @@ async def main():
     await asyncio.get_event_loop().run_in_executor(None, input)
 
     # clean up
-    await voice_response_publisher.close()
+    await publisher.close()
     await subscriber.close()
     await api_connector.close()
 

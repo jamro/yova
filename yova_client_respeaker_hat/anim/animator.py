@@ -122,3 +122,11 @@ class Animator:
         self.stop()
         if self.led_strip:
             self.led_strip.close()
+
+    def get_current_animation_id(self) -> Optional[str]:
+        """Get the ID of the currently playing animation."""
+        
+        for anim_id, anim in self._animations.items():
+            if anim is self._current_animation:
+                return anim_id
+        return None

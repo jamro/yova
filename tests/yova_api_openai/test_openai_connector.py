@@ -114,7 +114,7 @@ class TestOpenAIConnector:
         connector.client.chat.completions.create.assert_called_once()
         
         # Verify events were emitted
-        assert connector.event_emitter.emit_event.call_count == 3
+        assert connector.event_emitter.emit_event.call_count == 5
         
         # Get all calls to verify the structure
         calls = connector.event_emitter.emit_event.call_args_list
@@ -131,7 +131,9 @@ class TestOpenAIConnector:
         for call in calls:
             event_data = call[0][1]
             assert "id" in event_data
-            assert "text" in event_data
+            # Only message_chunk and message_completed events have text field
+            if call[0][0] in ["message_chunk", "message_completed"]:
+                assert "text" in event_data
         
         # Verify same ID for correlation
         message_id = chunk_calls[0][0][1]["id"]
