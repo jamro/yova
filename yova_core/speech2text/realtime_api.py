@@ -3,6 +3,7 @@ import websockets
 import json
 from openai import OpenAI
 import base64
+import asyncio
 
 # WebSocket configuration
 WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
@@ -13,7 +14,7 @@ FORMAT = "pcm16"
 class RealtimeApi:
     
     def __init__(self, api_key, logger, openai_client=None, websocket_connector=None, 
-                 model="gpt-4o-transcribe", language="en", noise_reduction="near_field"):
+                 model="gpt-4o-transcribe", language="en", noise_reduction="near_field", instructions=""):
         self.logger = get_clean_logger("realtime_api", logger)
         self._openai_client = openai_client or OpenAI(api_key=api_key)
         self._websocket_connector = websocket_connector or websockets.connect
@@ -23,10 +24,15 @@ class RealtimeApi:
         self.model = model
         self.language = language
         self.noise_reduction = noise_reduction
-
+        self.instructions = instructions
+        self.session_start_time = None
+        self.last_activity_time = None
+        
     async def connect(self):
         """Connect to OpenAI's Realtime API"""
         self.logger.info(f"Connecting to OpenAI Realtime API...")
+        self.session_start_time = None
+        self.last_activity_time = asyncio.get_event_loop().time()
         
         # Stage 1: Create transcription session for authentication purposes
         client_secret = self._create_transcription_session(self.model, self.language, self.noise_reduction)
@@ -50,6 +56,8 @@ class RealtimeApi:
                 session_data = data.get('session', {})
                 self.session_id = session_data.get('id')
                 self.logger.info(f"Session created with ID: {self.session_id}")
+                self.session_start_time = asyncio.get_event_loop().time()
+                self.last_activity_time = self.session_start_time
                 return True
             elif message_type == "error":
                 error_data = data.get('error', {})
@@ -71,6 +79,7 @@ class RealtimeApi:
             await self.websocket.close()
         self.websocket = None
         self.session_id = None
+        self.session_start_time = None
 
     @property
     def is_connected(self):
@@ -85,6 +94,7 @@ class RealtimeApi:
         
         try:
             await self.websocket.send(json.dumps(message))
+            self.last_activity_time = asyncio.get_event_loop().time()
             return True
         except websockets.exceptions.ConnectionClosed as e:
             self.logger.error(f"WebSocket connection closed while sending {log_label}: {e}")
@@ -148,6 +158,7 @@ class RealtimeApi:
     
     async def query_error(self):
         while self.get_message_queue_length() > 0:
+            self.last_activity_time = asyncio.get_event_loop().time()
             message = await self.get_message()
             data = json.loads(message)
             message_type = data.get("type", "unknown")
@@ -182,13 +193,13 @@ class RealtimeApi:
           self.logger.error(f"Failed to create transcription session: {e}")
           return None
 
-    def _get_session_config(self,model="gpt-4o-transcribe", language="en", noise_reduction="near_field"):
+    def _get_session_config(self,model="gpt-4o-transcribe", language="en", noise_reduction="near_field", prompt=""):
         """Get the session configuration for transcription"""
         return {
             "input_audio_format": FORMAT,
             "input_audio_transcription": {
                 "model": model,
-                "prompt": "",
+                "prompt": prompt,
                 "language": language
             },
             "turn_detection": None,
@@ -219,7 +230,7 @@ class RealtimeApi:
             # Send session configuration
             session_config = {
                 "type": "transcription_session.update",
-                "session": self._get_session_config(self.model, self.language, self.noise_reduction)
+                "session": self._get_session_config(self.model, self.language, self.noise_reduction, self.instructions)
             }
             
             self.logger.info("Sending session configuration...")
@@ -232,3 +243,27 @@ class RealtimeApi:
             import traceback
             traceback.print_exc()
             return False
+      
+    async def ping(self):
+        """Ping the OpenAI Realtime API"""
+        result = await self.send({
+            "type": "transcription_session.update",
+            "session": {}
+            }, "ping", exception_on_error=False)
+        
+        if not result:
+            self.logger.error("Failed to ping OpenAI Realtime API")
+            return False
+        
+        self.logger.info("Pinged OpenAI Realtime API")
+        return True
+    
+    def get_session_duration(self):
+        if self.session_start_time is None:
+            return 0
+        return asyncio.get_event_loop().time() - self.session_start_time
+    
+    def get_inactive_duration(self):
+        if self.last_activity_time is None:
+            return 0
+        return asyncio.get_event_loop().time() - self.last_activity_time

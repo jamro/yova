@@ -6,10 +6,11 @@
     "model": "gpt-4o-mini-tts",
     "voice": "nova",
     "speed": 1.25,
-    "instructions": "Speak in a friendly, engaging tone. Always answer in English."
+    "instructions": "You are a English voice assistant. Read the input text aloud in natural, fluent language with clear pronunciation. Maintain a polite and helpful tone. Do not translate or improvise."
   },
   "speech2text": {
     "model": "gpt-4o-transcribe",
+    "instructions": "The audio is an English voice command for a voice assistant. Transcribe only if the speech is clear and logical. Use correct spelling and punctuation. If the audio is unclear, contains noise, or is not valid, return an empty string ''). Do not attempt to guess or translate.",
     "language": "en",
     "noise_reduction": "far_field",
     "min_speech_length": 0.5,

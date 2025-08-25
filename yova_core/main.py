@@ -41,6 +41,7 @@ async def main():
                 model=get_config("speech2text.model"),
                 language=get_config("speech2text.language"),
                 noise_reduction=get_config("speech2text.noise_reduction"),
+                instructions=get_config("speech2text.instructions"),
             ),
             audio_logs_path=get_config("speech2text.audio_logs_path"),
             prerecord_beep=get_config("speech2text.prerecord_beep"),

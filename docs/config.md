@@ -49,6 +49,7 @@ The configuration is organized into three main sections:
 {
   "speech2text": {
     "model": "gpt-4o-transcribe",
+    "instructions": "The audio is a voice command for a voice assistant. Transcribe only if the speech is clear and logical. Use correct spelling and punctuation. If the audio is unclear, contains noise, or is not valid, return an empty string. Do not attempt to guess or translate.",
     "language": "pl",
     "noise_reduction": "far_field",
     "min_speech_length": 0.5,
@@ -61,6 +62,7 @@ The configuration is organized into three main sections:
 
 **Parameters:**
 - `model` (string): OpenAI transcription model to use (e.g. "gpt-4o-transcribe")
+- `instructions` (string): Instructions for the transcription model on how to process and format the audio input
 - `language` (string): Language code for speech recognition (e.g., "en", "pl")
 - `noise_reduction` (string): Noise reduction setting for audio processing (see [OpenAI API documentation](https://platform.openai.com/docs/guides/realtime-transcription#noise-reduction) for more details)
 - `min_speech_length` (float): Minimum length of speech segment in seconds

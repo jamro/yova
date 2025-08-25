@@ -13,21 +13,36 @@ CHUNK = 512  # Smaller chunk size for more frequent updates
 CHANNELS = 1
 RATE = 16000
 
+# Default watchdog parameters
+DEFAULT_MAX_SESSION_DURATION = 900  # 15 minutes in seconds
+DEFAULT_MAX_INACTIVE_DURATION = 300  # 5 minutes in seconds
+DEFAULT_WATCHDOG_CHECK_INTERVAL = 30  # Check every 30 seconds
+
 class Transcriber(EventEmitter):
     def __init__(self, logger, realtime_api: RealtimeApi, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
                  silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None,
-                 pyaudio_instance=None, exit_on_error=False):
+                 pyaudio_instance=None, exit_on_error=False,
+                 max_session_duration=DEFAULT_MAX_SESSION_DURATION,
+                 max_inactive_duration=DEFAULT_MAX_INACTIVE_DURATION,
+                 watchdog_check_interval=DEFAULT_WATCHDOG_CHECK_INTERVAL):
         """Initialize the transcriber"""
         super().__init__()
         self.logger = get_clean_logger("transcriber", logger)
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
         self.realtime_api = realtime_api
         self.listening_task = None
+        self.watchdog_task = None
         self.prerecord_beep = prerecord_beep
         self.is_recording = False
         self.exit_on_error = exit_on_error # usfefull when running with supervisor and auto restart turned on
         self.beep_volume_reduction = beep_volume_reduction
+        
+        # Watchdog configuration
+        self.max_session_duration = max_session_duration
+        self.max_inactive_duration = max_inactive_duration
+        self.watchdog_check_interval = watchdog_check_interval
+        
         self.recording_stream = recording_stream or RecordingStream(
             logger=logger,
             channels=CHANNELS,
@@ -48,6 +63,8 @@ class Transcriber(EventEmitter):
     async def initialize(self):
         """Initialize the transcriber"""
         await self.realtime_api.connect()
+        # Start watchdog immediately to monitor the connection
+        self.watchdog_task = asyncio.create_task(self._watchdog_monitor())
 
     async def cleanup(self):
         """Cleanup the transcriber"""
@@ -56,13 +73,15 @@ class Transcriber(EventEmitter):
         if self.listening_task:
             self.listening_task.cancel()
             self.listening_task = None
+        if self.watchdog_task:
+            self.watchdog_task.cancel()
+            self.watchdog_task = None
 
     async def start_listening(self):
         """Start listening for audio and transcribe it"""
         self.logger.info("Starting listening")
         self.audio_buffer.start_recording()
         self.listening_task = asyncio.create_task(self._listen_and_transcribe())
-
 
     async def stop_listening(self):
         result = await self._stop_listening()
@@ -102,6 +121,72 @@ class Transcriber(EventEmitter):
             return ''
         
         return text
+    
+    async def _watchdog_monitor(self):
+        """Monitor the realtime API connection and reconnect if needed"""
+        self.logger.info(f"Watchdog started - max session: {self.max_session_duration}s, max inactive: {self.max_inactive_duration}s")
+        
+        while True:  # Run indefinitely until cancelled
+            try:
+                await asyncio.sleep(self.watchdog_check_interval)
+                
+                if not self.realtime_api.is_connected:
+                    self.logger.warning("Realtime API not connected, attempting to reconnect...")
+                    success = await self._reconnect_realtime_api()
+                    if not success and self.exit_on_error:
+                        self.logger.error("Reconnection failed and exit_on_error is True - exiting process")
+                        os._exit(1)
+                    continue
+                
+                session_duration = self.realtime_api.get_session_duration()
+                inactive_duration = self.realtime_api.get_inactive_duration()
+                
+                self.logger.debug(f"Watchdog check - Session: {session_duration:.1f}s, Inactive: {inactive_duration:.1f}s")
+                
+                # Only reconnect if NOT currently listening AND thresholds are exceeded
+                if (not self.is_recording and 
+                    session_duration > self.max_session_duration and 
+                    inactive_duration > self.max_inactive_duration):
+                    self.logger.warning(f"Watchdog triggered reconnection - Session: {session_duration:.1f}s, Inactive: {inactive_duration:.1f}s")
+                    success = await self._reconnect_realtime_api()
+                    if not success and self.exit_on_error:
+                        self.logger.error("Reconnection failed and exit_on_error is True - exiting process")
+                        os._exit(1)
+                    
+            except asyncio.CancelledError:
+                self.logger.info("Watchdog task cancelled")
+                break
+            except Exception as e:
+                self.logger.error(f"Watchdog error: {e}")
+                if self.exit_on_error:
+                    self.logger.error("Exiting process due to watchdog error")
+                    os._exit(1)
+                await asyncio.sleep(self.watchdog_check_interval)
+    
+    async def _reconnect_realtime_api(self):
+        """Reconnect the realtime API"""
+        try:
+            self.logger.info("Disconnecting realtime API for reconnection...")
+            await self.realtime_api.disconnect()
+            
+            self.logger.info("Reconnecting realtime API...")
+            await self.realtime_api.connect()
+            
+            if self.realtime_api.is_connected:
+                self.logger.info("Realtime API reconnected successfully")
+                # Clear audio buffer after reconnection
+                await self.realtime_api.clear_audio_buffer()
+                return True
+            else:
+                self.logger.error("Failed to reconnect realtime API")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error during reconnection: {e}")
+            if self.exit_on_error:
+                self.logger.error("Exiting process due to reconnection error")
+                os._exit(1)
+            return False
     
     async def _listen_and_transcribe(self):
         """Start listening for audio and transcribe it"""
