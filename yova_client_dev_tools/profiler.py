@@ -5,6 +5,7 @@ import asyncio
 class Profiler():
     def __init__(self, ui):
         self.ui = ui
+        self.subscriber = Subscriber()
         self.input_subscriber = Subscriber()
         self.audio_subscriber = Subscriber()
         self.voice_response_subscriber = Subscriber()
@@ -15,21 +16,19 @@ class Profiler():
         self.voice_response_completed = True
 
     async def start(self):
-        await self.input_subscriber.connect()
-        await self.input_subscriber.subscribe("input")
-        asyncio.create_task(self.input_subscriber.listen(self.on_input))
+        await self.subscriber.connect()
+        await self.subscriber.subscribe_all(["input", "audio", "voice_response", "voice_command_detected"])
+        asyncio.create_task(self.subscriber.listen(self.on_message))
 
-        await self.audio_subscriber.connect()
-        await self.audio_subscriber.subscribe("audio")
-        asyncio.create_task(self.audio_subscriber.listen(self.on_audio))
-
-        await self.voice_response_subscriber.connect()
-        await self.voice_response_subscriber.subscribe("voice_response")
-        asyncio.create_task(self.voice_response_subscriber.listen(self.on_voice_response))
-
-        await self.voice_command_detected_subscriber.connect()
-        await self.voice_command_detected_subscriber.subscribe("voice_command_detected")
-        asyncio.create_task(self.voice_command_detected_subscriber.listen(self.on_voice_command_detected))
+    async def on_message(self, topic, data):
+        if topic == "input":
+            await self.on_input(topic, data)
+        elif topic == "audio":
+            await self.on_audio(topic, data)
+        elif topic == "voice_response":
+            await self.on_voice_response(topic, data)
+        elif topic == "voice_command_detected":
+            await self.on_voice_command_detected(topic, data)
 
     async def on_input(self, topic, data):
         if data['active']:

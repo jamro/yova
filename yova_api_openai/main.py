@@ -27,9 +27,9 @@ async def main():
     await voice_response_publisher.connect()
 
     # Create broker subscriber for voice command events
-    voice_command_subscriber = Subscriber()
-    await voice_command_subscriber.connect()
-    await voice_command_subscriber.subscribe("voice_command_detected")
+    subscriber = Subscriber()
+    await subscriber.connect()
+    await subscriber.subscribe("voice_command_detected")
 
     async def onMessageChunk(chunk):
         # Emit voice response chunk event
@@ -69,14 +69,14 @@ async def main():
 
     # Start listening for voice command events
     voice_command_listener_task = asyncio.create_task(
-        voice_command_subscriber.listen(onVoiceCommandDetected)
+        subscriber.listen(onVoiceCommandDetected)
     )
 
     await asyncio.get_event_loop().run_in_executor(None, input)
 
     # clean up
     await voice_response_publisher.close()
-    await voice_command_subscriber.close()
+    await subscriber.close()
     await api_connector.close()
 
 

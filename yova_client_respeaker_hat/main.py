@@ -18,8 +18,6 @@ except ImportError:
     print("Install with: pip install spidev")
     sys.exit(1)
  
-import time
-import signal
 import asyncio
 from queue import Queue, Empty
 from yova_shared.broker import Publisher, Subscriber
@@ -69,7 +67,7 @@ async def process_button_events(logger):
             await notify_input_state(is_active, logger)
         except Empty:
             # No events, yield control to event loop
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.02)
             continue
         except Exception as e:
             logger.error(f"Error processing button event: {e}")
@@ -94,24 +92,25 @@ async def main_async():
     root_logger = setup_logging(level="INFO")
     logger = get_clean_logger("main", root_logger)
 
-    async def on_state_changed(topic, data):
-        if data['new_state'] == "idle":
-            animator.stop()
-    state_subscriber = Subscriber()
-    await state_subscriber.connect()
-    await state_subscriber.subscribe("state")
-    asyncio.create_task(state_subscriber.listen(on_state_changed))
+    subscriber = Subscriber()
+    await subscriber.connect()
+    await subscriber.subscribe_all(["state", "audio"])
 
-    async def on_audio(topic, data):
-        if data['type'] == "playing":
-            animator.play('speaking', repetitions=0, brightness=0.1)
-        elif data['type'] == "recording":
-            animator.play('listening', repetitions=0, brightness=0.5)
+    async def on_message(topic, data):
+        # audio ========================================================================
+        if topic == "audio":
+            if data['type'] == "playing":
+                animator.play('speaking', repetitions=0, brightness=0.1)
+            elif data['type'] == "recording":
+                animator.play('listening', repetitions=0, brightness=0.5)
 
-    audio_subsciber = Subscriber()
-    await audio_subsciber.connect()
-    await audio_subsciber.subscribe("audio")
-    asyncio.create_task(audio_subsciber.listen(on_audio))
+        # state ========================================================================
+        if topic == "state":
+            if data['new_state'] == "idle":
+                animator.stop()
+    
+    # start subscriber
+    asyncio.create_task(subscriber.listen(on_message))
 
     logger.info("Starting GPIO Button Monitor...")
     logger.info(f"Monitoring GPIO{BUTTON_PIN} for button presses")

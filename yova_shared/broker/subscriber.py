@@ -57,6 +57,17 @@ class Subscriber:
         await asyncio.sleep(0.1)
         
         logger.info(f"Subscribed to topic: {topic}")
+
+    async def subscribe_all(self, topics: list[str]):
+        """Subscribe to all topics"""
+        if not self.socket:
+            await self.connect()
+            
+        for topic in topics:
+            self.socket.setsockopt_string(zmq.SUBSCRIBE, topic)
+
+        await asyncio.sleep(0.1)
+        logger.info(f"Subscribed to topics: {topics}")
         
     async def listen(self, callback: Callable[[str, Any], Awaitable[None]]):
         """Listen for messages and call the callback function"""
@@ -68,6 +79,12 @@ class Subscriber:
         
         # Wait a moment for the listener to be fully ready
         await asyncio.sleep(0.2)
+
+        async def safe_callback(cb, topic, data):
+            try:
+                await cb(topic, data)
+            except Exception as e:
+                logger.exception(f"Callback failed: {e}")
         
         try:
             while self.running:
@@ -75,7 +92,8 @@ class Subscriber:
                     message = await self.socket.recv_string()
                     topic, data = message.split(' ', 1)
                     message_data = json.loads(data)
-                    await callback(topic, message_data)
+                    #await safe_callback(topic, message_data)
+                    asyncio.create_task(safe_callback(callback, topic, message_data))
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")
         except asyncio.CancelledError:

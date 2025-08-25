@@ -1,9 +1,9 @@
 from yova_client_dev_tools.ui import YovaDevToolsUI
-from yova_shared.broker.publisher import Publisher
-import asyncio
 from yova_shared.broker.subscriber import Subscriber
-import uuid
 from yova_client_dev_tools.profiler import Profiler
+from yova_shared.broker.publisher import Publisher
+import uuid
+import asyncio
 
 answer = ''
 input_timestamp = None
@@ -39,42 +39,36 @@ async def test_question_callback(event_data):
 
 async def subscribe_to_updates(ui):
     global answer, chunk_counter
-    async def on_state_changed(topic, data):
-        ui.set_state(data['new_state'])
-        ui.loop.draw_screen()
-
-    input_subsciber = Subscriber()
-    await input_subsciber.connect()
-    await input_subsciber.subscribe("state")
-    asyncio.create_task(input_subsciber.listen(on_state_changed))
-
-    async def on_voice_command(topic, data):
-        global answer
-        ui.set_question(data['transcript'])
-        answer = ""
-        ui.set_answer(answer)
-        ui.loop.draw_screen()
-
-    voice_command_subsciber = Subscriber()
-    await voice_command_subsciber.connect()
-    await voice_command_subsciber.subscribe("voice_command_detected")
-    asyncio.create_task(voice_command_subsciber.listen(on_voice_command))
-
-    async def on_voice_response(topic, data):
+    async def on_message(topic, data):
         global answer, chunk_counter
-        if data['type'] == 'chunk':
-            answer += data['text']
-            chunk_counter += 1
-        elif data['type'] == 'completed':
-            answer = data['text']
-            chunk_counter = 0
-        ui.set_answer(answer[:100] + "...")
-        ui.loop.draw_screen()
+        
+        # state ========================================================================
+        if topic == "state":
+            ui.set_state(data['new_state'])
+            ui.loop.draw_screen()
 
-    voice_response_subsciber = Subscriber()
-    await voice_response_subsciber.connect()
-    await voice_response_subsciber.subscribe("voice_response")
-    asyncio.create_task(voice_response_subsciber.listen(on_voice_response))
+        # voice command detected ================================================================
+        if topic == "voice_command_detected":
+            ui.set_question(data['transcript'])
+            answer = ""
+            ui.set_answer(answer)
+            ui.loop.draw_screen()
+
+        # voice response ================================================================
+        if topic == "voice_response":
+            if data['type'] == 'chunk':
+                answer += data['text']
+                chunk_counter += 1
+            elif data['type'] == 'completed':
+                answer = data['text']
+                chunk_counter = 0
+            ui.set_answer(answer[:100] + "...")
+            ui.loop.draw_screen()
+
+    subsciber = Subscriber()
+    await subsciber.connect()
+    await subsciber.subscribe_all(["state", "voice_command_detected", "voice_response"])
+    asyncio.create_task(subsciber.listen(on_message))
     
 def main():
     """Main entry point for the YOVA Development Tools UI."""
