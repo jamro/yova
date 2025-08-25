@@ -26,9 +26,9 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Published when a voice command is detected and transcribed
-- **Use Case**: External systems can listen for voice commands to trigger actions, home automation, or logging
-- **Example**: Smart home systems can subscribe to detect when users say "turn on the lights"
+- **Description**: Event triggered when Yova detects a voice command. The event is published after the user releases the push-to-talk button and the recorded audio has been transcribed. It contains the transcription text and is used by the API connector to forward the command to the backend API.
+- **Use Case**: API connectors can listen for voice commands to forward them to backend services, trigger actions, or log user interactions
+
 
 ### `voice_response`
 - **Topic**: `voice_response`
@@ -41,26 +41,12 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Published when voice response chunks are received or when a complete response is finished
+- **Description**: Published by the API connector to convert backend API responses into speech output
 - **Types**:
-  - **`chunk`**: Individual text chunks as they arrive from the AI service. Instead of text you can send base64 encoded audio data (e.g. data:audio/wav;base64,UklGRiQA...)
-  - **`completed`**: Final complete response when the AI has finished generating
-  - **`processing_started`**: Published when the AI is processing the request. Text is empty.
-  - **`processing_completed`**: Published when the AI has finished processing the request. content is empty.
-- **Use Case**: External systems can monitor AI responses in real-time, implement streaming UI updates, or trigger actions based on response completion
-- **Example**: Web interfaces can subscribe to show real-time typing indicators and update displays as responses stream in
-
-### `broker_test`
-- **Topic**: `broker_test`
-- **Data Structure**:
-```json
-{
-  "message": "Hello from test_broker!",
-  "timestamp": "float"
-}
-```
-- **Description**: Test event used to verify broker functionality
-- **Use Case**: Testing and debugging the ZeroMQ broker during development
+  - **`chunk`**: Text chunk for speech conversion. Designed for streaming APIs to reduce latency. Yova aggregates chunks into sentences and processes them sentence-by-sentence. *Pro tip*: Keep the first sentence short for faster speech generation. *Advanced*: You can send base64-encoded audio (e.g., `data:audio/wav;base64,UklGRiQA...`) instead of text - Yova will play the audio directly.
+  - **`completed`**: Signals that all response chunks have been sent and finalizes the speech conversion process
+  - **`processing_started`/`processing_completed`**: Used to display "thinking" indicators (e.g., LED animations on respeaker HAT)
+- **Use Case**: Enables API connectors to stream AI responses from backend API as speech and provide real-time feedback
 
 ### `input`
 - **Topic**: `input`
@@ -89,17 +75,16 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Published when the voice assistant's internal state machine transitions between different states
+- **Description**: Published when the voice assistant's internal state machine transitions between different operational states
 - **States**:
   - **`idle`**: Default state when the system is waiting for input
-  - **`listening`**: Active state when recording and transcribing audio input
-  - **`speaking`**: Active state when generating and playing back AI responses
+  - **`listening`**: Active state when recording audio input
+  - **`speaking`**: Active state when generating and playing back speech responses
 - **Data**:
   - **`previous_state`**: The state the system was in before the transition
   - **`new_state`**: The state the system transitioned to
   - **`timestamp`**: Unix timestamp when the state change occurred
-- **Use Case**: External systems can monitor the voice assistant's operational state to coordinate activities, implement state-aware UI updates, or trigger actions based on state transitions
-- **Example**: Dashboard applications can subscribe to show real-time status indicators, or home automation systems can adjust behavior based on whether the assistant is listening, speaking, or idle
+- **Use Case**: Used internally by Yova to track state transitions. Useful for user interfaces to represent current Yova operational status.
 
 ### `audio`
 - **Topic**: `audio`
@@ -112,11 +97,22 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Published when audio playback begins or recording starts for a specific message
+- **Description**: Published when recording of audio input or playing of audio output begins
 - **Data**:
   - **`type`**: Either "playing" (audio playback started) or "recording" (audio recording started)
   - **`id`**: Unique identifier for the message
   - **`text`**: The text content - for "playing" events this contains the text being converted to speech, for "recording" events this field is empty since transcription hasn't occurred yet
   - **`timestamp`**: Unix timestamp when the audio event started
-- **Use Case**: External systems can monitor when audio playback begins to coordinate with other audio sources, implement audio state synchronization, or trigger actions based on speech output. Recording events can be used to indicate when the system is actively listening.
-- **Example**: Audio mixing systems can subscribe to pause other audio sources when the assistant starts speaking, or logging systems can track which messages are being played back. Recording events can trigger visual indicators or mute other audio inputs.
+- **Use Case**: Used internally by Yova to track state transitions. Useful for user interfaces to represent current Yova operational status
+
+### `broker_test`
+- **Topic**: `broker_test`
+- **Data Structure**:
+```json
+{
+  "message": "Hello from test_broker!",
+  "timestamp": "float"
+}
+```
+- **Description**: Test event used to verify broker functionality
+- **Use Case**: Testing and debugging the ZeroMQ broker during development
