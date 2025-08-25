@@ -273,7 +273,7 @@ class TestRealtimeApi:
         api.session_id = None
         
         message = {"type": "test", "data": "test_data"}
-        result = await api.send(message)
+        result = await api.send(message, exception_on_error=False)
         
         assert result is False
 
@@ -287,7 +287,7 @@ class TestRealtimeApi:
         api.websocket.send.side_effect = Exception("Connection closed")
         
         message = {"type": "test", "data": "test_data"}
-        result = await api.send(message)
+        result = await api.send(message, exception_on_error=False)
         
         assert result is False
 
@@ -301,7 +301,7 @@ class TestRealtimeApi:
         api.websocket.send.side_effect = Exception("General error")
         
         message = {"type": "test", "data": "test_data"}
-        result = await api.send(message)
+        result = await api.send(message, exception_on_error=False)
         
         assert result is False
 
@@ -344,7 +344,7 @@ class TestRealtimeApi:
             "type": "input_audio_buffer.append",
             "audio": base64.b64encode(audio_chunk).decode('utf-8')
         }
-        api.send.assert_called_once_with(expected_message, 'audio_buffer.append')
+        api.send.assert_called_once_with(expected_message, 'audio_buffer.append', True)
 
     @pytest.mark.asyncio
     async def test_clear_audio_buffer(self):
@@ -356,7 +356,7 @@ class TestRealtimeApi:
         
         assert result is True
         expected_message = {"type": "input_audio_buffer.clear"}
-        api.send.assert_called_once_with(expected_message, 'audio_buffer.clear')
+        api.send.assert_called_once_with(expected_message, 'audio_buffer.clear', True)
 
     @pytest.mark.asyncio
     async def test_commit_audio_buffer_success(self):
@@ -380,7 +380,7 @@ class TestRealtimeApi:
         
         assert result == "Hello world"
         expected_message = {"type": "input_audio_buffer.commit"}
-        api.send.assert_called_once_with(expected_message, 'audio_buffer.commit')
+        api.send.assert_called_once_with(expected_message, 'audio_buffer.commit', True)
 
     @pytest.mark.asyncio
     async def test_commit_audio_buffer_failure(self):

@@ -76,9 +76,11 @@ class RealtimeApi:
     def is_connected(self):
         return self.websocket is not None and not self.websocket.closed and self.session_id is not None
 
-    async def send(self, message, log_label="data"):
+    async def send(self, message, log_label="data", exception_on_error=True):
         if not self.is_connected:
             self.logger.error("Cannot send message: WebSocket not connected or session not created")
+            if exception_on_error:
+                raise Exception("WebSocket not connected or session not created")
             return False
         
         try:
@@ -86,9 +88,13 @@ class RealtimeApi:
             return True
         except websockets.exceptions.ConnectionClosed as e:
             self.logger.error(f"WebSocket connection closed while sending {log_label}: {e}")
+            if exception_on_error:
+                raise Exception("WebSocket connection closed while sending message")
             return False
         except Exception as e:
             self.logger.error(f"Error sending {log_label}: {e}")
+            if exception_on_error:
+                raise Exception(f"Error sending {log_label}: {e}")
             return False
         
     async def get_message(self):
@@ -98,23 +104,23 @@ class RealtimeApi:
         
         return await self.websocket.recv()
     
-    async def send_audio_chunk(self, audio_chunk):
+    async def send_audio_chunk(self, audio_chunk, exception_on_error=True):
         audio_base64 = base64.b64encode(audio_chunk).decode('utf-8')
         message = {"type": "input_audio_buffer.append", "audio": audio_base64}
-        return await self.send(message, 'audio_buffer.append')
+        return await self.send(message, 'audio_buffer.append', exception_on_error)
     
-    async def clear_audio_buffer(self):
+    async def clear_audio_buffer(self, exception_on_error=True):
         message = {"type": "input_audio_buffer.clear"}
-        return await self.send(message, 'audio_buffer.clear')
+        return await self.send(message, 'audio_buffer.clear', exception_on_error)
     
-    async def commit_audio_buffer(self):
+    async def commit_audio_buffer(self, exception_on_error=True):
         message = {"type": "input_audio_buffer.commit"}
         # clear the message queue
         while self.get_message_queue_length() > 0: 
             await self.get_message()
 
         # send the message
-        result = await self.send(message, 'audio_buffer.commit')
+        result = await self.send(message, 'audio_buffer.commit', exception_on_error)
         if not result:
             self.logger.error("Failed to commit audio buffer")
             return ''

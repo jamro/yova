@@ -92,7 +92,6 @@ class Subscriber:
                     message = await self.socket.recv_string()
                     topic, data = message.split(' ', 1)
                     message_data = json.loads(data)
-                    #await safe_callback(topic, message_data)
                     asyncio.create_task(safe_callback(callback, topic, message_data))
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")

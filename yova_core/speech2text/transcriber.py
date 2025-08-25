@@ -17,7 +17,7 @@ class Transcriber(EventEmitter):
     def __init__(self, logger, realtime_api: RealtimeApi, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
                  silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None,
-                 pyaudio_instance=None):
+                 pyaudio_instance=None, exit_on_error=False):
         """Initialize the transcriber"""
         super().__init__()
         self.logger = get_clean_logger("transcriber", logger)
@@ -26,6 +26,7 @@ class Transcriber(EventEmitter):
         self.listening_task = None
         self.prerecord_beep = prerecord_beep
         self.is_recording = False
+        self.exit_on_error = exit_on_error # usfefull when running with supervisor and auto restart turned on
         self.beep_volume_reduction = beep_volume_reduction
         self.recording_stream = recording_stream or RecordingStream(
             logger=logger,
@@ -143,4 +144,8 @@ class Transcriber(EventEmitter):
                 await asyncio.sleep(0.02)
         except Exception as e:
             self.logger.error(f"Error: {e}")
+            if self.exit_on_error:
+                # exit process immediately with error code
+                self.logger.error("Exiting process due to error")
+                os._exit(1)
             raise e

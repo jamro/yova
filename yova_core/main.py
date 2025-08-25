@@ -46,6 +46,7 @@ async def main():
             prerecord_beep=get_config("speech2text.prerecord_beep"),
             min_speech_length=get_config("speech2text.min_speech_length"),
             silence_amplitude_threshold=get_config("speech2text.silence_amplitude_threshold"),
+            exit_on_error=True
         )
     )
     async def log_state_change(data):
