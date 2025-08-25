@@ -44,7 +44,8 @@ class BrokerMonitor:
     
     async def message_handler(self, topic: str, data: any):
         """Handle incoming messages by logging them"""
-        self.logger.info(f"[{topic}] -> {data}")
+        line_limit = 256
+        self.logger.info(f"[{topic}] -> {str(data)[:line_limit]}{'...' if len(str(data)) > line_limit else ''}")
     
     async def start_monitoring(self):
         """Start monitoring all events from the broker"""

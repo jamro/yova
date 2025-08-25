@@ -6,6 +6,7 @@ from pydub.playback import _play_with_simpleaudio as play_audio
 from yova_shared import get_clean_logger, EventEmitter
 from yova_core.text2speech.stream_playback import StreamPlayback
 from yova_core.text2speech.data_playback import DataPlayback
+from yova_core.text2speech.base64_playback import Base64Playback
 
 class SpeechTask(EventEmitter):
     def __init__(self, message_id, api_key, logger, playback_config=None):
@@ -51,22 +52,37 @@ class SpeechTask(EventEmitter):
         if self.is_stopped:
             return
         
-        self.logger.debug(f"Appending chunk: {text_chunk}")
-        text_chunk = self.clean_chunk(text_chunk)
-
-        self.current_buffer += text_chunk
+        is_audio_chunk = text_chunk.startswith("data:audio/")
         
-        # Check if we have a complete sentence or enough content
-        if (len(self.current_buffer) >= self.min_chunk_length and 
-            any(self.current_buffer.rstrip().endswith(ending) for ending in self.sentence_endings)):
-            
-            self.current_buffer = self.current_buffer.strip()
-            if self.current_buffer:
+        self.logger.debug(f"Appending chunk: {text_chunk[:100]}...")
+        if is_audio_chunk:
+            # flush current buffer
+            if len(self.current_buffer) > 0:
                 self.sentence_queue.append(self.current_buffer)
                 if not self.conversion_task:
                     self.conversion_task = asyncio.create_task(self.convert_to_speech())
+                self.current_buffer = ""
 
-            self.current_buffer = ""
+            # add audio chunk to the queue
+            self.sentence_queue.append(text_chunk)
+            if not self.conversion_task:
+                self.conversion_task = asyncio.create_task(self.convert_to_speech())
+
+        else:
+            text_chunk = self.clean_chunk(text_chunk)
+            self.current_buffer += text_chunk
+        
+            # Check if we have a complete sentence or enough content
+            if (len(self.current_buffer) >= self.min_chunk_length and 
+                any(self.current_buffer.rstrip().endswith(ending) for ending in self.sentence_endings)):
+                
+                self.current_buffer = self.current_buffer.strip()
+                if self.current_buffer:
+                    self.sentence_queue.append(self.current_buffer)
+                    if not self.conversion_task:
+                        self.conversion_task = asyncio.create_task(self.convert_to_speech())
+
+                self.current_buffer = ""
 
     async def convert_to_speech(self):
         self.logger.debug(f"Converting to speech...")
@@ -74,21 +90,29 @@ class SpeechTask(EventEmitter):
             self.logger.debug(f"Converting sentence: {self.sentence_queue}")
             text = self.sentence_queue.pop(0)
 
+            is_audio_chunk = text.startswith("data:audio/")
+
             try:
-                if len(self.audio_queue) == 0 and not self.audio_task:
-                    self.logger.debug(f"Creating streaming response")
+                if is_audio_chunk:
+                    self.logger.info(f"Creating Base64 audio playback")
+                    playback = Base64Playback(self.logger, text)
+                    await playback.load()
+                    self.audio_queue.append({"playback": playback, "text": text})
+                elif len(self.audio_queue) == 0 and not self.audio_task:
+                    self.logger.info(f"Creating streaming response")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
                     await playback.load()
                     self.audio_queue.append({"playback": playback, "text": text})
                 else:
-                    self.logger.debug(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
+                    self.logger.info(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
                     await asyncio.sleep(self.wait_time + self.wait_time*len(self.audio_queue))
-                    self.logger.debug(f"Creating non-streaming response")
+                    self.logger.info(f"Creating non-streaming response")
                     playback = DataPlayback(self.client, self.logger, text, self.playback_config)
                     await playback.load()
                     self.audio_queue.append({"playback": playback, "text": text})
+                    
                 if not self.audio_task:
-                    self.logger.debug(f"Creating audio task")
+                    self.logger.info(f"Creating audio task")
                     self.audio_task = asyncio.create_task(self.play_audio())
                 else:
                     self.logger.debug(f"Audio task already exists")

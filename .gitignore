@@ -1,6 +1,7 @@
 yova.config.json
 /tmp/
 .DS_Store
+/dev-sandbox.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

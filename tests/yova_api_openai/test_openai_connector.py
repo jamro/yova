@@ -114,14 +114,14 @@ class TestOpenAIConnector:
         connector.client.chat.completions.create.assert_called_once()
         
         # Verify events were emitted
-        assert connector.event_emitter.emit_event.call_count == 5
+        assert connector.event_emitter.emit_event.call_count == 6
         
         # Get all calls to verify the structure
         calls = connector.event_emitter.emit_event.call_args_list
         
         # Verify chunk events
         chunk_calls = [call for call in calls if call[0][0] == "message_chunk"]
-        assert len(chunk_calls) == 2
+        assert len(chunk_calls) == 3
         
         # Verify completion event
         completion_calls = [call for call in calls if call[0][0] == "message_completed"]
@@ -141,8 +141,10 @@ class TestOpenAIConnector:
         assert completion_calls[0][0][1]["id"] == message_id
         
         # Verify text content
-        assert chunk_calls[0][0][1]["text"] == "Hello"
-        assert chunk_calls[1][0][1]["text"] == " world"
+        # First chunk is hmmm sound (base64 audio), second is "Hello", third is " world"
+        assert chunk_calls[0][0][1]["text"].startswith("data:audio/")  # hmmm sound
+        assert chunk_calls[1][0][1]["text"] == "Hello"
+        assert chunk_calls[2][0][1]["text"] == " world"
         assert completion_calls[0][0][1]["text"] == "Hello world"
     
     @pytest.mark.asyncio

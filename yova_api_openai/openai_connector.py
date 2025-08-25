@@ -7,7 +7,28 @@ from yova_shared.api import ApiConnector
 from yova_shared import get_clean_logger
 from yova_shared import EventEmitter
 from .conversation_history import ConversationHistory
+import base64
+import random
 
+# Supported audio formats and their MIME types
+SUPPORTED_FORMATS = {
+    'wav': 'audio/wav',
+    'mp3': 'audio/mpeg',
+    'ogg': 'audio/ogg',
+    'flac': 'audio/flac',
+    'aac': 'audio/aac',
+    'm4a': 'audio/mp4',
+    'wma': 'audio/x-ms-wma'
+}
+
+def get_file_format(file_path):
+    """Extract file format from file path"""
+    _, ext = os.path.splitext(file_path)
+    return ext.lower().lstrip('.')
+    
+def is_format_supported(format_ext):
+    """Check if the audio format is supported"""
+    return format_ext in SUPPORTED_FORMATS
 
 class OpenAIConnector(ApiConnector):
     def __init__(self, logger=None, max_history_messages: int = 50, max_history_tokens: int = 10000):
@@ -77,7 +98,12 @@ class OpenAIConnector(ApiConnector):
         
         # Generate unique message ID for correlation
         message_id = str(uuid.uuid4())
-        
+
+        # send hmmm sound to increase user confidence
+        chunk_data = {"id": message_id, "text": self.get_hmmm_sound_base64()}
+        await self.event_emitter.emit_event("message_chunk", chunk_data)
+        self.logger.debug(f"OpenAIConnector: Emitted hmmm sound chunk: {chunk_data['text'][:20]}...")
+
         # Add user message to conversation history
         self.conversation_history.add_user_message(text, message_id)
         
@@ -160,3 +186,31 @@ class OpenAIConnector(ApiConnector):
     def export_conversation(self, format_type: str = "json") -> str:
         """Export conversation history in specified format."""
         return self.conversation_history.export_history(format_type) 
+    
+    def get_hmmm_sound_base64(self):
+        # construct path to wav file using current file location and relative path to wav file
+        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "yova_shared", "assets", f"hmmm_nova_{random.randint(1, 9)}.wav")
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File {file_path} not found!")
+
+        format_ext = get_file_format(file_path)
+        
+        # Check if format is supported
+        if not is_format_supported(format_ext):
+            supported_formats = ', '.join(SUPPORTED_FORMATS.keys())
+            raise ValueError(f"Unsupported audio format: {format_ext}. Supported formats: {supported_formats}")
+        
+        # Read the audio file as binary
+        with open(file_path, "rb") as audio_file:
+            audio_data = audio_file.read()
+        
+        # Encode with base64
+        base64_encoded = base64.b64encode(audio_data)
+        base64_string = base64_encoded.decode('utf-8')
+        
+        # Create data URL with proper MIME type
+        mime_type = SUPPORTED_FORMATS[format_ext]
+        data_url = f"data:{mime_type};base64,{base64_string}"
+
+        return data_url

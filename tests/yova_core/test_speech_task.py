@@ -585,7 +585,7 @@ class TestSpeechTask:
             
             await task.append_chunk("Test chunk")
             
-            task.logger.debug.assert_called_with("Appending chunk: Test chunk")
+            task.logger.debug.assert_called_with("Appending chunk: Test chunk...")
 
     @pytest.mark.asyncio
     async def test_convert_to_speech_logging(self):

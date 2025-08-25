@@ -72,10 +72,10 @@ async def main():
             
             if data['type'] == "chunk":
                 # Handle speech chunk
-                await state_machine.on_response_chunk(data['id'], data['text'])
+                await state_machine.on_response_chunk(data['id'], data['content'])
             elif data['type'] == "completed":
                 # Handle speech complete
-                await state_machine.on_response_complete(data['id'], data['text'])
+                await state_machine.on_response_complete(data['id'], data['content'])
         
         # input ========================================================================
         elif topic == "input":

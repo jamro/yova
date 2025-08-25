@@ -57,10 +57,10 @@ async def subscribe_to_updates(ui):
         # voice response ================================================================
         if topic == "voice_response":
             if data['type'] == 'chunk':
-                answer += data['text']
+                answer += data['content']
                 chunk_counter += 1
             elif data['type'] == 'completed':
-                answer = data['text']
+                answer = data['content']
                 chunk_counter = 0
             ui.set_answer(answer[:100] + "...")
             ui.loop.draw_screen()

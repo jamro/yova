@@ -37,7 +37,7 @@ async def main():
             await publisher.publish("voice_response", {
                 "type": "chunk",
                 "id": chunk['id'],
-                "text": chunk['text'],
+                "content": chunk['text'],
                 "timestamp": asyncio.get_event_loop().time()
             })
         except Exception as e:
@@ -49,7 +49,7 @@ async def main():
             await publisher.publish("voice_response", {
                 "type": "completed",
                 "id": full_response['id'],
-                "text": full_response['text'],
+                "content": full_response['text'],
                 "timestamp": asyncio.get_event_loop().time()
             })
         except Exception as e:
@@ -59,7 +59,7 @@ async def main():
         await publisher.publish("voice_response", {
             "type": "processing_started",
             "id": data['id'],
-            "text": "",
+            "content": "",
             "timestamp": asyncio.get_event_loop().time()
         })
         
@@ -67,7 +67,7 @@ async def main():
         await publisher.publish("voice_response", {
             "type": "processing_completed",
             "id": data['id'],
-            "text": "",
+            "content": "",
             "timestamp": asyncio.get_event_loop().time()
         })  
 
