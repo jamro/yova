@@ -27,8 +27,9 @@ graph TD
 
 To get started with YOVA, you'll need a Raspberry Pi 5 and a ReSpeaker 2-Mic HAT. The installation process involves:
 
-1. **Hardware Assembly** - 3D print the case and assemble the components
-2. **Software Installation** - Run the automated install script on your Raspberry Pi
-3. **Configuration** - Connect to your preferred AI backend
+1. **[Hardware Assembly](docs/install.md)** - 3D print the case and assemble the components
+2. **[Software Installation](docs/install.md)** - Run the automated install script on your Raspberry Pi
+3. **[Configuration](docs/config.md)** - Connect to built-in ChatGPT backend for testing
+4. **[Integration](docs/integration.md)** - Connect to your custom backend API
 
 For detailed step-by-step instructions, see the [Installation Guide](docs/install.md).

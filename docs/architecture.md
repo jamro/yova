@@ -1,5 +1,70 @@
 # Architecture Overview
 
+## System Architecture Diagram
+
+The diagram below shows a simplified flow of the main events between components. For a complete list of all available events and their detailed specifications, see [Events Documentation](events.md).
+
+```mermaid
+graph TB
+    
+    Client -->|yova.core.input.*| Core
+    Core -->|yova.api.asr.*| API_Connector
+    API_Connector -->|yova.api.tts.*| Core
+    API_Connector <-->|HTTP/Websocket/...| Backend_API
+    Broker
+```
+
+## Component Details
+
+For detailed information about all events and their data structures, see [Events Documentation](events.md).
+
+### Client
+- **Role**: Handles user input through push-to-talk button and may provides visual feedback
+- **Events**: 
+  - Publishes `yova.core.input.state` to indicate button activation status
+  - May subscribe to system events for visual feedback (LED indicators, status displays)
+- **Features**: 
+  - Push-to-talk button handling
+  - Optional LED animations (welcome, thinking, listening, speaking)
+  - Optional visual status indicators for system states
+- **Communication**: One way or Bidirectional communication with the broker
+- **Implementation**: Can be replaced with custom implementations (e.g., `yova_client_respeaker_hat` uses APA102 LED strip with custom animations)
+
+### Core
+- **Role**: Central speech processing system
+- **Subscriptions**: 
+  - `yova.api.tts.chunk` - receives text chunks for speech conversion
+  - `yova.api.tts.complete` - signals completion of text-to-speech requests
+- **Publications**: 
+  - `yova.api.asr.result` - publishes voice command transcriptions
+- **Functionality**: Handles speech recognition and text-to-speech conversion
+
+### API Connector
+- **Role**: Bridge between YOVA system and external backend APIs
+- **Subscriptions**: 
+  - `yova.api.asr.result` - receives voice command transcriptions
+- **Publications**: 
+  - `yova.api.tts.chunk` - sends text chunks for speech conversion
+  - `yova.api.tts.complete` - signals completion of response chunks
+- **External Communication**: Sends HTTP requests to backend APIs and processes responses
+
+### Backend API
+- **Role**: External service that processes voice commands and generates responses
+- **Communication**: 
+  - Receives requests from API Connector (async or sync)
+  - Sends responses back to API Connector
+  - Can send responses without requests (push notifications)
+  - Communication is asynchronous and bidirectional
+  - Requests don't require responses
+
+### Broker
+- **Role**: Central event distribution system using ZeroMQ
+- **Pattern**: XPUB/XSUB architecture
+- **Ports**: 
+  - Frontend (5555): Publishers connect here
+  - Backend (5556): Subscribers connect here
+- **Functionality**: Routes all events between components without persistence
+
 ## Principles of Architecture
 - **Modular processes**  
   The system is split into small, stateless Python modules. Each module can be swapped or replaced without impacting others.  
