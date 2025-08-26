@@ -49,7 +49,7 @@ class BrokerTester:
         
         try:
             # Subscribe to test event
-            await subscriber.subscribe("broker_test")
+            await subscriber.subscribe("yova.core.health.ping")
             await asyncio.sleep(1) 
             
             received_messages = []
@@ -64,13 +64,13 @@ class BrokerTester:
             
             # Publish test event
             test_message = {"message": "Hello from test_broker!", "timestamp": asyncio.get_event_loop().time()}
-            await publisher.publish("broker_test", test_message)
+            await publisher.publish("yova.core.health.ping", test_message)
             
             # Wait longer for message to be received
             await asyncio.sleep(1)
             
             # Check if message was received
-            if len(received_messages) == 1 and received_messages[0][0] == "broker_test" and received_messages[0][1] == test_message:
+            if len(received_messages) == 1 and received_messages[0][0] == "yova.core.health.ping" and received_messages[0][1] == test_message:
                 self.logger.info("✅ Test successful! Message was received by subscriber")
             else:
                 self.logger.warning("⚠️ Test incomplete - no messages received")

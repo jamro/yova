@@ -14,11 +14,16 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Message Format**: `topic json_data` where topic is a string and data is JSON-serialized
 - **Protocol**: TCP-based communication for reliable message delivery
 
-## ZeroMQ Events
+## Event Categories
 
-### `voice_command_detected`
-- **Topic**: `voice_command_detected`
-- **Data Structure**:
+### 1. Voice Recognition Events
+
+#### `yova.api.asr.result`
+**When**: Triggered when YOVA detects and transcribes a voice command
+**Publisher**: Core speech recognition system
+**Subscribers**: API connectors, external systems
+
+**Data Structure**:
 ```json
 {
   "id": "string",
@@ -26,48 +31,96 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Event triggered when Yova detects a voice command. The event is published after the user releases the push-to-talk button and the recorded audio has been transcribed. It contains the transcription text and is used by the API connector to forward the command to the backend API.
-- **Use Case**: API connectors can listen for voice commands to forward them to backend services, trigger actions, or log user interactions
 
+**Description**: Published after the user releases the push-to-talk button and the recorded audio has been transcribed. Contains the transcription text that can be forwarded to backend APIs.
 
-### `voice_response`
-- **Topic**: `voice_response`
-- **Data Structure**:
+**Use Cases**:
+- API connectors can listen for voice commands to forward to backend services
+- Trigger actions based on voice input
+- Log user interactions for analytics
+
+---
+
+### 2. Speech Output Events
+
+#### `yova.api.tts.chunk`
+**When**: Text chunk is ready for speech conversion
+**Publisher**: API connector
+**Subscribers**: Core text-to-speech system
+
+**Data Structure**:
 ```json
 {
-  "type": "chunk|completed|processing_started|processing_completed",
   "id": "string",
   "content": "string",
   "timestamp": "float"
 }
 ```
-- **Description**: Published by the API connector to convert backend API responses into speech output
-- **Types**:
-  - **`chunk`**: Text chunk for speech conversion. Designed for streaming APIs to reduce latency. Yova aggregates chunks into sentences and processes them sentence-by-sentence. *Pro tip*: Keep the first sentence short for faster speech generation. *Advanced*: You can send base64-encoded audio (e.g., `data:audio/wav;base64,UklGRiQA...`) instead of text - Yova will play the audio directly.
-  - **`completed`**: Signals that all response chunks have been sent and finalizes the speech conversion process
-  - **`processing_started`/`processing_completed`**: Used to display "thinking" indicators (e.g., LED animations on respeaker HAT)
-- **Use Case**: Enables API connectors to stream AI responses from backend API as speech and provide real-time feedback
 
-### `input`
-- **Topic**: `input`
-- **Data Structure**:
+**Description**: Designed for streaming APIs to reduce latency. YOVA aggregates chunks into sentences and processes them sentence-by-sentence.
+
+**Pro Tips**:
+- Keep the first sentence short for faster speech generation
+- You can send base64-encoded audio (e.g., `data:audio/wav;base64,UklGRiQA...`) instead of text - YOVA will play the audio directly
+
+#### `yova.api.tts.complete`
+**When**: All response chunks have been sent
+**Publisher**: API connector
+**Subscribers**: Core text-to-speech system
+
 ```json
 {
-  "active": "boolean",
+  "id": "string",
+  "content": "string",
   "timestamp": "float"
 }
 ```
-- **Description**: Published when the input status changes in the development tools UI
-- **Data**:
-  - **`active: true`**: Published when input is activated (status becomes active)
-  - **`active: false`**: Published when input is deactivated (status becomes inactive)
-  - **`timestamp`**: Unix timestamp when the input status changed
-- **Use Case**: External systems can monitor input activation status to coordinate with voice processing, implement input state synchronization, or trigger actions based on input availability
-- **Example**: Voice processing systems can subscribe to pause/resume audio recording based on input activation status
 
-### `state`
-- **Topic**: `state`
-- **Data Structure**:
+**Description**: Signals that all response chunks have been sent and finalizes the speech conversion process.
+
+---
+
+### 3. Processing Status Events
+
+#### `yova.api.thinking.start`
+**When**: Backend API processing begins
+**Publisher**: API connector
+**Subscribers**: UI systems, LED controllers
+
+**Data Structure**:
+```json
+{
+  "id": "string",
+  "timestamp": "float"
+}
+```
+
+**Description**: Triggers "thinking" indicators, such as UI spinners or LED animations, to show the system is processing a request. Event is optional, and can be omitted.
+
+#### `yova.api.thinking.stop`
+**When**: Backend API processing completes
+**Publisher**: API connector
+**Subscribers**: UI systems, LED controllers
+
+```json
+{
+  "id": "string",
+  "timestamp": "float"
+}
+```
+
+**Description**: Signals that processing has finished and thinking indicators should stop. Event is optional, and can be omitted.
+
+---
+
+### 4. Core System State Events
+
+#### `yova.core.state.change`
+**When**: Voice assistant's internal state machine transitions
+**Publisher**: Core state machine
+**Subscribers**: UI systems, monitoring tools
+
+**Data Structure**:
 ```json
 {
   "previous_state": "string",
@@ -75,44 +128,108 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
   "timestamp": "float"
 }
 ```
-- **Description**: Published when the voice assistant's internal state machine transitions between different operational states
-- **States**:
-  - **`idle`**: Default state when the system is waiting for input
-  - **`listening`**: Active state when recording audio input
-  - **`speaking`**: Active state when generating and playing back speech responses
-- **Data**:
-  - **`previous_state`**: The state the system was in before the transition
-  - **`new_state`**: The state the system transitioned to
-  - **`timestamp`**: Unix timestamp when the state change occurred
-- **Use Case**: Used internally by Yova to track state transitions. Useful for user interfaces to represent current Yova operational status.
 
-### `audio`
-- **Topic**: `audio`
-- **Data Structure**:
+**Available States**:
+- **`idle`**: Default state when the system is waiting for input
+- **`listening`**: Active state when recording audio input
+- **`speaking`**: Active state when generating and playing back speech responses
+
+**Use Cases**:
+- Track state transitions for debugging
+- Update user interfaces to show current operational status
+- Coordinate actions based on system state
+
+---
+
+### 5. Audio Activity Events
+
+#### `yova.core.audio.record.start`
+**When**: Audio recording begins
+**Publisher**: Core audio system
+**Subscribers**: UI systems, monitoring tools
+
+**Data Structure**:
 ```json
 {
-  "type": "playing|recording",
+  "id": "string",
+  "text": "",
+  "timestamp": "float"
+}
+```
+
+**Description**: Published when recording of audio input begins. The `text` field is empty since transcription hasn't occurred yet.
+
+#### `yova.core.audio.play.start`
+**When**: Audio playback begins
+**Publisher**: Core audio system
+**Subscribers**: UI systems, monitoring tools
+
+**Data Structure**:
+```json
+{
   "id": "string",
   "text": "string",
   "timestamp": "float"
 }
 ```
-- **Description**: Published when recording of audio input or playing of audio output begins
-- **Data**:
-  - **`type`**: Either "playing" (audio playback started) or "recording" (audio recording started)
-  - **`id`**: Unique identifier for the message
-  - **`text`**: The text content - for "playing" events this contains the text being converted to speech, for "recording" events this field is empty since transcription hasn't occurred yet
-  - **`timestamp`**: Unix timestamp when the audio event started
-- **Use Case**: Used internally by Yova to track state transitions. Useful for user interfaces to represent current Yova operational status
 
-### `broker_test`
-- **Topic**: `broker_test`
-- **Data Structure**:
+**Description**: Published when playing of audio output begins. The `text` field contains the text being converted to speech.
+
+---
+
+### 6. Input Status Events
+
+#### `yova.core.input.state`
+**When**: Input activation status changes
+**Publisher**: Development tools UI
+**Subscribers**: External systems, monitoring tools
+
+**Data Structure**:
+```json
+{
+  "active": "boolean",
+  "timestamp": "float"
+}
+```
+
+**Description**: Published when the input status changes in the development tools UI.
+
+**Data Values**:
+- **`active: true`**: Input is activated (status becomes active)
+- **`active: false`**: Input is deactivated (status becomes inactive)
+
+**Use Cases**:
+- Monitor input activation status to coordinate with voice processing
+- Implement input state synchronization across systems
+- Trigger actions based on input availability
+- Pause/resume audio recording based on input activation status
+
+---
+
+### 7. System Health Events
+
+#### `yova.core.health.ping`
+**When**: Test event for broker verification
+**Publisher**: Test systems
+**Subscribers**: Monitoring tools
+
+**Data Structure**:
 ```json
 {
   "message": "Hello from test_broker!",
   "timestamp": "float"
 }
 ```
-- **Description**: Test event used to verify broker functionality
-- **Use Case**: Testing and debugging the ZeroMQ broker during development
+
+**Description**: Test event used to verify broker functionality during development and testing.
+
+**Use Cases**:
+- Testing and debugging the ZeroMQ broker
+
+## Best Practices
+
+- **Subscribe to relevant events**: Only subscribe to events your system needs to avoid unnecessary processing
+- **Handle event ordering**: Events may arrive out of order; use timestamps for sequencing when needed
+- **Implement error handling**: Always handle cases where events might be malformed or missing
+- **Monitor event frequency**: High-frequency events (like audio chunks) should be processed efficiently as they can block the main thread
+- **Use event IDs**: When available, use event IDs to correlate related events across your system

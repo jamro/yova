@@ -17,7 +17,7 @@ async def push_to_talk_changed_callback(event_data):
     try:
         await publisher.connect()
         
-        await publisher.publish("input", {
+        await publisher.publish("yova.core.input.state", {
             "active": event_data["is_active"],
             "timestamp": asyncio.get_event_loop().time()
         })
@@ -31,7 +31,7 @@ async def test_question_callback(event_data):
     """Callback for test question events - publishes to broker"""
     publisher = Publisher()
     await publisher.connect()
-    await publisher.publish("voice_command_detected", {
+    await publisher.publish("yova.api.asr.result", {
         "id": str(uuid.uuid4()),
         "transcript": "Jaka jest stolica Polski?",
         "timestamp": asyncio.get_event_loop().time()
@@ -42,32 +42,40 @@ async def subscribe_to_updates(ui):
     async def on_message(topic, data):
         global answer, chunk_counter
         
-        # state ========================================================================
-        if topic == "state":
+        # yova.core.state.change ========================================================================
+        if topic == "yova.core.state.change":
             ui.set_state(data['new_state'])
             ui.loop.draw_screen()
 
-        # voice command detected ================================================================
-        if topic == "voice_command_detected":
+        # yova.api.asr.result ================================================================
+        if topic == "yova.api.asr.result":
             ui.set_question(data['transcript'])
             answer = ""
             ui.set_answer(answer)
             ui.loop.draw_screen()
 
-        # voice response ================================================================
-        if topic == "voice_response":
-            if data['type'] == 'chunk':
-                answer += data['content']
-                chunk_counter += 1
-            elif data['type'] == 'completed':
-                answer = data['content']
-                chunk_counter = 0
+        # yova.api.tts.chunk ================================================================
+        if topic == "yova.api.tts.chunk":
+            answer += data['content']
+            chunk_counter += 1
+            ui.set_answer(answer[:100] + "...")
+            ui.loop.draw_screen()
+
+        # yova.api.tts.complete ================================================================
+        if topic == "yova.api.tts.complete":
+            answer = data['content']
+            chunk_counter = 0
             ui.set_answer(answer[:100] + "...")
             ui.loop.draw_screen()
 
     subsciber = Subscriber()
     await subsciber.connect()
-    await subsciber.subscribe_all(["state", "voice_command_detected", "voice_response"])
+    await subsciber.subscribe_all([
+        "yova.core.state.change", 
+        "yova.api.asr.result", 
+        "yova.api.tts.chunk", 
+        "yova.api.tts.complete"
+    ])
     asyncio.create_task(subsciber.listen(on_message))
     
 def main():

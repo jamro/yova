@@ -42,7 +42,7 @@ async def notify_input_state(is_active, logger):
     try:
         await publisher.connect()
 
-        await publisher.publish("input", {
+        await publisher.publish("yova.core.input.state", {
             "active": is_active,
             "timestamp": asyncio.get_event_loop().time()
         })
@@ -94,26 +94,36 @@ async def main_async():
 
     subscriber = Subscriber()
     await subscriber.connect()
-    await subscriber.subscribe_all(["state", "audio", "voice_response"])
+    await subscriber.subscribe_all([
+        "yova.core.state.change", 
+        "yova.core.audio.play.start", 
+        "yova.core.audio.record.start", 
+        "yova.api.thinking.start",
+        "yova.api.thinking.stop"
+    ])
 
     async def on_message(topic, data):
-        # audio ========================================================================
-        if topic == "audio":
-            if data['type'] == "playing":
-                animator.play('speaking', repetitions=0, brightness=0.1)
-            elif data['type'] == "recording":
-                animator.play('listening', repetitions=0, brightness=0.5)
+        
+        # yova.core.audio.play.start ========================================================================
+        if topic == "yova.core.audio.play.start":
+            animator.play('speaking', repetitions=0, brightness=0.1)
+        
+        # yova.core.audio.record.start ========================================================================
+        if topic == "yova.core.audio.record.start":
+            animator.play('listening', repetitions=0, brightness=0.5)
 
-        # state ========================================================================
-        if topic == "state":
+        # yova.core.state.change ========================================================================
+        if topic == "yova.core.state.change":
             if data['new_state'] == "idle":
                 animator.stop()
 
-        # voice_response ========================================================================
-        if topic == "voice_response":
-            if data['type'] == "processing_started":
-                animator.play('thinking', repetitions=0, brightness=0.1)
-            elif data['type'] == "processing_completed" and animator.get_current_animation_id() == "thinking":
+        # yova.api.thinking.start ========================================================================
+        if topic == "yova.api.thinking.start":
+            animator.play('thinking', repetitions=0, brightness=0.1)
+
+        # yova.api.thinking.stop ========================================================================
+        if topic == "yova.api.thinking.stop":
+            if animator.get_current_animation_id() == "thinking":
                 animator.stop()
     
     # start subscriber

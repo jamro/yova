@@ -29,13 +29,12 @@ async def main():
     # Create broker subscriber for voice command events
     subscriber = Subscriber()
     await subscriber.connect()
-    await subscriber.subscribe("voice_command_detected")
+    await subscriber.subscribe("yova.api.asr.result")
 
     async def onMessageChunk(chunk):
         # Emit voice response chunk event
         try:
-            await publisher.publish("voice_response", {
-                "type": "chunk",
+            await publisher.publish("yova.api.tts.chunk", {
                 "id": chunk['id'],
                 "content": chunk['text'],
                 "timestamp": asyncio.get_event_loop().time()
@@ -46,8 +45,7 @@ async def main():
     async def onMessageCompleted(full_response):
         # Emit voice response completed event
         try:
-            await publisher.publish("voice_response", {
-                "type": "completed",
+            await publisher.publish("yova.api.tts.complete", {
                 "id": full_response['id'],
                 "content": full_response['text'],
                 "timestamp": asyncio.get_event_loop().time()
@@ -56,18 +54,14 @@ async def main():
             logger.error(f"Failed to publish voice response completed event: {e}")
 
     async def onProcessingStarted(data):
-        await publisher.publish("voice_response", {
-            "type": "processing_started",
+        await publisher.publish("yova.api.thinking.start", {
             "id": data['id'],
-            "content": "",
             "timestamp": asyncio.get_event_loop().time()
         })
         
     async def onProcessingCompleted(data):
-        await publisher.publish("voice_response", {
-            "type": "processing_completed",
+        await publisher.publish("yova.api.thinking.stop", {
             "id": data['id'],
-            "content": "",
             "timestamp": asyncio.get_event_loop().time()
         })  
 
