@@ -52,10 +52,9 @@ async def main():
     )
     async def log_state_change(data):
         logger.info(f"State changed: {data['previous_state']} -> {data['new_state']}")
-        await publisher.publish("yova.core.state.change", {
+        await publisher.publish("core", "yova.core.state.change", {
             "previous_state": data['previous_state'],
-            "new_state": data['new_state'],
-            "timestamp": asyncio.get_event_loop().time()
+            "new_state": data['new_state']
         })
     state_machine.add_event_listener("state_changed", log_state_change)
 
@@ -64,7 +63,8 @@ async def main():
     await subscriber.connect()
     await subscriber.subscribe_all(["yova.api.tts.chunk", "yova.api.tts.complete", "yova.core.input.state"])
     
-    async def on_message(topic, data):
+    async def on_message(topic, message):
+        data = message['data']
         
         # yova.api.tts.chunk ================================================================
         if topic == "yova.api.tts.chunk":
@@ -79,8 +79,8 @@ async def main():
         # input ========================================================================
         elif topic == "yova.core.input.state":
             if data['active'] == True:
-                dt = asyncio.get_event_loop().time() - data['timestamp']
-                logger.info(f"Input activation event arrived after {dt} seconds")
+                dt = asyncio.get_event_loop().time()*1000 - message['ts_ms']
+                logger.info(f"Input activation event arrived after {dt} ms")
                 await state_machine.on_input_activated()
             else:
                 await state_machine.on_input_deactivated()
@@ -91,26 +91,22 @@ async def main():
     async def on_transcription_completed(data):
         # Publish voice command detection event
         try:
-            await publisher.publish("yova.api.asr.result", {
+            await publisher.publish("core", "yova.api.asr.result", {
                 "id": str(data['id']),
-                "transcript": data['transcript'],
-                "timestamp": asyncio.get_event_loop().time()
+                "transcript": data['transcript']
             })
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")
 
     async def on_playing_audio(data):
-        await publisher.publish("yova.core.audio.play.start", {
+        await publisher.publish("core", "yova.core.audio.play.start", {
             "id": data["message_id"],
-            "text": data["text"],
-            "timestamp": asyncio.get_event_loop().time()
+            "text": data["text"]
         })
 
     async def on_audio_recording_started(data):
-        await publisher.publish("yova.core.audio.record.start", {
-            "id": data["id"],
-            "text": "",
-            "timestamp": asyncio.get_event_loop().time()
+        await publisher.publish("core", "yova.core.audio.record.start", {
+            "id": data["id"]
         })
 
     state_machine.transcriber.add_event_listener("transcription_completed", on_transcription_completed)

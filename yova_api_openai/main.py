@@ -34,10 +34,9 @@ async def main():
     async def onMessageChunk(chunk):
         # Emit voice response chunk event
         try:
-            await publisher.publish("yova.api.tts.chunk", {
+            await publisher.publish("api_connector_openai", "yova.api.tts.chunk", {
                 "id": chunk['id'],
-                "content": chunk['text'],
-                "timestamp": asyncio.get_event_loop().time()
+                "content": chunk['text']
             })
         except Exception as e:
             logger.error(f"Failed to publish voice response chunk event: {e}")
@@ -45,24 +44,21 @@ async def main():
     async def onMessageCompleted(full_response):
         # Emit voice response completed event
         try:
-            await publisher.publish("yova.api.tts.complete", {
+            await publisher.publish("api_connector_openai", "yova.api.tts.complete", {
                 "id": full_response['id'],
-                "content": full_response['text'],
-                "timestamp": asyncio.get_event_loop().time()
+                "content": full_response['text']
             })
         except Exception as e:
             logger.error(f"Failed to publish voice response completed event: {e}")
 
     async def onProcessingStarted(data):
-        await publisher.publish("yova.api.thinking.start", {
-            "id": data['id'],
-            "timestamp": asyncio.get_event_loop().time()
+        await publisher.publish("api_connector_openai", "yova.api.thinking.start", {
+            "id": data['id']
         })
         
     async def onProcessingCompleted(data):
-        await publisher.publish("yova.api.thinking.stop", {
-            "id": data['id'],
-            "timestamp": asyncio.get_event_loop().time()
+        await publisher.publish("api_connector_openai", "yova.api.thinking.stop", {
+            "id": data['id']
         })  
 
     api_connector.add_event_listener("message_chunk", onMessageChunk)
@@ -74,7 +70,8 @@ async def main():
     await api_connector.connect()
 
     # Handle voice command detection events from the broker
-    async def onVoiceCommandDetected(topic, data):
+    async def onVoiceCommandDetected(topic, message):
+        data = message["data"]
         logger.info(f"Received voice command detection event: {data['transcript']}")
         
         # Handle transcription completed logic

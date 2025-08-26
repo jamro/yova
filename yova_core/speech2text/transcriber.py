@@ -87,8 +87,7 @@ class Transcriber(EventEmitter):
         result = await self._stop_listening()
         await self.emit_event("transcription_completed", {
             "id": str(uuid.uuid4()),
-            "transcript": result,
-            "timestamp": asyncio.get_event_loop().time()
+            "transcript": result
         })
         return result
 

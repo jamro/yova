@@ -53,7 +53,8 @@ class BrokerTester:
             await asyncio.sleep(1) 
             
             received_messages = []
-            async def message_handler(topic, data):
+            async def message_handler(topic, message):
+                data = message['data']
                 received_messages.append((topic, data))
             
             # Start listening in background
@@ -63,8 +64,8 @@ class BrokerTester:
             await asyncio.sleep(1)
             
             # Publish test event
-            test_message = {"message": "Hello from test_broker!", "timestamp": asyncio.get_event_loop().time()}
-            await publisher.publish("yova.core.health.ping", test_message)
+            test_message = {"message": "Hello from test_broker!"}
+            await publisher.publish("broker", "yova.core.health.ping", test_message)
             
             # Wait longer for message to be received
             await asyncio.sleep(1)

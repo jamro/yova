@@ -17,9 +17,8 @@ async def push_to_talk_changed_callback(event_data):
     try:
         await publisher.connect()
         
-        await publisher.publish("yova.core.input.state", {
-            "active": event_data["is_active"],
-            "timestamp": asyncio.get_event_loop().time()
+        await publisher.publish("dev_tools", "yova.core.input.state", {
+            "active": event_data["is_active"]
         })
             
     except Exception as e:
@@ -31,15 +30,15 @@ async def test_question_callback(event_data):
     """Callback for test question events - publishes to broker"""
     publisher = Publisher()
     await publisher.connect()
-    await publisher.publish("yova.api.asr.result", {
+    await publisher.publish("dev_tools", "yova.api.asr.result", {
         "id": str(uuid.uuid4()),
-        "transcript": "Jaka jest stolica Polski?",
-        "timestamp": asyncio.get_event_loop().time()
+        "transcript": "Jaka jest stolica Polski?"
     })
 
 async def subscribe_to_updates(ui):
     global answer, chunk_counter
-    async def on_message(topic, data):
+    async def on_message(topic, message):
+        data = message['data']
         global answer, chunk_counter
         
         # yova.core.state.change ========================================================================

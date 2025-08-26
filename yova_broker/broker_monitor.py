@@ -42,8 +42,9 @@ class BrokerMonitor:
         # Prevent propagation to avoid duplicate logs
         self.logger.propagate = False
     
-    async def message_handler(self, topic: str, data: any):
+    async def message_handler(self, topic: str, message: any):
         """Handle incoming messages by logging them"""
+        data = message['data']
         line_limit = 256
         self.logger.info(f"[{topic}] -> {str(data)[:line_limit]}{'...' if len(str(data)) > line_limit else ''}")
     

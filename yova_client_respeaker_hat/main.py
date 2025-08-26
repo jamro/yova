@@ -42,9 +42,8 @@ async def notify_input_state(is_active, logger):
     try:
         await publisher.connect()
 
-        await publisher.publish("yova.core.input.state", {
-            "active": is_active,
-            "timestamp": asyncio.get_event_loop().time()
+        await publisher.publish("client_respeaker_hat", "yova.core.input.state", {
+            "active": is_active
         })
             
     except Exception as e:
@@ -102,7 +101,8 @@ async def main_async():
         "yova.api.thinking.stop"
     ])
 
-    async def on_message(topic, data):
+    async def on_message(topic, message):
+        data = message['data']
         
         # yova.core.audio.play.start ========================================================================
         if topic == "yova.core.audio.play.start":

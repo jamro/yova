@@ -14,6 +14,31 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Message Format**: `topic json_data` where topic is a string and data is JSON-serialized
 - **Protocol**: TCP-based communication for reliable message delivery
 
+## Event Envelope Structure
+
+All YOVA events follow a standardized envelope format that provides metadata and context for each message:
+
+```json
+{
+  "v": 1,
+  "event": "yova.asr.result",        // also equals topic path
+  "msg_id": "uuid-...",              // unique per message
+  "source": "asr",                   // module name
+  "ts_ms": 1756115770123,            // Unix ms
+  "data": { /* event-specific fields */ }
+}
+```
+
+**Envelope Fields**:
+- **`v`**: Version number for the envelope format (currently 1)
+- **`event`**: The event topic/path that matches the ZeroMQ topic
+- **`msg_id`**: Unique identifier for each message (UUID format)
+- **`source`**: Name of the module that published the event
+- **`ts_ms`**: Unix timestamp in milliseconds when the event was created
+- **`data`**: Event-specific payload containing the actual event data
+
+**Note**: The `event` field in the envelope always matches the ZeroMQ topic path, making it easy to correlate messages with their topics.
+
 ## Event Categories
 
 ### 1. Voice Recognition Events
@@ -26,9 +51,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "id": "string",
-  "transcript": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.api.asr.result",
+  "msg_id": "uuid-1234-5678-9abc-def0",
+  "source": "asr",
+  "ts_ms": 1756115770123,
+  "data": {
+    "id": "string",
+    "transcript": "string"
+  }
 }
 ```
 
@@ -51,9 +82,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "id": "string",
-  "content": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.api.tts.chunk",
+  "msg_id": "uuid-1234-5678-9abc-def1",
+  "source": "api_connector",
+  "ts_ms": 1756115770124,
+  "data": {
+    "id": "string",
+    "content": "string"
+  }
 }
 ```
 
@@ -70,9 +107,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 
 ```json
 {
-  "id": "string",
-  "content": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.api.tts.complete",
+  "msg_id": "uuid-1234-5678-9abc-def2",
+  "source": "api_connector",
+  "ts_ms": 1756115770125,
+  "data": {
+    "id": "string",
+    "content": "string"
+  }
 }
 ```
 
@@ -90,8 +133,14 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "id": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.api.thinking.start",
+  "msg_id": "uuid-1234-5678-9abc-def3",
+  "source": "api_connector",
+  "ts_ms": 1756115770126,
+  "data": {
+    "id": "string"
+  }
 }
 ```
 
@@ -104,8 +153,14 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 
 ```json
 {
-  "id": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.api.thinking.stop",
+  "msg_id": "uuid-1234-5678-9abc-def4",
+  "source": "api_connector",
+  "ts_ms": 1756115770127,
+  "data": {
+    "id": "string"
+  }
 }
 ```
 
@@ -123,9 +178,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "previous_state": "string",
-  "new_state": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.core.state.change",
+  "msg_id": "uuid-1234-5678-9abc-def5",
+  "source": "core",
+  "ts_ms": 1756115770128,
+  "data": {
+    "previous_state": "string",
+    "new_state": "string"
+  }
 }
 ```
 
@@ -151,9 +212,14 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "id": "string",
-  "text": "",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.core.audio.record.start",
+  "msg_id": "uuid-1234-5678-9abc-def6",
+  "source": "core",
+  "ts_ms": 1756115770129,
+  "data": {
+    "id": "string"
+  }
 }
 ```
 
@@ -167,9 +233,15 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "id": "string",
-  "text": "string",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.core.audio.play.start",
+  "msg_id": "uuid-1234-5678-9abc-def7",
+  "source": "core",
+  "ts_ms": 1756115770130,
+  "data": {
+    "id": "string",
+    "text": "string"
+  }
 }
 ```
 
@@ -187,8 +259,14 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "active": "boolean",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.core.input.state",
+  "msg_id": "uuid-1234-5678-9abc-def8",
+  "source": "dev_tools",
+  "ts_ms": 1756115770131,
+  "data": {
+    "active": "boolean"
+  }
 }
 ```
 
@@ -216,8 +294,14 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 **Data Structure**:
 ```json
 {
-  "message": "Hello from test_broker!",
-  "timestamp": "float"
+  "v": 1,
+  "event": "yova.core.health.ping",
+  "msg_id": "uuid-1234-5678-9abc-def9",
+  "source": "test_system",
+  "ts_ms": 1756115770132,
+  "data": {
+    "message": "Hello from test_broker!"
+  }
 }
 ```
 
@@ -232,4 +316,6 @@ The YOVA broker uses ZeroMQ's XPUB/XSUB pattern:
 - **Handle event ordering**: Events may arrive out of order; use timestamps for sequencing when needed
 - **Implement error handling**: Always handle cases where events might be malformed or missing
 - **Monitor event frequency**: High-frequency events (like audio chunks) should be processed efficiently as they can block the main thread
-- **Use event IDs**: When available, use event IDs to correlate related events across your system
+- **Use event IDs**: Use the `msg_id` field from the envelope to correlate related events across your system
+- **Validate envelope structure**: Always check the envelope fields (`v`, `event`, `source`, `ts_ms`) for proper message validation
+- **Handle envelope versioning**: Check the `v` field to ensure compatibility with your event processing logic

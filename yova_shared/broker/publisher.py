@@ -5,6 +5,8 @@ Publisher client for interacting with YOVA Broker
 import asyncio
 import json
 import logging
+import time
+import uuid
 from typing import Any
 import zmq
 import zmq.asyncio
@@ -45,13 +47,23 @@ class Publisher:
                     logger.error(f"Failed to connect after {max_retries} attempts: {e}")
                     raise
         
-    async def publish(self, topic: str, message: Any):
+    async def publish(self, source: str, topic: str, message: Any):
         """Publish a message to a topic"""
         if not self.socket:
             await self.connect()
             
         # Format: topic + separator + message
-        full_message = f"{topic} {json.dumps(message)}"
+
+        message_json = {
+            "v": 1,
+            "event": topic,
+            "msg_id": f"uuid-{uuid.uuid4()}",
+            "source": source,
+            "ts_ms": int(time.time() * 1000),
+            "data": message
+        }
+
+        full_message = f"{topic} {json.dumps(message_json)}"
         await self.socket.send_string(full_message)
         logger.debug(f"Published to {topic}: {message}")
         
