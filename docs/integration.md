@@ -29,7 +29,13 @@ sequenceDiagram
     YOVA Core->>User: Play speech response
 ```
 
+## Getting Started with Examples
+
+For a hands-on approach to integration, see the [API Connector Example](api_connector_example.md) guide. This  tutorial walks you through building a working echo connector that demonstrates the complete integration pattern, from receiving voice commands to generating speech responses. The example includes step-by-step implementation, testing procedures, and troubleshooting tips to help you get started quickly.
+
 ## Related Documentation
 
 - [Architecture Overview](architecture.md) - Learn about YOVA's system architecture and components
 - [Events Reference](events.md) - Complete list of events and their payloads
+- [API Connector Example](api_connector_example.md) - Step-by-step guide to building your own API connector
+
