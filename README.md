@@ -29,7 +29,7 @@ graph TD
 YOVA is designed for low-latency voice interactions. Current performance metrics show:
 - **Input latency**: ~60ms median from button press to recording start
 - **Question processing**: ~500ms median from speech end to API call
-- **Answer playback**: ~700ms median from API response to speech start (can be significantly reduced further with proper UX strategies)
+- **Answer playback**: ~700ms median from API response to speech start (can be made to feel even better with proper UX strategies)
 
 For detailed performance analysis, optimization strategies, and pro tips, see the [Performance Guide](docs/performance.md).
 
