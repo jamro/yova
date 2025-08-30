@@ -106,24 +106,29 @@ async def main_async():
         
         # yova.core.audio.play.start ========================================================================
         if topic == "yova.core.audio.play.start":
+            logger.info("Playing speaking animation")
             animator.play('speaking', repetitions=0, brightness=0.1)
         
         # yova.core.audio.record.start ========================================================================
         if topic == "yova.core.audio.record.start":
+            logger.info("Playing listening animation")
             animator.play('listening', repetitions=0, brightness=0.5)
 
         # yova.core.state.change ========================================================================
         if topic == "yova.core.state.change":
             if data['new_state'] == "idle":
+                logger.info("Stopping animation")
                 animator.stop()
 
         # yova.api.thinking.start ========================================================================
         if topic == "yova.api.thinking.start":
+            logger.info("Playing thinking animation")
             animator.play('thinking', repetitions=0, brightness=0.1)
 
         # yova.api.thinking.stop ========================================================================
         if topic == "yova.api.thinking.stop":
             if animator.get_current_animation_id() == "thinking":
+                logger.info("Stopping thinking animation")
                 animator.stop()
     
     # start subscriber
