@@ -91,6 +91,7 @@ class Base64Playback(Playback):
             print(f"Format: {format_ext.upper()}, MIME type: {mime_type}")
             
             # Play the audio using simpleaudio
+            await self.event_emitter.emit_event("playing_audio", {"text": self.text})
             playback = play_audio(audio_segment)
             
             print("Playing audio...")
