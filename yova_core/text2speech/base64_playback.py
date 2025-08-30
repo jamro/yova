@@ -5,6 +5,7 @@ from pydub.playback import _play_with_simpleaudio as play_audio
 from yova_shared import EventEmitter
 import base64
 import io
+import asyncio
 
 # Supported audio formats and their MIME types
 SUPPORTED_FORMATS = {
@@ -94,8 +95,8 @@ class Base64Playback(Playback):
             
             print("Playing audio...")
             
-            # Wait for audio to finish playing
-            playback.wait_done()
+            # Wait for audio to finish playing - now non-blocking!
+            await asyncio.to_thread(playback.wait_done)
             
             print("Audio playback finished.")
             

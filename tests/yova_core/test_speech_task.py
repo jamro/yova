@@ -610,7 +610,7 @@ class TestSpeechTask:
                 
                 # Check that debug messages were logged
                 task.logger.debug.assert_any_call("Converting to speech...")
-                task.logger.debug.assert_any_call("Converting sentence: ['Test sentence.']")
+                task.logger.debug.assert_any_call("Converting sentence: Test sentence....")
 
     @pytest.mark.asyncio
     async def test_play_audio_logging(self):

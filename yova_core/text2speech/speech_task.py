@@ -87,8 +87,8 @@ class SpeechTask(EventEmitter):
     async def convert_to_speech(self):
         self.logger.debug(f"Converting to speech...")
         while len(self.sentence_queue) > 0 and not self.is_stopped:
-            self.logger.debug(f"Converting sentence: {self.sentence_queue}")
             text = self.sentence_queue.pop(0)
+            self.logger.debug(f"Converting sentence: {text[:100]}...")
 
             is_audio_chunk = text.startswith("data:audio/")
 
@@ -98,7 +98,7 @@ class SpeechTask(EventEmitter):
                     playback = Base64Playback(self.logger, text)
                     await playback.load()
                     self.audio_queue.append({"playback": playback, "text": text})
-                elif len(self.audio_queue) == 0 and not self.audio_task:
+                elif len(self.audio_queue) == 0 and not self.current_playback:
                     self.logger.info(f"Creating streaming response")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
                     await playback.load()
@@ -135,7 +135,9 @@ class SpeechTask(EventEmitter):
             item = self.audio_queue.pop(0)
             self.current_playback = item["playback"]
             self.current_playback.add_event_listener("playing_audio", on_playback)
+            self.logger.debug(f"Playing audio: {item['text'][:100]}...")
             await self.current_playback.play()
+            self.logger.debug(f"Playback completed")
             self.current_playback = None
             
             self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
@@ -143,9 +145,8 @@ class SpeechTask(EventEmitter):
         self.logger.debug(f"Audio playback finished, setting audio task to None")
         self.audio_task = None
 
-
     async def complete(self):
-        self.logger.debug(f"Completing task: {self.current_buffer}")
+        self.logger.debug(f"Completing task: {len(self.current_buffer)}")
         self.current_buffer = self.current_buffer.strip()
         if self.current_buffer:
             self.sentence_queue.append(self.current_buffer)
