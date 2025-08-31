@@ -85,7 +85,7 @@ def main():
     
     # Initialize components (no preprocessor needed)
     ecapa_model = ECAPAModel()
-    speaker_verifier = SpeakerVerifier()
+    speaker_verifier = SpeakerVerifier(storage_dir="tmp/users")
     
     # Phase 1: Enroll users from tmp/samples/enroll directory
     enroll_dir = Path("tmp/samples/enroll")
