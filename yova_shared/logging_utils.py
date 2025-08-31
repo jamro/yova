@@ -63,12 +63,22 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
     
     log_level = level_map.get(level.upper(), logging.INFO)
     
-    # Configure logging with clean format
+    # Configure logging with clean format including timestamp
     logging.basicConfig(
         level=log_level,
-        format="%(levelname)s:%(name)s:%(message)s",
-        datefmt="%H:%M:%S"
+        format="%(asctime)s - %(levelname)s:%(name)s:%(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
+    
+    # Add milliseconds by using a custom formatter
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            formatter = logging.Formatter(
+                fmt="%(asctime)s.%(msecs)03d - %(levelname)s:%(name)s:%(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+            handler.setFormatter(formatter)
     
     # Set websockets logger to WARNING to reduce noise
     logging.getLogger("websockets").setLevel(logging.WARNING)

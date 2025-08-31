@@ -13,6 +13,8 @@ class SpeechTask(EventEmitter):
         super().__init__(logger)
         self.message_id = message_id
         self.logger = get_clean_logger("speech_task", logger)
+        self.logger.setLevel("DEBUG")
+        
         self.api_key = api_key
         self.client = AsyncOpenAI(api_key=self.api_key)
 
@@ -37,7 +39,7 @@ class SpeechTask(EventEmitter):
             }
         
         self.is_stopped = False
-        self.wait_time = 1
+        self.wait_time = 0.2
 
     def clean_chunk(self, text_chunk):
          # remove **
@@ -90,26 +92,40 @@ class SpeechTask(EventEmitter):
             text = self.sentence_queue.pop(0)
             self.logger.debug(f"Converting sentence: {text[:100]}...")
 
+            telemetry = {
+                "create_time": asyncio.get_event_loop().time(),
+            }
+
             is_audio_chunk = text.startswith("data:audio/")
 
             try:
                 if is_audio_chunk:
                     self.logger.info(f"Creating Base64 audio playback")
                     playback = Base64Playback(self.logger, text)
+                    telemetry["load_start_time"] = asyncio.get_event_loop().time()
                     await playback.load()
-                    self.audio_queue.append({"playback": playback, "text": text})
-                elif len(self.audio_queue) == 0 and not self.current_playback:
-                    self.logger.info(f"Creating streaming response")
+                    telemetry["load_end_time"] = asyncio.get_event_loop().time()
+                    self.logger.debug(f"Base64 audio playback created")
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
+                elif (len(self.audio_queue) == 0 and self.current_playback is not None) or (len(self.audio_queue) == 1 and self.current_playback is not None):
+                    self.logger.info(f"Creating streaming response for text: {text[:100]}...")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
+                    telemetry["load_start_time"] = asyncio.get_event_loop().time()
                     await playback.load()
-                    self.audio_queue.append({"playback": playback, "text": text})
+                    telemetry["load_end_time"] = asyncio.get_event_loop().time()
+                    self.logger.debug(f"Streaming response created")
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
                 else:
-                    self.logger.info(f"Waiting for streaming to finish {1 + 1*len(self.audio_queue)}")
-                    await asyncio.sleep(self.wait_time + self.wait_time*len(self.audio_queue))
-                    self.logger.info(f"Creating non-streaming response")
+                    wait_time = self.wait_time*len(self.audio_queue)
+                    self.logger.info(f"Waiting for streaming to finish: {wait_time}s")
+                    await asyncio.sleep(wait_time)
+                    self.logger.info(f"Creating non-streaming response for text: {text[:100]}...")
                     playback = DataPlayback(self.client, self.logger, text, self.playback_config)
+                    telemetry["load_start_time"] = asyncio.get_event_loop().time()
                     await playback.load()
-                    self.audio_queue.append({"playback": playback, "text": text})
+                    telemetry["load_end_time"] = asyncio.get_event_loop().time()
+                    self.logger.debug(f"Non-streaming response created")
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
                     
                 if not self.audio_task:
                     self.logger.info(f"Creating audio task")
@@ -127,20 +143,27 @@ class SpeechTask(EventEmitter):
     async def play_audio(self):
         
         async def on_playback(data):
-            self.logger.info(f"Playing audio::: {data}")
+            self.logger.info(f"Playing audio: {data[:100]}...")
             await self.emit_event("playing_audio", {"message_id": self.message_id, "text": data["text"]})
 
         self.logger.debug(f"Playing audio...")
         while len(self.audio_queue) > 0 and not self.is_stopped:
             item = self.audio_queue.pop(0)
+            item["telemetry"]["pop_time"] = asyncio.get_event_loop().time()
             self.current_playback = item["playback"]
             self.current_playback.add_event_listener("playing_audio", on_playback)
             self.logger.debug(f"Playing audio: {item['text'][:100]}...")
+            item["telemetry"]["play_start_time"] = asyncio.get_event_loop().time()
             await self.current_playback.play()
+            item["telemetry"]["play_end_time"] = asyncio.get_event_loop().time()
             self.logger.debug(f"Playback completed")
             self.current_playback = None
             
             self.logger.debug(f"Playback completed, audio queue: {len(self.audio_queue)}")
+            self.logger.debug(f"Playback Telemetry for {item['text'][:100]}:")
+            self.logger.debug(f" - type: {type(item['playback'])}")
+            for key, value in item["telemetry"].items():
+                self.logger.debug(f" - {key}: {round(1000*(value - item['telemetry']['create_time']))}ms")
         
         self.logger.debug(f"Audio playback finished, setting audio task to None")
         self.audio_task = None
