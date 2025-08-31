@@ -3,6 +3,7 @@
 Simplified ECAPA Voice ID Demo
 
 This script demonstrates basic voice ID functionality with essential user comparison statistics.
+Audio files are read and converted to PCM 16-bit format at the demo level.
 """
 
 import numpy as np
@@ -11,61 +12,123 @@ from pathlib import Path
 import logging
 from yova_core.voice_id.speaker_verifier import SpeakerVerifier
 from yova_core.voice_id.ecapa_model import ECAPAModel
-from yova_core.voice_id.ecapa_preprocessor import ECAPAPreprocessor
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
+def load_audio_as_pcm16(file_path: str) -> tuple[np.ndarray, int]:
+    """
+    Load audio file and convert to PCM 16-bit format (same as transcriber)
+    
+    Args:
+        file_path: Path to audio file
+        
+    Returns:
+        Tuple of (audio_data, sample_rate)
+        audio_data: PCM 16-bit format (int16) at 16kHz mono
+    """
+    try:
+        # Load audio file
+        audio, sr = sf.read(file_path)
+        
+        # Convert to mono if stereo (assume all files are mono as per user request)
+        if len(audio.shape) > 1:
+            audio = np.mean(audio, axis=1)
+        
+        # Resample to 16kHz if necessary (assume all files are 16kHz as per user request)
+        if sr != 16000:
+            # Simple linear interpolation resampling
+            ratio = 16000 / sr
+            new_length = int(len(audio) * ratio)
+            indices = np.linspace(0, len(audio) - 1, new_length)
+            audio = np.interp(indices, np.arange(len(audio)), audio)
+            sr = 16000
+        
+        # Convert to PCM 16-bit format (int16) - same as transcriber
+        if audio.dtype != np.int16:
+            # Convert from float32 [-1, 1] to int16 [-32768, 32767]
+            if audio.dtype == np.float32 or audio.dtype == np.float64:
+                # Ensure audio is in [-1, 1] range first
+                if np.max(np.abs(audio)) > 1.0:
+                    audio = audio / np.max(np.abs(audio))
+                audio = (audio * 32767).astype(np.int16)
+            else:
+                # For other integer types, convert directly
+                audio = audio.astype(np.int16)
+        
+        return audio, sr
+        
+    except Exception as e:
+        logger.error(f"Error loading audio file {file_path}: {e}")
+        raise
+
+
+def convert_pcm16_to_float32(audio: np.ndarray) -> np.ndarray:
+    """
+    Convert PCM 16-bit audio to float32 in [-1, 1] range for ECAPA model
+    
+    Args:
+        audio: PCM 16-bit audio data (int16)
+        
+    Returns:
+        Float32 audio data in [-1, 1] range
+    """
+    # Convert from int16 [-32768, 32767] to float32 [-1, 1]
+    return audio.astype(np.float32) / 32767.0
+
+
 def main():
     """Main function to demonstrate voice ID capabilities"""
     logger.info("Starting simplified ECAPA voice ID demo")
     
-    # Initialize components
-    preprocessor = ECAPAPreprocessor()
+    # Initialize components (no preprocessor needed)
     ecapa_model = ECAPAModel()
     speaker_verifier = SpeakerVerifier()
     
-    # Find audio files in tmp directory
-    tmp_dir = Path("tmp/samples")
-    audio_files = list(tmp_dir.glob("*.wav"))
+    # Phase 1: Enroll users from tmp/samples/enroll directory
+    enroll_dir = Path("tmp/samples/enroll")
+    enroll_files = list(enroll_dir.glob("*.wav"))
     
-    if not audio_files:
-        logger.error("No audio files found in tmp directory")
+    if not enroll_files:
+        logger.error("No audio files found in tmp/samples/enroll directory")
         return
     
-    logger.info(f"Found {len(audio_files)} audio files")
+    logger.info(f"Phase 1: Enrollment - Found {len(enroll_files)} audio files")
     
-    # Process each audio file
-    results = []
+    # Process each enrollment audio file
+    enrollment_results = []
     
-    for audio_file in audio_files:
+    for audio_file in enroll_files:
         try:
-            logger.info(f"Processing: {audio_file.name}")
+            logger.info(f"Enrolling: {audio_file.name}")
             
-            # Process audio
-            mel_spec, model_input, metadata = preprocessor.process_audio(str(audio_file))
+            # Load audio as PCM 16-bit format (same as transcriber)
+            pcm16_audio, sr = load_audio_as_pcm16(str(audio_file))
+            logger.info(f"  Loaded: {len(pcm16_audio)} samples, {sr}Hz, PCM16 format")
             
-            # Load raw audio for ECAPA model
-            raw_audio, raw_sr = sf.read(str(audio_file))
-            if len(raw_audio.shape) > 1:  # Convert stereo to mono
-                raw_audio = np.mean(raw_audio, axis=1)
+            # Convert to float32 for ECAPA model
+            float32_audio = convert_pcm16_to_float32(pcm16_audio)
+            logger.info(f"  Converted to float32: range [{float32_audio.min():.3f}, {float32_audio.max():.3f}]")
             
-            # Extract embedding
-            embedding = ecapa_model.extract_embedding(raw_audio, raw_sr)
+            # Extract embedding using float32 audio
+            embedding = ecapa_model.extract_embedding(float32_audio, sr)
             
             if len(embedding) == 0:
                 logger.error(f"Failed to extract embedding for {audio_file.name}")
                 continue
             
-            # Store results
+            # Store enrollment results
             result = {
                 'file_path': str(audio_file),
+                'pcm16_audio': pcm16_audio,
+                'float32_audio': float32_audio,
                 'embedding': embedding,
-                'metadata': metadata
+                'sample_rate': sr,
+                'duration': len(pcm16_audio) / sr
             }
-            results.append(result)
+            enrollment_results.append(result)
             
             # Extract speaker ID from filename (remove last character)
             speaker_id = audio_file.stem[:-1]
@@ -74,92 +137,148 @@ def main():
             speaker_verifier.enroll_speaker(speaker_id, embedding)
             logger.info(f"Speaker enrolled: {speaker_id}")
             
-            # Verify speaker
-            is_match, similarity, confidence_level, _ = speaker_verifier.verify_speaker(embedding, speaker_id)
-            logger.info(f"Verification: {'✓' if is_match else '✗'} "
-                       f"(similarity: {similarity:.3f}, confidence: {confidence_level})")
-            
         except Exception as e:
-            logger.error(f"Error processing {audio_file}: {e}")
+            logger.error(f"Error processing enrollment file {audio_file}: {e}")
             continue
     
     # Show enrollment status
-    if results:
+    if enrollment_results:
         logger.info(f"\nEnrollment Summary:")
         enrolled_speakers = speaker_verifier.get_enrolled_speakers()
         for speaker_id in enrolled_speakers:
             sample_count = speaker_verifier.get_speaker_sample_count(speaker_id)
             logger.info(f"  {speaker_id}: {sample_count} sample(s)")
         
-        # Test speaker identification
-        logger.info(f"\nSpeaker Identification Test:")
-        test_result = results[0]  # Use first result as test
-        test_embedding = test_result['embedding']
-        test_file = Path(test_result['file_path']).name
+        # Phase 2: Test enrolled users with files from tmp/samples/test directory
+        test_dir = Path("tmp/samples/test")
+        test_files = list(test_dir.glob("*.wav"))
         
-        identified_speaker, similarity, confidence_level, _ = speaker_verifier.identify_speaker(test_embedding)
+        if not test_files:
+            logger.warning("No test files found in tmp/samples/test directory")
+            logger.info("Voice ID demo completed (enrollment only)")
+            return
         
-        if identified_speaker:
-            logger.info(f"  {test_file} identified as: {identified_speaker} "
-                       f"(similarity: {similarity:.3f}, confidence: {confidence_level})")
-        else:
-            logger.info(f"  {test_file}: No speaker match found (best similarity: {similarity:.3f})")
+        logger.info(f"\nPhase 2: Testing - Found {len(test_files)} test audio files")
         
-        # User comparison statistics (same vs different users)
-        if len(results) >= 2:
+        # Process each test audio file
+        test_results = []
+        
+        for audio_file in test_files:
+            try:
+                logger.info(f"Testing: {audio_file.name}")
+                
+                # Load audio as PCM 16-bit format
+                pcm16_audio, sr = load_audio_as_pcm16(str(audio_file))
+                logger.info(f"  Loaded: {len(pcm16_audio)} samples, {sr}Hz, PCM16 format")
+                
+                # Convert to float32 for ECAPA model
+                float32_audio = convert_pcm16_to_float32(pcm16_audio)
+                logger.info(f"  Converted to float32: range [{float32_audio.min():.3f}, {float32_audio.max():.3f}]")
+                
+                # Extract embedding using float32 audio
+                embedding = ecapa_model.extract_embedding(float32_audio, sr)
+                
+                if len(embedding) == 0:
+                    logger.error(f"Failed to extract embedding for {audio_file.name}")
+                    continue
+                
+                # Store test results
+                result = {
+                    'file_path': str(audio_file),
+                    'pcm16_audio': pcm16_audio,
+                    'float32_audio': float32_audio,
+                    'embedding': embedding,
+                    'sample_rate': sr,
+                    'duration': len(pcm16_audio) / sr
+                }
+                test_results.append(result)
+                
+                # Test speaker identification
+                identified_speaker, similarity, confidence_level, _ = speaker_verifier.identify_speaker(embedding)
+                
+                if identified_speaker:
+                    logger.info(f"  {audio_file.name} identified as: {identified_speaker} "
+                               f"(similarity: {similarity:.3f}, confidence: {confidence_level})")
+                else:
+                    logger.info(f"  {audio_file.name}: No speaker match found (best similarity: {similarity:.3f})")
+                
+            except Exception as e:
+                logger.error(f"Error processing test file {audio_file}: {e}")
+                continue
+        
+        # User comparison statistics (enrollment vs test)
+        if enrollment_results and test_results:
             logger.info(f"\n{'='*50}")
-            logger.info("User Comparison Statistics")
+            logger.info("Enrollment vs Test Comparison Statistics")
             logger.info(f"{'='*50}")
             
             # Extract user IDs from filenames (remove last 5 chars: .wav + number)
-            user_id_results = []
-            for result in results:
+            enrollment_user_ids = []
+            for result in enrollment_results:
                 filename = Path(result['file_path']).name
                 user_id = filename[:-5]  # Remove last 5 characters (.wav + number)
-                user_id_results.append({
+                enrollment_user_ids.append({
+                    'filename': filename,
+                    'user_id': user_id,
+                    'embedding': result['embedding']
+                })
+            
+            test_user_ids = []
+            for result in test_results:
+                filename = Path(result['file_path']).name
+                user_id = filename[:-5]  # Remove last 5 characters (.wav + number)
+                test_user_ids.append({
                     'filename': filename,
                     'user_id': user_id,
                     'embedding': result['embedding']
                 })
             
             # Group by user ID
-            user_groups = {}
-            for item in user_id_results:
+            enrollment_user_groups = {}
+            for item in enrollment_user_ids:
                 user_id = item['user_id']
-                if user_id not in user_groups:
-                    user_groups[user_id] = []
-                user_groups[user_id].append(item)
+                if user_id not in enrollment_user_groups:
+                    enrollment_user_groups[user_id] = []
+                enrollment_user_groups[user_id].append(item)
             
-            logger.info(f"Found {len(user_groups)} unique user IDs:")
-            for user_id, files in user_groups.items():
+            test_user_groups = {}
+            for item in test_user_ids:
+                user_id = item['user_id']
+                if user_id not in test_user_groups:
+                    test_user_groups[user_id] = []
+                test_user_groups[user_id].append(item)
+            
+            logger.info(f"Enrollment users: {len(enrollment_user_groups)} unique user IDs:")
+            for user_id, files in enrollment_user_groups.items():
                 logger.info(f"  {user_id}: {len(files)} files")
             
-            # Test same-user vs different-user similarities
+            logger.info(f"Test users: {len(test_user_groups)} unique user IDs:")
+            for user_id, files in test_user_groups.items():
+                logger.info(f"  {user_id}: {len(files)} files")
+            
+            # Test same-user vs different-user similarities between enrollment and test
             same_user_similarities = []
             different_user_similarities = []
             
-            # Compare all possible combinations
-            for i in range(len(user_id_results)):
-                for j in range(i + 1, len(user_id_results)):
-                    item1 = user_id_results[i]
-                    item2 = user_id_results[j]
-                    
+            # Compare all enrollment vs test combinations
+            for enroll_item in enrollment_user_ids:
+                for test_item in test_user_ids:
                     # Calculate cosine similarity
-                    emb1 = item1['embedding']
-                    emb2 = item2['embedding']
+                    emb1 = enroll_item['embedding']
+                    emb2 = test_item['embedding']
                     similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
                     
                     # Categorize by user ID relationship
-                    if item1['user_id'] == item2['user_id']:
+                    if enroll_item['user_id'] == test_item['user_id']:
                         same_user_similarities.append(similarity)
-                        logger.info(f"SAME USER: {item1['filename']} vs {item2['filename']}: {similarity:.4f}")
+                        logger.info(f"SAME USER: {enroll_item['filename']} vs {test_item['filename']}: {similarity:.4f}")
                     else:
                         different_user_similarities.append(similarity)
-                        logger.info(f"DIFFERENT USER: {item1['filename']} vs {item2['filename']}: {similarity:.4f}")
+                        logger.info(f"DIFFERENT USER: {enroll_item['filename']} vs {test_item['filename']}: {similarity:.4f}")
             
             # Statistical analysis
             if same_user_similarities:
-                logger.info(f"\nSame User Statistics:")
+                logger.info(f"\nSame User Statistics (Enrollment vs Test):")
                 logger.info(f"  Count: {len(same_user_similarities)}")
                 logger.info(f"  Mean: {np.mean(same_user_similarities):.4f}")
                 logger.info(f"  Std: {np.std(same_user_similarities):.4f}")
@@ -167,7 +286,7 @@ def main():
                 logger.info(f"  Max: {np.max(same_user_similarities):.4f}")
             
             if different_user_similarities:
-                logger.info(f"\nDifferent User Statistics:")
+                logger.info(f"\nDifferent User Statistics (Enrollment vs Test):")
                 logger.info(f"  Count: {len(different_user_similarities)}")
                 logger.info(f"  Mean: {np.mean(different_user_similarities):.4f}")
                 logger.info(f"  Std: {np.std(different_user_similarities):.4f}")
