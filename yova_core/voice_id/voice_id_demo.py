@@ -206,8 +206,10 @@ def main():
             if identified_speaker:
                 logger.info(f"  {audio_file.name} identified as: {identified_speaker} "
                            f"(similarity: {similarity:.3f}, confidence: {confidence_level})")
+                if not identified_speaker in audio_file.name:
+                    logger.info(f"  [ISSUE]{audio_file.name}: No speaker match found (best similarity: {similarity:.3f})")
             else:
-                logger.info(f"  {audio_file.name}: No speaker match found (best similarity: {similarity:.3f})")
+                logger.info(f"  [ISSUE]{audio_file.name}: No speaker match found (best similarity: {similarity:.3f})")
             
         except Exception as e:
             logger.error(f"Error processing test file {audio_file}: {e}")

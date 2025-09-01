@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ECAPAModel:
     """ECAPA-TDNN model for speaker recognition"""
     
-    def __init__(self, model_path: str = None, enable_vad: bool = True, max_seconds: float = 3.0, use_webrtcvad: bool = False, vad_aggressiveness: int = 2, min_seconds_to_vad: float = 2.0, prefer_fast_resample: bool = True, quantize_linear: bool = True):
+    def __init__(self, model_path: str = None, enable_vad: bool = True, max_seconds: float = 1.5, use_webrtcvad: bool = True, vad_aggressiveness: int = 2, min_seconds_to_vad: float = 0.0, prefer_fast_resample: bool = True, quantize_linear: bool = True):
         """
         Initialize ECAPA model
         
@@ -157,7 +157,9 @@ class ECAPAModel:
             if new_length <= 0:
                 return audio
             indices = np.linspace(0, len(audio) - 1, new_length, dtype=np.float32)
-            return np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
+            out = np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
+            logger.info(f"ECAPA resample (linear fast): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            return out
         try:
             import torchaudio
             key = (orig_sr, target_sr)
@@ -166,7 +168,9 @@ class ECAPAModel:
             resampler = self._resamplers[key]
             audio_tensor = torch.from_numpy(audio).float().unsqueeze(0)
             resampled = resampler(audio_tensor)
-            return resampled.squeeze().numpy()
+            out = resampled.squeeze().numpy()
+            logger.info(f"ECAPA resample (torchaudio cached): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            return out
         except Exception:
             # Fallback to linear
             ratio = target_sr / orig_sr
@@ -174,7 +178,9 @@ class ECAPAModel:
             if new_length <= 0:
                 return audio
             indices = np.linspace(0, len(audio) - 1, new_length, dtype=np.float32)
-            return np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
+            out = np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
+            logger.info(f"ECAPA resample (linear fallback): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            return out
     
     def _apply_vad_and_clip(self, audio: np.ndarray, sr: int, max_seconds: float) -> np.ndarray:
         """Apply VAD (WebRTC if available, else energy-based) and clip to target duration."""
