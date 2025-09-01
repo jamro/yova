@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class SpeakerVerifier:
     """Speaker verification system using ECAPA embeddings with file-based storage"""
     
-    def __init__(self, similarity_threshold: float = 0.2868, storage_dir: str = None):
+    def __init__(self, similarity_threshold: float = 0.2331, storage_dir: str = None):
         """
         Initialize speaker verifier
         
