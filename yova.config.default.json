@@ -17,5 +17,9 @@
     "silence_amplitude_threshold": 0.15,
     "audio_logs_path": "",
     "prerecord_beep": "beep7.wav"
+  },
+  "voice_id": {
+    "enabled": false,
+    "include_embedding": false
   }
 }

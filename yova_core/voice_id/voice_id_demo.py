@@ -62,7 +62,7 @@ def convert_pcm16_to_float32(audio: np.ndarray) -> np.ndarray:
 def main():
     """Main function to demonstrate voice ID capabilities"""
     logger.info("Starting simplified ECAPA voice ID demo")
-    voice_id_manager = VoiceIdManager(logger, "tmp/users")
+    voice_id_manager = VoiceIdManager(logger)
     
     logger.info("="*80)
     logger.info("Phase 1: Enrollment")
@@ -95,10 +95,10 @@ def main():
         id_result = voice_id_manager.identify_speaker(pcm16_audio)
 
         expected_speaker = audio_file.stem[:-1]
-        is_ok = id_result['identified_speaker'] == expected_speaker
+        is_ok = id_result['user_id'] == expected_speaker
         status = "[ OK  ]" if is_ok else "[ISSUE]"
 
-        logger.info(f"{status} {audio_file.name} \tis: {id_result['identified_speaker']} \t(similarity: {id_result['similarity']:.3f}, confidence: {id_result['confidence_level'][0].upper()}) \t{id_result['duration']:.2f}ms")
+        logger.info(f"{status} {audio_file.name} \tis: {id_result['user_id']} \t(similarity: {id_result['similarity']:.3f}, confidence: {id_result['confidence_level'][0].upper()}) \t{id_result['processing_time']:.2f}ms")
 
         
 

@@ -47,6 +47,9 @@ supervisor-follow: ## Follow yova_core logs in real-time
 supervisor-dev: ## Start development supervisor with auto-restart and log streaming
 	poetry run python scripts/supervisor_dev.py
 
+voice-id: ## Run voice id demo
+	poetry run python yova_core/voice_id.py
+
 dev-pi-sync: ## Sync dev changes to Raspberry Pi
 	fswatch -o ./ | while read f; do \
 		rsync -az --delete ./ pi@yova.local:/home/pi/yova/; \

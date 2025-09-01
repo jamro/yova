@@ -7,6 +7,9 @@ import uuid
 from yova_core.speech2text.audio_buffer import AudioBuffer
 from yova_shared import get_clean_logger, play_audio
 from yova_core.speech2text.recording_stream import RecordingStream
+from yova_core.voice_id.voice_id_manager import VoiceIdManager
+import numpy as np
+import traceback
 
 # Audio recording parameters
 CHUNK = 512  # Smaller chunk size for more frequent updates
@@ -19,7 +22,7 @@ DEFAULT_MAX_INACTIVE_DURATION = 300  # 5 minutes in seconds
 DEFAULT_WATCHDOG_CHECK_INTERVAL = 30  # Check every 30 seconds
 
 class Transcriber(EventEmitter):
-    def __init__(self, logger, realtime_api: RealtimeApi, audio_buffer: AudioBuffer=None,
+    def __init__(self, logger, realtime_api: RealtimeApi, voice_id_manager: VoiceIdManager, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
                  silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None,
                  pyaudio_instance=None, exit_on_error=False,
@@ -31,6 +34,10 @@ class Transcriber(EventEmitter):
         self.logger = get_clean_logger("transcriber", logger)
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
         self.realtime_api = realtime_api
+        self.voice_id_manager = voice_id_manager
+        self.voice_id_result = None
+        self.logger.info(f"Voice ID manager is {'enabled' if self.voice_id_manager else 'disabled'}")
+        self.voice_id_task = None
         self.listening_task = None
         self.watchdog_task = None
         self.prerecord_beep = prerecord_beep
@@ -85,9 +92,13 @@ class Transcriber(EventEmitter):
 
     async def stop_listening(self):
         result = await self._stop_listening()
+        if self.voice_id_task:
+            await self.voice_id_task
+            self.voice_id_task = None
         await self.emit_event("transcription_completed", {
             "id": str(uuid.uuid4()),
-            "transcript": result
+            "transcript": result,
+            "voice_id": self.voice_id_result
         })
         return result
 
@@ -106,7 +117,13 @@ class Transcriber(EventEmitter):
         else:
             self.logger.warning("No listening task to stop")
 
+        if self.voice_id_task:
+            self.voice_id_task.cancel()
+            self.voice_id_task = None
+        
         await self.audio_buffer.save_to_file()
+
+        self.voice_id_task = asyncio.create_task(self.identify_user(self.audio_buffer.buffer))
 
         try:
             if self.audio_buffer.is_empty():
@@ -120,6 +137,30 @@ class Transcriber(EventEmitter):
             return ''
         
         return text
+    
+    async def identify_user(self, audio_chunks):   
+        if not self.voice_id_manager:
+            self.voice_id_result = None
+            return
+        try:
+            self.logger.info(f"Identifying user...")
+            self.voice_id_result = None
+
+            if audio_chunks is None or len(audio_chunks) == 0:
+                self.logger.warning("No audio provided for voice identification")
+                return
+
+            joined_bytes = b"".join(audio_chunks)
+            pcm16_audio = np.frombuffer(joined_bytes, dtype=np.int16)
+
+            self.voice_id_result = self.voice_id_manager.identify_speaker(pcm16_audio)
+            self.logger.info(f"Voice ID identification completed: {self.voice_id_result['user_id']} confidence: {self.voice_id_result['confidence_level']}")
+        except Exception as e:
+            self.logger.error(f"Error identifying user: {e}")
+            self.logger.error(f"Stack trace: {traceback.format_exc()}")
+            # Do not re-raise inside background task
+
+        self.voice_id_task = None
     
     async def _watchdog_monitor(self):
         """Monitor the realtime API connection and reconnect if needed"""

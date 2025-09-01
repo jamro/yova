@@ -4,6 +4,9 @@ from yova_shared import setup_logging, get_clean_logger, get_config
 from yova_core.text2speech.speech_handler import SpeechHandler
 from yova_shared.broker import Publisher, Subscriber  
 from yova_core.state_machine import StateMachine
+from yova_core.voice_id.voice_id_manager import VoiceIdManager
+import numpy as np
+import base64
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -43,6 +46,9 @@ async def main():
                 noise_reduction=get_config("speech2text.noise_reduction"),
                 instructions=get_config("speech2text.instructions"),
             ),
+            voice_id_manager=VoiceIdManager(
+                logger
+            ) if get_config("voice_id.enabled") else None,
             audio_logs_path=get_config("speech2text.audio_logs_path"),
             prerecord_beep=get_config("speech2text.prerecord_beep"),
             min_speech_length=get_config("speech2text.min_speech_length"),
@@ -91,9 +97,27 @@ async def main():
     async def on_transcription_completed(data):
         # Publish voice command detection event
         try:
+            voice_id_payload = None
+            if data['voice_id'] and get_config("voice_id.enabled"):
+                embedding = data['voice_id']['embedding']
+                emb32 = np.asarray(embedding, dtype=np.float32)
+                embedding_payload = {
+                    "embedding_base64": base64.b64encode(emb32.tobytes()).decode("ascii"),
+                    "embedding_dtype": "float32",
+                    "embedding_shape": list(emb32.shape)
+                }
+
+                voice_id_payload = {
+                    "user_id": data['voice_id']['user_id'],
+                    "similarity": data['voice_id']['similarity'],
+                    "confidence_level": data['voice_id']['confidence_level'],
+                    "embedding": embedding_payload if get_config("voice_id.include_embedding") else None
+                }
+
             await publisher.publish("core", "yova.api.asr.result", {
                 "id": str(data['id']),
-                "transcript": data['transcript']
+                "transcript": data['transcript'],
+                "voice_id": voice_id_payload
             })
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")

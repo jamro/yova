@@ -194,20 +194,20 @@ class TestSpeechTask:
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("Test sentence.")
             
-            # Mock StreamPlayback
-            mock_stream_playback = AsyncMock()
-            # Mock add_event_listener to prevent coroutine warnings
-            mock_stream_playback.add_event_listener = Mock()
-            with patch('yova_core.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback):
-                # Mock the recursive call to prevent infinite recursion
-                with patch.object(task, 'convert_to_speech', wraps=task.convert_to_speech) as mock_recursive:
-                    await task.convert_to_speech()
-                    
-                    assert len(task.audio_queue) == 1
-                    assert task.audio_queue[0]["playback"] == mock_stream_playback
-                    assert task.audio_queue[0]["text"] == "Test sentence."
-                    assert task.audio_task is not None
-                    mock_stream_playback.load.assert_called_once()
+            # Current implementation uses DataPlayback for first item (no current_playback)
+            mock_data_playback = AsyncMock()
+            mock_data_playback.add_event_listener = Mock()
+            # Prevent audio task from draining the queue
+            with patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback), \
+                 patch.object(task, 'play_audio', new_callable=AsyncMock):
+                await task.convert_to_speech()
+                
+                assert len(task.audio_queue) == 1
+                assert task.audio_queue[0]["playback"] == mock_data_playback
+                assert task.audio_queue[0]["text"] == "Test sentence."
+                assert "telemetry" in task.audio_queue[0]
+                assert task.audio_task is not None
+                mock_data_playback.load.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_convert_to_speech_data_playback_subsequent(self):
@@ -231,8 +231,8 @@ class TestSpeechTask:
             with patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback):
                 # Mock the recursive call to prevent infinite recursion
                 with patch.object(task, 'convert_to_speech', wraps=task.convert_to_speech) as mock_recursive:
-                    # Prevent audio task from running by mocking it
-                    with patch.object(task, 'play_audio'):
+                    # Prevent audio task from running by mocking it as coroutine
+                    with patch.object(task, 'play_audio', new_callable=AsyncMock):
                         await task.convert_to_speech()
                         
                         # The method should process both sentences and add them to the queue
@@ -313,7 +313,11 @@ class TestSpeechTask:
             mock_playback = AsyncMock()
             # Mock add_event_listener to prevent coroutine warnings
             mock_playback.add_event_listener = Mock()
-            task.audio_queue.append({"playback": mock_playback, "text": "Test text"})
+            task.audio_queue.append({
+                "playback": mock_playback,
+                "text": "Test text",
+                "telemetry": {"create_time": asyncio.get_event_loop().time()}
+            })
             
             # Mock the recursive call to prevent infinite recursion
             with patch.object(task, 'play_audio', wraps=task.play_audio) as mock_recursive:
@@ -341,8 +345,16 @@ class TestSpeechTask:
             mock_playback1.add_event_listener = Mock()
             mock_playback2.add_event_listener = Mock()
             task.audio_queue.extend([
-                {"playback": mock_playback1, "text": "Text 1"},
-                {"playback": mock_playback2, "text": "Text 2"}
+                {
+                    "playback": mock_playback1,
+                    "text": "Text 1",
+                    "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                },
+                {
+                    "playback": mock_playback2,
+                    "text": "Text 2",
+                    "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                }
             ])
             
             # Mock the recursive call to prevent infinite recursion
@@ -599,12 +611,12 @@ class TestSpeechTask:
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("Test sentence.")
             
-            with patch('yova_core.text2speech.speech_task.StreamPlayback') as mock_stream_class, \
+            with patch('yova_core.text2speech.speech_task.DataPlayback') as mock_data_class, \
                  patch.object(task, 'play_audio') as mock_play_audio:
-                mock_stream_playback = AsyncMock()
+                mock_data_playback = AsyncMock()
                 # Mock add_event_listener to prevent coroutine warnings
-                mock_stream_playback.add_event_listener = Mock()
-                mock_stream_class.return_value = mock_stream_playback
+                mock_data_playback.add_event_listener = Mock()
+                mock_data_class.return_value = mock_data_playback
                 
                 await task.convert_to_speech()
                 
@@ -625,7 +637,11 @@ class TestSpeechTask:
             mock_playback = AsyncMock()
             # Mock add_event_listener to prevent coroutine warnings
             mock_playback.add_event_listener = Mock()
-            task.audio_queue.append({"playback": mock_playback, "text": "Test text"})
+            task.audio_queue.append({
+                "playback": mock_playback,
+                "text": "Test text",
+                "telemetry": {"create_time": asyncio.get_event_loop().time()}
+            })
             
             # Mock the recursive call to prevent infinite recursion
             with patch.object(task, 'play_audio', wraps=task.play_audio) as mock_recursive:

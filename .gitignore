@@ -3,6 +3,7 @@ yova.config.json
 .DS_Store
 /dev-sandbox.*
 /pretrained_models
+/.data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -14,6 +14,7 @@ import numpy as np
 from yova_core.speech2text.transcriber import Transcriber
 from yova_core.speech2text.audio_buffer import get_audio_amplitude, get_audio_len
 from yova_core.speech2text.realtime_api import RealtimeApi
+from yova_core.voice_id.voice_id_manager import VoiceIdManager
 
 
 # Mock audio-related functions to keep tests silent
@@ -88,6 +89,7 @@ class TestTranscriber:
             'logger': Mock(),
             'realtime_api': Mock(spec=RealtimeApi),
             'pyaudio_instance': Mock(),
+            'voice_id_manager': Mock(spec=VoiceIdManager),
         }
         defaults.update(kwargs)
         return Transcriber(**defaults)

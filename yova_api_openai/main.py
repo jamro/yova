@@ -72,10 +72,20 @@ async def main():
     # Handle voice command detection events from the broker
     async def onVoiceCommandDetected(topic, message):
         data = message["data"]
+
+        if data['voice_id'] and data['voice_id']['user_id']:
+            prompt = f"""My name is {data['voice_id']['user_id']}. 
+            Respond to prompt below using the same language and mentioning my name if suitable:
+
+            Prompt: {data['transcript']}
+            """
+        else:
+            prompt = data['transcript']
+
         logger.info(f"Received voice command detection event: {data['transcript']}")
         
         # Handle transcription completed logic
-        await api_connector.send_message(data['transcript'])
+        await api_connector.send_message(prompt)
 
     # Start listening for voice command events
     voice_command_listener_task = asyncio.create_task(

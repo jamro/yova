@@ -3,15 +3,18 @@ from yova_core.voice_id.ecapa_model import ECAPAModel
 from yova_core.voice_id.speaker_verifier import SpeakerVerifier
 import numpy as np
 import time
+from pathlib import Path
 
 SAMPLE_RATE = 16000
 
 class VoiceIdManager:
-    def __init__(self, logger, users_path, model=None):
+    def __init__(self, logger, users_path=None, model=None):
         self.logger = get_clean_logger("voice_id_manager", logger)
 
         self.ecapa_model = model or ECAPAModel(logger)
-        self.speaker_verifier = SpeakerVerifier(logger, storage_dir=users_path)
+        default_users_path = Path(__file__).parent.parent.parent / ".data" / "voice_id" / "users"
+        self.users_path = users_path or default_users_path
+        self.speaker_verifier = SpeakerVerifier(logger, storage_dir=self.users_path)
 
 
     def enroll_speaker(self, speaker_id: str, pcm16_audio: np.ndarray):
@@ -38,9 +41,9 @@ class VoiceIdManager:
         self.logger.debug(f"Identified speaker: {identified_speaker} with similarity: {similarity} and confidence level: {confidence_level}")
         t1 = time.perf_counter()
         return {
-            "identified_speaker": identified_speaker,
+            "user_id": identified_speaker,
             "similarity": similarity,
             "confidence_level": confidence_level,
             "embedding": embedding,
-            "duration": (t1 - t0)*1000
+            "processing_time": (t1 - t0)*1000
         }

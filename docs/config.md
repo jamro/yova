@@ -70,6 +70,23 @@ The configuration is organized into three main sections:
 - `audio_logs_path` (string): Path to store audio logs; if set, all recorded commands will be saved to disk (empty string disables logging)
 - `prerecord_beep` (string): Audio file to play before recording (from `yova_shared/assets/`)
 
+### Voice ID Configuration (`voice_id`)
+
+```json
+{
+  "voice_id": {
+    "enabled": false,
+    "include_embedding": false
+  }
+}
+```
+
+**Parameters:**
+- `enabled` (boolean): Whether to enable Voice ID
+- `include_embedding` (boolean): Whether to include the embedding in the voice ID payload
+
+More details in [Voice ID documentation](voice_id.md).
+
 ## Setup Instructions
 
 1. **Copy the template:**

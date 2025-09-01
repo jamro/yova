@@ -58,12 +58,30 @@ All YOVA events follow a standardized envelope format that provides metadata and
   "ts_ms": 1756115770123,
   "data": {
     "id": "string",
-    "transcript": "string"
+    "transcript": "string",
+    "voice_id": {
+      "user_id": "string",
+      "similarity": "number",
+      "confidence_level": "string",
+      "embedding": {
+        "embedding_base64": "string",
+        "embedding_dtype": "string",
+        "embedding_shape": ["number", "number", "number"]
+      }
+    }
   }
 }
 ```
 
 **Description**: Published after the user releases the push-to-talk button and the recorded audio has been transcribed. Contains the transcription text that can be forwarded to backend APIs.
+
+If voice ID is enabled (see [config.md](config.md)), the `voice_id` field will be included in the payload:
+- `user_id`: The ID of the identified user, or `null` if no user was identified
+- `similarity`: The similarity score between the recorded audio and the user's voice (0.0 to 1.0)
+- `confidence_level`: The confidence level of the identified user ("high", "medium", "low")
+- `embedding`: if `include_embedding` is enabled in the config (see [config.md](config.md)), the embedding of the recorded audio will be included in the payload. This is a large payload, so it is not included by default.
+
+More details in [Voice ID documentation](voice_id.md).
 
 **Use Cases**:
 - API connectors can listen for voice commands to forward to backend services
