@@ -8,25 +8,30 @@ using cosine similarity between ECAPA embeddings.
 
 import numpy as np
 from typing import Tuple, List, Dict, Optional
-import logging
+from yova_shared import get_clean_logger
 
 from .profile_storage import ProfileStorage
 from .speaker_profile import SpeakerProfile
-
-logger = logging.getLogger(__name__)
 
 
 class SpeakerVerifier:
     """Speaker verification system using ECAPA embeddings with file-based storage"""
     
-    def __init__(self, similarity_threshold: float = 0.267, storage_dir: str = None, top_k_mean: int = 3, decision_margin: float = 0.04):
+    def __init__(self, logger, similarity_threshold: float = 0.267, storage_dir: str = None, top_k_mean: int = 3, decision_margin: float = 0.04):
         """
         Initialize speaker verifier
         
         Args:
+            logger: Logger instance
             similarity_threshold: Threshold for speaker verification (0.0 to 1.0)
             storage_dir: Directory to store user profiles (relative to project root), or None to disable storage
+            top_k_mean: Number of top similarities to consider for aggregation
+            decision_margin: Minimum difference between highest and second-highest similarity for decision
+            storage_dir: Directory to store user profiles (relative to project root), or None to disable storage
+            top_k_mean: Number of top similarities to consider for aggregation
+            decision_margin: Minimum difference between highest and second-highest similarity for decision
         """
+        self.logger = get_clean_logger("speaker_verifier", logger)
         self.enrolled_speakers: Dict[str, SpeakerProfile] = {}
         self.similarity_threshold = similarity_threshold
         # Scoring and decision parameters
@@ -46,12 +51,12 @@ class SpeakerVerifier:
                     profile.add_embedding(embedding)
                 self.enrolled_speakers[speaker_id] = profile
         
-        logger.info(f"Speaker verifier initialized with threshold: {similarity_threshold}")
-        logger.info(f"Scoring: top_k_mean={self.top_k_mean}, decision_margin={self.decision_margin:.3f}")
+        self.logger.info(f"Speaker verifier initialized with threshold: {similarity_threshold}")
+        self.logger.info(f"Scoring: top_k_mean={self.top_k_mean}, decision_margin={self.decision_margin:.3f}")
         if self.storage.storage_enabled:
-            logger.info(f"Storage directory: {self.storage.storage_dir}")
+            self.logger.info(f"Storage directory: {self.storage.storage_dir}")
         else:
-            logger.info("File storage disabled")
+            self.logger.info("File storage disabled")
     def save_all_profiles(self) -> int:
         """
         Save all speaker profiles to disk
@@ -112,7 +117,7 @@ class SpeakerVerifier:
         if self.enrolled_speakers[speaker_id].add_embedding(embedding):
             # Auto-save the profile
             self.storage.save_profile(speaker_id, self.enrolled_speakers[speaker_id].get_embeddings_for_storage())
-            logger.info(f"Speaker {speaker_id} now has {self.enrolled_speakers[speaker_id].get_sample_count()} samples")
+            self.logger.debug(f"Speaker {speaker_id} now has {self.enrolled_speakers[speaker_id].get_sample_count()} samples")
             return True
         
         return False
@@ -312,7 +317,7 @@ class SpeakerVerifier:
         if profile.remove_embedding(index):
             # Auto-save the profile after modification
             self.storage.save_profile(speaker_id, profile.get_embeddings_for_storage())
-            logger.info(f"Removed sample {index} from speaker {speaker_id}")
+            self.logger.info(f"Removed sample {index} from speaker {speaker_id}")
             return True
         
         return False
@@ -334,7 +339,7 @@ class SpeakerVerifier:
             if self.storage.storage_enabled:
                 self.storage.remove_profile_file(speaker_id)
             
-            logger.info(f"Cleared all samples for speaker {speaker_id}")
+            self.logger.info(f"Cleared all samples for speaker {speaker_id}")
             return True
         
         return False

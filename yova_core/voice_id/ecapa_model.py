@@ -8,20 +8,19 @@ using the ECAPA-TDNN model from SpeechBrain.
 
 import numpy as np
 import torch
-import logging
+from yova_shared import get_clean_logger
 import time
-
-logger = logging.getLogger(__name__)
 
 
 class ECAPAModel:
     """ECAPA-TDNN model for speaker recognition"""
     
-    def __init__(self, model_path: str = None, enable_vad: bool = True, max_seconds: float = 1.5, use_webrtcvad: bool = True, vad_aggressiveness: int = 2, min_seconds_to_vad: float = 0.0, prefer_fast_resample: bool = True, quantize_linear: bool = True):
+    def __init__(self, logger,model_path: str = None, enable_vad: bool = True, max_seconds: float = 1.5, use_webrtcvad: bool = True, vad_aggressiveness: int = 2, min_seconds_to_vad: float = 0.0, prefer_fast_resample: bool = True, quantize_linear: bool = True):
         """
         Initialize ECAPA model
         
         Args:
+            logger: Logger instance
             model_path: Path to custom ECAPA model (optional, uses default if None)
             enable_vad: Apply VAD + clipping before embedding
             max_seconds: Target voiced duration to keep before embedding
@@ -39,6 +38,7 @@ class ECAPAModel:
             torch.set_num_interop_threads(1)
         except Exception:
             pass
+        self.logger = get_clean_logger("ecapa_model", logger)
         self.enable_vad = enable_vad
         self.max_seconds = max_seconds
         self.use_webrtcvad = use_webrtcvad
@@ -80,16 +80,16 @@ class ECAPAModel:
                     torch.backends.quantized.engine = "qnnpack"
                     import torch.nn as nn
                     self.model = torch.quantization.quantize_dynamic(self.model, {nn.Linear}, dtype=torch.qint8)
-                    logger.info("ECAPA dynamic quantization (Linear->int8) enabled")
+                    self.logger.info("ECAPA dynamic quantization (Linear->int8) enabled")
                 except Exception as e:
-                    logger.debug(f"Dynamic quantization not applied: {e}")
-            logger.info("ECAPA model loaded successfully")
+                    self.logger.debug(f"Dynamic quantization not applied: {e}")
+            self.logger.info("ECAPA model loaded successfully")
             
         except ImportError:
-            logger.error("SpeechBrain not available. Please install: pip install speechbrain")
+            self.logger.error("SpeechBrain not available. Please install: pip install speechbrain")
             raise
         except Exception as e:
-            logger.error(f"Failed to load ECAPA model: {e}")
+            self.logger.error(f"Failed to load ECAPA model: {e}")
             raise
     
     def extract_embedding(self, audio: np.ndarray, sr: int) -> np.ndarray:
@@ -120,9 +120,9 @@ class ECAPAModel:
                 if len(audio) == 0 and original_len > 0:
                     # Fallback to best-energy clip from original audio
                     audio = self._clip_best_window(original_audio, sr, self.max_seconds)
-                logger.debug(f"ECAPA VAD/clipping: {original_len/sr:.2f}s -> {len(audio)/sr:.2f}s")
+                self.logger.debug(f"ECAPA VAD/clipping: {original_len/sr:.2f}s -> {len(audio)/sr:.2f}s")
             # Log length before embedding
-            logger.info(f"ECAPA embedding input: {len(audio)} samples, {sr} Hz, {len(audio)/sr:.2f}s")
+            self.logger.debug(f"ECAPA embedding input: {len(audio)} samples, {sr} Hz, {len(audio)/sr:.2f}s")
 
             # Convert to torch tensor
             t0 = time.perf_counter()
@@ -136,7 +136,7 @@ class ECAPAModel:
                 t2 = time.perf_counter()
                 embedding = embedding.squeeze().cpu().numpy()
             t3 = time.perf_counter()
-            logger.debug(f"ECAPA stages: to_tensor={(t1-t0)*1000:.1f}ms, encode={(t2-t1)*1000:.1f}ms, to_numpy={(t3-t2)*1000:.1f}ms")
+            self.logger.debug(f"ECAPA stages: to_tensor={(t1-t0)*1000:.1f}ms, encode={(t2-t1)*1000:.1f}ms, to_numpy={(t3-t2)*1000:.1f}ms")
             
             # L2 normalization
             embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
@@ -144,7 +144,7 @@ class ECAPAModel:
             return embedding
             
         except Exception as e:
-            logger.error(f"Error extracting embedding: {e}")
+            self.logger.error(f"Error extracting embedding: {e}")
             return np.array([])
     
     def _resample_audio(self, audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
@@ -158,7 +158,7 @@ class ECAPAModel:
                 return audio
             indices = np.linspace(0, len(audio) - 1, new_length, dtype=np.float32)
             out = np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
-            logger.info(f"ECAPA resample (linear fast): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            self.logger.debug(f"ECAPA resample (linear fast): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
             return out
         try:
             import torchaudio
@@ -169,7 +169,7 @@ class ECAPAModel:
             audio_tensor = torch.from_numpy(audio).float().unsqueeze(0)
             resampled = resampler(audio_tensor)
             out = resampled.squeeze().numpy()
-            logger.info(f"ECAPA resample (torchaudio cached): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            self.logger.debug(f"ECAPA resample (torchaudio cached): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
             return out
         except Exception:
             # Fallback to linear
@@ -179,7 +179,7 @@ class ECAPAModel:
                 return audio
             indices = np.linspace(0, len(audio) - 1, new_length, dtype=np.float32)
             out = np.interp(indices, np.arange(len(audio), dtype=np.float32), audio.astype(np.float32))
-            logger.info(f"ECAPA resample (linear fallback): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
+            self.logger.debug(f"ECAPA resample (linear fallback): {orig_sr} -> {target_sr}, samples {len(audio)} -> {len(out)}")
             return out
     
     def _apply_vad_and_clip(self, audio: np.ndarray, sr: int, max_seconds: float) -> np.ndarray:
@@ -196,7 +196,7 @@ class ECAPAModel:
                 if len(audio_vad) > 0:
                     return audio_vad
             except Exception as e:
-                logger.debug(f"WebRTC VAD failed, falling back to energy-based VAD: {e}")
+                self.logger.debug(f"WebRTC VAD failed, falling back to energy-based VAD: {e}")
         # Energy-based fallback
         return self._vad_energy_best_window(audio, sr, target_len)
     
