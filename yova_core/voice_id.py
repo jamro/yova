@@ -11,7 +11,7 @@ import logging
 from yova_shared.logging_utils import setup_logging, get_clean_logger
 from yova_core.speech2text.recording_stream import RecordingStream
 from yova_core.voice_id.voice_id_manager import VoiceIdManager
-
+from yova_core.voice_id.ecapa_model import ECAPAModel
 
 # ----------------------------
 # Simple ANSI styling helpers
@@ -165,7 +165,8 @@ def record_pcm16_mono(duration_sec: float, logger, rate: int = 16000, chunk: int
 def load_voice_id_manager(parent_logger) -> VoiceIdManager:
     print_info("Loading Voice ID model (may take a few seconds)...")
     t0 = time.perf_counter()
-    manager = VoiceIdManager(parent_logger)
+    model = ECAPAModel(parent_logger, max_seconds=10.0)
+    manager = VoiceIdManager(parent_logger, model=model)
     dt = (time.perf_counter() - t0) * 1000
     print_success(f"Voice ID ready in {dt:.0f} ms")
     return manager
@@ -219,18 +220,25 @@ def main():
             # Not existing on disk
             pass
 
-    # Enrollment (exactly 3 samples, 5.0s each)
+    # Enrollment (exactly 10 samples, 4.0s each)
     print("\n" + hr())
     print(center(f"{BOLD}Enrollment samples{RESET}"))
-    print(center(f"{DIM}We will record 3 samples, 4.0s each. Any language is fine. Speak naturally at normal volume.{RESET}"))
+    print(center(f"{DIM}We will record 10 samples, 4.0s each. Any language is fine. Speak naturally at normal volume.{RESET}"))
 
     suggestions = [
         "Count from 1, 2, 3... in your language.",
         f"Say a short self-introduction, e.g., \"Hello, I'm {username}\" in your language.",
         "Read any short sentence of your choice in your language.",
+        "Say the days of the week in your language.",
+        "Describe what you had for breakfast today.",
+        "Tell us about your favorite hobby or activity.",
+        "Say the alphabet in your language.",
+        "Describe the weather outside right now.",
+        "Tell us about your favorite book or movie.",
+        "Say a tongue twister or recite a poem in your language.",
     ]
 
-    num_samples = 3
+    num_samples = 10
     successful = 0
     for i in range(num_samples):
         print("\n" + center(f"Sample {i+1}/{num_samples}"))
