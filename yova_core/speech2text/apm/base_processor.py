@@ -74,11 +74,29 @@ class AudioProcessor(ABC):
         return audio_data.astype(np.float32)
     
     def _convert_from_float32(self, audio_float: np.ndarray, original_dtype: np.dtype) -> np.ndarray:
-        """Convert float32 back to original format"""
+        """Convert float32 back to original format with smooth scaling to prevent artifacts"""
         if original_dtype == np.int16:
-            # Clamp to prevent overflow
-            audio_float = np.clip(audio_float * 32768.0, -32768, 32767)
-            return audio_float.astype(np.int16)
+            # Use a more careful conversion to prevent crackling artifacts
+            # Scale gradually and use proper rounding
+            scaled = audio_float * 32768.0
+            
+            # Apply soft clipping instead of hard clipping to reduce artifacts
+            # This prevents sudden amplitude jumps that cause crackling
+            max_val = 32767.0
+            min_val = -32768.0
+            
+            # Soft clipping using tanh-based approach for values near the limits
+            clipped = np.where(
+                np.abs(scaled) > max_val * 0.95,  # Only apply soft clipping near limits
+                np.sign(scaled) * max_val * np.tanh(np.abs(scaled) / max_val),
+                scaled
+            )
+            
+            # Ensure we stay within int16 bounds
+            clipped = np.clip(clipped, min_val, max_val)
+            
+            # Use proper rounding instead of truncation
+            return np.round(clipped).astype(np.int16)
         return audio_float.astype(original_dtype)
 
 

@@ -2,7 +2,7 @@ from .vad import VAD
 from .base_processor import AudioProcessor, AudioPipeline
 from .processors import (
     DCRemovalProcessor, SpeechHighPassProcessor, NoiseSuppressionProcessor,
-    NormalizationProcessor, DeclickingProcessor, EdgeFadeProcessor
+    NormalizationProcessor, DeclickingProcessor, EdgeFadeProcessor, AGCProcessor
 )
 
 
@@ -15,5 +15,5 @@ __all__ = [
     
     # Individual processors
     "DCRemovalProcessor", "SpeechHighPassProcessor", "NoiseSuppressionProcessor",
-    "NormalizationProcessor", "DeclickingProcessor", "EdgeFadeProcessor"
+    "NormalizationProcessor", "DeclickingProcessor", "EdgeFadeProcessor", "AGCProcessor"
 ]

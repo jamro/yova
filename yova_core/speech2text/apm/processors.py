@@ -8,6 +8,7 @@ from .noise_suppression_processor import NoiseSuppressionProcessor
 from .normalization_processor import NormalizationProcessor
 from .declicking_processor import DeclickingProcessor
 from .edge_fade_processor import EdgeFadeProcessor
+from .agc_processor import AGCProcessor
 
 # Re-export all processors for backward compatibility
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     'NoiseSuppressionProcessor',
     'NormalizationProcessor',
     'DeclickingProcessor',
-    'EdgeFadeProcessor'
+    'EdgeFadeProcessor',
+    'AGCProcessor'
 ]

@@ -8,7 +8,7 @@ import wave
 import pyaudio
 import time
 from yova_core.speech2text.audio_buffer import AudioBuffer
-from yova_core.speech2text.apm import VAD, AudioPipeline, DCRemovalProcessor, SpeechHighPassProcessor, NoiseSuppressionProcessor, NormalizationProcessor, DeclickingProcessor, EdgeFadeProcessor
+from yova_core.speech2text.apm import VAD, AudioPipeline, DCRemovalProcessor, SpeechHighPassProcessor, NoiseSuppressionProcessor, NormalizationProcessor, DeclickingProcessor, EdgeFadeProcessor, AGCProcessor
 from yova_core.speech2text.recording_stream import RecordingStream
 from scipy.signal import resample_poly
 logger = get_clean_logger("apm_demo", logging.getLogger())
@@ -245,11 +245,12 @@ async def main():
     speech_pipeline = AudioPipeline(logger, "SpeechPipeline")
     
     # Add processors in optimal order
-    # Test different DC removal methods to isolate buzzing source
-    speech_pipeline.add_processor(DCRemovalProcessor(logger, sample_rate=16000, cutoff_freq=20.0, method="chunk_aware")) 
+    # Use integer method to eliminate any possibility of crackling artifacts from float conversion
+    speech_pipeline.add_processor(DCRemovalProcessor(logger, sample_rate=16000, cutoff_freq=20.0, method="integer")) 
     speech_pipeline.add_processor(SpeechHighPassProcessor(logger, sample_rate=16000, cutoff_freq=70.0)) 
     speech_pipeline.add_processor(DeclickingProcessor(logger)) 
     speech_pipeline.add_processor(NoiseSuppressionProcessor(logger, sample_rate=16000, level=2)) 
+    speech_pipeline.add_processor(AGCProcessor(logger, sample_rate=16000, target_level_dbfs=-18.0, max_gain_db=20.0, min_gain_db=-20.0, attack_time_ms=5.0, release_time_ms=50.0, ratio=4.0))  # Add AGC
     speech_pipeline.add_processor(NormalizationProcessor(logger, sample_rate=16000, target_rms_dbfs=-20.0, peak_limit_dbfs=-3.0)) 
     speech_pipeline.add_processor(EdgeFadeProcessor(logger, sample_rate=16000))
     
