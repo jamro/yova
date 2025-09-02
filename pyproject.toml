@@ -29,6 +29,7 @@ torchaudio = "^2.0.0"
 speechbrain = "^0.5.14"
 librosa = "^0.10.0"
 scipy = "^1.10.0"
+webrtcvad = "^2.0.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"

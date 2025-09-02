@@ -4,6 +4,7 @@ from yova_shared import get_clean_logger
 import wave
 import pyaudio
 import numpy as np
+import traceback
 
 def get_audio_amplitude(audio_chunk):
     if not audio_chunk:
@@ -75,6 +76,10 @@ class AudioBuffer:
         if not self.audio_logs_path or self.is_buffer_empty or self.buffer_length < self.min_speech_length:
             return
         
+        if self.recording_start_time is None:
+            self.logger.error("Recording start time is not set")
+            return
+        
         try:
             # Create directory if it doesn't exist
             os.makedirs(self.audio_logs_path, exist_ok=True)
@@ -92,6 +97,10 @@ class AudioBuffer:
                 wav_file.writeframes(b''.join(self.buffer))
             
             self.logger.info(f"Audio saved to: {filepath}")
+
+            return filepath
             
         except Exception as e:
             self.logger.error(f"Error saving audio file: {e}")
+            # stack trace
+            self.logger.error(traceback.format_exc())
