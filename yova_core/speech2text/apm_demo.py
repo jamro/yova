@@ -248,8 +248,8 @@ async def main():
     # Test different DC removal methods to isolate buzzing source
     speech_pipeline.add_processor(DCRemovalProcessor(logger, sample_rate=16000, cutoff_freq=20.0, method="chunk_aware")) 
     speech_pipeline.add_processor(SpeechHighPassProcessor(logger, sample_rate=16000, cutoff_freq=70.0)) 
-    speech_pipeline.add_processor(NoiseSuppressionProcessor(logger, sample_rate=16000, level=3)) 
     speech_pipeline.add_processor(DeclickingProcessor(logger)) 
+    speech_pipeline.add_processor(NoiseSuppressionProcessor(logger, sample_rate=16000, level=2)) 
     speech_pipeline.add_processor(NormalizationProcessor(logger, sample_rate=16000, target_rms_dbfs=-20.0, peak_limit_dbfs=-3.0)) 
     speech_pipeline.add_processor(EdgeFadeProcessor(logger, sample_rate=16000))
     
