@@ -46,17 +46,17 @@ The following diagram illustrates how YOVA processes voice interactions from inp
 
 ```mermaid
     graph LR
-        VC[Voice Command] -->|stream| RS[Recording]
-        RS -->|stream| AC[Audio Clean-Up]
-        AC -->|stream| ASR[Speech Recognition]
-        AC -->|audio| VID[Voice ID Identification]
-        ASR -->|text| API[API Connector]
+        VC[Voice<br/> Command] -->|stream| RS[Recording]
+        RS -->|stream| AC[Audio<br/>Clean-Up]
+        AC -->|stream| ASR[Speech<br/>Recognition]
+        AC -->|audio| VID[Voice ID<br/>Identification]
+        ASR -->|text| API[API<br/>Connector]
         VID -->|user| API
 
         API -->|text| B[Backend API]
-        B[Backend API] -->|stream| API[API Connector]
+        B[Backend API] -->|stream| API
 
-        API -->|stream| TTS[Text-to-Speech Stream]  
+        API -->|stream| TTS[Text-to-Speech<br/>Stream]  
 ```
 
 
