@@ -110,7 +110,7 @@ def soft_sleep(seconds: float):
         time.sleep(0.01)
 
 
-def record_pcm16_mono(duration_sec: float, logger, rate: int = 16000, chunk: int = 512) -> np.ndarray:
+def record_pcm16_mono(duration_sec: float, logger, rate: int = 16000, chunk: int = 480) -> np.ndarray:
     """
     Record microphone audio as PCM16 mono at given sample rate.
     Returns numpy array of dtype int16 length ≈ duration_sec * rate.

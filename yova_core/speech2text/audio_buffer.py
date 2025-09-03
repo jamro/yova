@@ -70,7 +70,7 @@ class AudioBuffer:
     def is_empty(self):
         return self.is_buffer_empty or self.buffer_length < self.min_speech_length or len(self.buffer) == 0
 
-    async def save_to_file(self):
+    async def save_to_file(self, filepath=None):
         """Save the recorded audio to a file"""
 
         if not self.audio_logs_path or self.is_buffer_empty or self.buffer_length < self.min_speech_length:
@@ -84,10 +84,11 @@ class AudioBuffer:
             # Create directory if it doesn't exist
             os.makedirs(self.audio_logs_path, exist_ok=True)
             
-            # Generate filename based on recording start time
-            timestamp_str = self.recording_start_time.strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Remove microseconds, keep milliseconds
-            filename = f"audio_{timestamp_str}.wav"
-            filepath = os.path.join(self.audio_logs_path, filename)
+            if not filepath:
+                # Generate filename based on recording start time
+                timestamp_str = self.recording_start_time.strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Remove microseconds, keep milliseconds
+                filename = f"audio_{timestamp_str}.wav"
+                filepath = os.path.join(self.audio_logs_path, filename)
             
             # Save as WAV file
             with wave.open(filepath, 'wb') as wav_file:

@@ -10,9 +10,11 @@ from yova_core.speech2text.recording_stream import RecordingStream
 from yova_core.voice_id.voice_id_manager import VoiceIdManager
 import numpy as np
 import traceback
+from yova_core.speech2text.apm import AudioPipeline
+from yova_core.speech2text.apm import YovaPipeline
 
 # Audio recording parameters
-CHUNK = 512  # Smaller chunk size for more frequent updates
+CHUNK = 480  # Smaller chunk size for more frequent updates
 CHANNELS = 1
 RATE = 16000
 
@@ -24,7 +26,7 @@ DEFAULT_WATCHDOG_CHECK_INTERVAL = 30  # Check every 30 seconds
 class Transcriber(EventEmitter):
     def __init__(self, logger, realtime_api: RealtimeApi, voice_id_manager: VoiceIdManager, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
-                 silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None,
+                 silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None, preprocess_pipeline: AudioPipeline=None,
                  pyaudio_instance=None, exit_on_error=False,
                  max_session_duration=DEFAULT_MAX_SESSION_DURATION,
                  max_inactive_duration=DEFAULT_MAX_INACTIVE_DURATION,
@@ -35,6 +37,7 @@ class Transcriber(EventEmitter):
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
         self.realtime_api = realtime_api
         self.voice_id_manager = voice_id_manager
+        self.preprocess_pipeline = preprocess_pipeline or YovaPipeline(logger)
         self.voice_id_result = None
         self.logger.info(f"Voice ID manager is {'enabled' if self.voice_id_manager else 'disabled'}")
         self.voice_id_task = None

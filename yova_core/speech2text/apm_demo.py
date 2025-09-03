@@ -8,6 +8,7 @@ import wave
 import pyaudio
 import time
 from yova_core.speech2text.audio_buffer import AudioBuffer
+from yova_core.speech2text.apm import YovaPipeline
 from yova_core.speech2text.apm import VAD, AudioPipeline, DCRemovalProcessor, SpeechHighPassProcessor, NoiseSuppressionProcessor, NormalizationProcessor, DeclickingProcessor, EdgeFadeProcessor, AGCProcessor
 from yova_core.speech2text.recording_stream import RecordingStream
 from scipy.signal import resample_poly
@@ -16,7 +17,7 @@ logger = get_clean_logger("apm_demo", logging.getLogger())
 class FileAudioStream:
     """Simulates RecordingStream but reads from a WAV file chunk by chunk"""
     
-    def __init__(self, file_path: str, chunk_size: int = 330, sample_rate: int = 16000):
+    def __init__(self, file_path: str, chunk_size: int = 480, sample_rate: int = 16000):
         self.file_path = file_path
         self.chunk_size = chunk_size
         self.sample_rate = sample_rate
@@ -112,14 +113,14 @@ def record_input_wav(output_path: str, duration_seconds: int = 5):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Initialize recording stream
-    recording_stream = RecordingStream(logger, channels=1, rate=16000, chunk=512)
+    recording_stream = RecordingStream(logger, channels=1, rate=16000, chunk=480)
     recording_stream.create()
     
     print(f"Recording {duration_seconds} seconds of audio...")
     print("Speak now!")
     
     # Calculate number of chunks needed
-    chunk_size = 512
+    chunk_size = 480
     sample_rate = 16000
     total_chunks = int((duration_seconds * sample_rate) / chunk_size)
     
@@ -208,16 +209,11 @@ def play_audio_file(file_path: str):
         logger.error(f"Error playing audio file: {e}")
         print(f"Error playing audio: {e}")
 
-async def main():
-    print("APM Demo - Reading file chunk by chunk with WebRTC VAD and Modular Audio Processing Pipeline")
 
-    logger = logging.getLogger()
-    
-    # Ask user if they want to record new input.wav
-    input_file_path = "tmp/apm/input.wav"
-    
+
+async def main_recording_step(input_file_path):
     while True:
-        user_input = input(f"\nDo you want to record a new input.wav file? (y/n): ").lower().strip()
+        user_input = input(f"\nDo you want to record a new input1.wav file? (y/n): ").lower().strip()
         if user_input in ['y', 'yes']:
             try:
                 record_input_wav(input_file_path, duration_seconds=5)
@@ -230,40 +226,29 @@ async def main():
             # Check if input file exists
             if not os.path.exists(input_file_path):
                 print(f"Error: Input file {input_file_path} does not exist.")
-                print("Please record a new file or provide an existing input.wav file.")
+                print("Please record a new file or provide an existing input1.wav file.")
                 continue
             print(f"Using existing input file: {input_file_path}")
             break
         else:
             print("Please enter 'y' for yes or 'n' for no.")
-    
+
+
+async def main_processing_step(logger, input_file_path, output_file_path):
+
     # Initialize VAD with 30ms frames (480 samples at 16kHz), moderate aggressiveness
     vad = VAD(logger, aggressiveness=2, sample_rate=16000, frame_duration_ms=30)
     frame_size = vad.frame_size  # 480 samples for 30ms at 16kHz
+    print(f"Frame size: {frame_size}")
     
     # Create speech processing pipeline directly
-    speech_pipeline = AudioPipeline(logger, "SpeechPipeline")
-    
-    # Add processors in optimal order
-    # Use integer method to eliminate any possibility of crackling artifacts from float conversion
-    speech_pipeline.add_processor(DCRemovalProcessor(logger, sample_rate=16000, cutoff_freq=20.0, method="integer")) 
-    speech_pipeline.add_processor(SpeechHighPassProcessor(logger, sample_rate=16000, cutoff_freq=70.0)) 
-    speech_pipeline.add_processor(DeclickingProcessor(logger)) 
-    speech_pipeline.add_processor(NoiseSuppressionProcessor(logger, sample_rate=16000, level=2)) 
-    speech_pipeline.add_processor(AGCProcessor(logger, sample_rate=16000, target_level_dbfs=-18.0, max_gain_db=20.0, min_gain_db=-20.0, attack_time_ms=5.0, release_time_ms=50.0, ratio=4.0))  # Add AGC
-    speech_pipeline.add_processor(NormalizationProcessor(logger, sample_rate=16000, target_rms_dbfs=-20.0, peak_limit_dbfs=-3.0)) 
-    speech_pipeline.add_processor(EdgeFadeProcessor(logger, sample_rate=16000))
-    
-    
+    speech_pipeline = YovaPipeline(logger)
+
     # Initialize file stream with VAD-compatible chunk size
     audio_stream = FileAudioStream(input_file_path, chunk_size=frame_size)
 
     audio_buffer = AudioBuffer(logger, audio_logs_path="tmp/apm/")
     audio_buffer.start_recording()
-    
-    # Also create a buffer for original audio (without processing) for comparison
-    original_audio_buffer = AudioBuffer(logger, audio_logs_path="tmp/apm/original/")
-    original_audio_buffer.start_recording()
     
     chunk_count = 0
     speech_chunks = 0
@@ -275,11 +260,6 @@ async def main():
     # Track processing times for statistics
     processing_times = []
     processing_percentages = []
-    
-    # Analyze audio levels in first few chunks
-    print("\n=== Audio Level Analysis (first 5 chunks) ===")
-    print(f"Chunk duration: {chunk_duration_seconds*1000:.1f}ms")
-    print("Processing time as % of chunk duration:")
     
     while not audio_stream.is_finished():
         # Start timing for this chunk
@@ -312,8 +292,6 @@ async def main():
             speech_chunks += 1
             print(f"Chunk {chunk_count}: SPEECH detected ({len(audio_chunk_clean)} bytes) - Processing: {processing_percentage:.1f}%")
             audio_buffer.add(audio_chunk_clean)
-            # Also save original audio for comparison
-            original_audio_buffer.add(audio_chunk)
         else:
             silence_chunks += 1
             print(f"Chunk {chunk_count}: silence ({len(audio_chunk_clean)} bytes) - Processing: {processing_percentage:.1f}%")
@@ -342,21 +320,29 @@ async def main():
     # Reset pipeline state for next use
     speech_pipeline.reset_all_states()
     
-    output_file_path = await audio_buffer.save_to_file()
-    original_output_file_path = await original_audio_buffer.save_to_file()
-    
-    print(f"\n=== Audio Files Generated ===")
-    if output_file_path and os.path.exists(output_file_path):
-        print(f"Processed audio: {output_file_path}")
-    if original_output_file_path and os.path.exists(original_output_file_path):
-        print(f"Original audio: {original_output_file_path}")
-    
+    await audio_buffer.save_to_file(output_file_path)
+
+def main_playback_step(output_file_path):
     # Play the output file
-    #if output_file_path and os.path.exists(output_file_path):
-    #    print(f"\n=== Playing Processed Audio ===")
-    #    play_audio_file(output_file_path)
-    #else:
-    #    print("No output file was generated or file not found.")
+    if output_file_path and os.path.exists(output_file_path):
+        print(f"\n=== Playing Processed Audio ===")
+        play_audio_file(output_file_path)
+    else:
+        print("No output file was generated or file not found.")
+
+async def main():
+    print("APM Demo - Reading file chunk by chunk with WebRTC VAD and Modular Audio Processing Pipeline")
+
+    logger = logging.getLogger()
+
+    #await main_recording_step("tmp/apm/test.wav")
+    await main_processing_step(logger, "tmp/apm/input1.wav", "tmp/apm/output1.wav")
+    await main_processing_step(logger, "tmp/apm/input2.wav", "tmp/apm/output2.wav")
+    await main_processing_step(logger, "tmp/apm/input3.wav", "tmp/apm/output3.wav")
+    await main_processing_step(logger, "tmp/apm/input4.wav", "tmp/apm/output4.wav")
+    await main_processing_step(logger, "tmp/apm/input5.wav", "tmp/apm/output5.wav")
+    #main_playback_step("tmp/apm/test.wav")
+
     
 if __name__ == "__main__":
     asyncio.run(main())

@@ -2,7 +2,7 @@ from yova_shared import get_clean_logger
 import pyaudio
 
 class RecordingStream:
-    def __init__(self, logger, channels=1, rate=16000, chunk=512, pyaudio_instance=None):
+    def __init__(self, logger, channels=1, rate=16000, chunk=480, pyaudio_instance=None):
         self.logger = get_clean_logger("recording_stream", logger)
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
         self.audio_stream = None
