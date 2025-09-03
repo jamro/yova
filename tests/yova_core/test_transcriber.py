@@ -12,7 +12,7 @@ from datetime import datetime
 import numpy as np
 
 from yova_core.speech2text.transcriber import Transcriber
-from yova_core.speech2text.audio_buffer import get_audio_amplitude, get_audio_len
+from yova_core.speech2text.audio_buffer import get_audio_len
 from yova_core.speech2text.realtime_api import RealtimeApi
 from yova_core.voice_id.voice_id_manager import VoiceIdManager
 
@@ -51,19 +51,6 @@ def mock_audio_functions():
 
 class TestAudioUtils:
     """Test cases for audio utility functions."""
-
-    def test_get_audio_amplitude_valid_chunk(self):
-        """Test audio amplitude calculation with valid audio chunk."""
-        audio_chunk = np.array([1000, -2000, 3000, -4000], dtype=np.int16).tobytes()
-        result = get_audio_amplitude(audio_chunk)
-        # Expected: max amplitude / 32768.0 = 4000 / 32768.0 ≈ 0.122
-        assert result == pytest.approx(0.122, abs=0.001)
-
-    def test_get_audio_amplitude_edge_cases(self):
-        """Test audio amplitude calculation with edge cases."""
-        assert get_audio_amplitude(b"") is None
-        assert get_audio_amplitude(None) is None
-        assert get_audio_amplitude(np.array([0, 0, 0, 0], dtype=np.int16).tobytes()) == 0.0
 
     def test_get_audio_len_valid_chunk(self):
         """Test audio length calculation with valid audio chunk."""
@@ -118,7 +105,6 @@ class TestTranscriber:
         transcriber = self._create_transcriber(
             prerecord_beep="custom_beep.wav",
             beep_volume_reduction=20,
-            silence_amplitude_threshold=0.2,
             min_speech_length=1.0,
             audio_logs_path="/tmp/audio_logs",
             max_session_duration=1200,  # 20 minutes
@@ -128,7 +114,6 @@ class TestTranscriber:
         
         assert transcriber.prerecord_beep == "custom_beep.wav"
         assert transcriber.beep_volume_reduction == 20
-        assert transcriber.audio_buffer.silence_amplitude_threshold == 0.2
         assert transcriber.audio_buffer.min_speech_length == 1.0
         assert transcriber.audio_buffer.audio_logs_path == "/tmp/audio_logs"
         
@@ -525,10 +510,17 @@ class TestTranscriber:
         
         mock_recording_stream = Mock()
         mock_recording_stream.read.return_value = np.array([1000, -2000], dtype=np.int16).tobytes()
+        mock_recording_stream.is_buffer_full.return_value = False
+        mock_recording_stream.get_buffer_length.return_value = 0
+        
+        # Mock the preprocess pipeline to return a valid chunk
+        mock_preprocess_pipeline = Mock()
+        mock_preprocess_pipeline.process_chunk.return_value = np.array([1000, -2000], dtype=np.int16).tobytes()
         
         transcriber = self._create_transcriber(
             realtime_api=mock_realtime_api,
-            recording_stream=mock_recording_stream
+            recording_stream=mock_recording_stream,
+            preprocess_pipeline=mock_preprocess_pipeline
         )
         
         with patch.object(transcriber, 'emit_event', new_callable=AsyncMock):
@@ -546,16 +538,14 @@ class TestTranscriber:
         assert transcriber.recording_stream is not None
         assert transcriber.recording_stream.channels == 1
         assert transcriber.recording_stream.rate == 16000
-        assert transcriber.recording_stream.chunk == 512
+        assert transcriber.recording_stream.chunk == 480
 
     def test_audio_buffer_properties(self):
         """Test audio buffer properties."""
         transcriber = self._create_transcriber(
-            silence_amplitude_threshold=0.2,
             min_speech_length=1.0
         )
         
-        assert transcriber.audio_buffer.silence_amplitude_threshold == 0.2
         assert transcriber.audio_buffer.min_speech_length == 1.0
 
     @pytest.mark.asyncio

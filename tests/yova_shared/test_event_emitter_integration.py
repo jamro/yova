@@ -63,9 +63,9 @@ class TestEventEmitterIntegration:
         assert len(results) == 1
         assert results[0] == "working"
 
-        # Verify error was logged
-        mock_logger.error.assert_called_once()
-        assert "Error in event listener for 'test_event'" in mock_logger.error.call_args[0][0]
+        # Verify error was logged (twice: error message and stack trace)
+        assert mock_logger.error.call_count == 2
+        assert "Error in event listener for 'test_event'" in mock_logger.error.call_args_list[0][0][0]
 
     @pytest.mark.asyncio
     async def test_dynamic_listener_management(self):

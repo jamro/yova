@@ -4,6 +4,8 @@ import time
 import math
 import threading
 from typing import Optional
+from yova_core.speech2text.apm import YovaPipeline
+from yova_shared import get_config
 
 import numpy as np
 import logging
@@ -110,7 +112,7 @@ def soft_sleep(seconds: float):
         time.sleep(0.01)
 
 
-def record_pcm16_mono(duration_sec: float, logger, rate: int = 16000, chunk: int = 480) -> np.ndarray:
+def record_pcm16_mono(speech_pipeline: YovaPipeline, duration_sec: float, logger, rate: int = 16000, chunk: int = 480) -> np.ndarray:
     """
     Record microphone audio as PCM16 mono at given sample rate.
     Returns numpy array of dtype int16 length ≈ duration_sec * rate.
@@ -130,7 +132,9 @@ def record_pcm16_mono(duration_sec: float, logger, rate: int = 16000, chunk: int
 
         while True:
             data = rs.read()
-            frames.append(data)
+            data = speech_pipeline.process_chunk(data)
+            if data is not None:
+                frames.append(data)
 
             # Level meter from recent chunk
             if data:
@@ -178,6 +182,22 @@ def main():
     # Disable all logging output; keep only our styled prints
     logging.disable(logging.CRITICAL)
     logger = get_clean_logger("voice_id_cli")
+
+
+    speech_pipeline = YovaPipeline(
+        logger,
+        dc_removal_cutoff_freq=get_config("speech2text.preprocessing.dc_removal_cutoff_freq") or None, 
+        high_pass_cutoff_freq=get_config("speech2text.preprocessing.high_pass_cutoff_freq") or None, 
+        declicking=get_config("speech2text.preprocessing.declicking"), 
+        noise_supresion_level=get_config("speech2text.preprocessing.noise_supresion_level") or None, 
+        agc_enabled=get_config("speech2text.preprocessing.agc_enabled"), 
+        vad_aggressiveness=get_config("speech2text.preprocessing.vad_aggressiveness") or None, 
+        normalization_enabled=get_config("speech2text.preprocessing.normalization_enabled"), 
+        normalization_target_rms_dbfs=get_config("speech2text.preprocessing.normalization_target_rms_dbfs"), 
+        normalization_peak_limit_dbfs=get_config("speech2text.preprocessing.normalization_peak_limit_dbfs"), 
+        edge_fade_enabled=get_config("speech2text.preprocessing.edge_fade_enabled")
+    )
+
 
     banner()
     print("\n" + center(f"{DIM}Lightweight speaker enrollment and verification{RESET}"))
@@ -245,7 +265,7 @@ def main():
         print(center(f"{FG_MAGENTA}{ITALIC}{suggestions[i]}{RESET}"))
         wait_for_enter("Press Enter to start recording (4.0s)...")
         try:
-            enroll_audio = record_pcm16_mono(duration_sec=4.0, logger=logger)
+            enroll_audio = record_pcm16_mono(speech_pipeline, duration_sec=4.0, logger=logger)
             print_success(f"Recorded {enroll_audio.shape[0]/16000.0:.1f}s of audio")
         except Exception as e:
             print_error(f"Failed to record audio: {e}")
@@ -272,7 +292,7 @@ def main():
     wait_for_enter("Press Enter to start recording (4.0s)...")
 
     try:
-        verify_audio = record_pcm16_mono(duration_sec=4.0, logger=logger)
+        verify_audio = record_pcm16_mono(speech_pipeline, duration_sec=4.0, logger=logger)
         print_success(f"Recorded {verify_audio.shape[0]/16000.0:.1f}s of audio")
     except Exception as e:
         print_error(f"Failed to record verification audio: {e}")

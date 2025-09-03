@@ -12,9 +12,12 @@ By keeping latency low and supporting flexible endpoints (including REST and Web
 
 ```mermaid
 graph TD
-    S[Speaker] --- Y[YOVA Core]
-    M[Microphone] --- Y
-    Y[YOVA Core] <--> A[Your AI Assistant Backend]
+    subgraph Raspberry PI
+        S[Speaker] --- Y[YOVA Core]
+        M[Microphone] --- Y
+    end
+
+    Y <--> A[Your AI Assistant Backend API]
 ```
 
 ## What makes YOVA useful:
@@ -23,6 +26,7 @@ graph TD
  - **Multi-language support**: supports multiple languages for speech recognition and text-to-speech, making it convenient for users worldwide.
  - **3D printed case**: comes with customizable 3D models so you can print your own version or tweak the design.
  - **[Voice ID](docs/voice_id.md)**: biometric identification of users by voice for personalization and access control.
+ - **Audio post-processing**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy.
  - **Modular architecture** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
  - **Flexible integration**: connect it to any backend you want to build.
  - **Ready after install** ships with a working ChatGPT integration as a simple example, so you can start using it right away.
@@ -35,6 +39,26 @@ YOVA is designed for low-latency voice interactions. Current performance metrics
 - **Answer playback**: ~700ms median from API response to speech start (can be made to feel even better with proper UX strategies)
 
 For detailed performance analysis, optimization strategies, and pro tips, see the [Performance Guide](docs/performance.md).
+
+## Processing Flow
+
+The following diagram illustrates how YOVA processes voice interactions from input to output, showing the streaming architecture that enables low-latency performance:
+
+```mermaid
+    graph LR
+        VC[Voice Command] -->|stream| RS[Recording]
+        RS -->|stream| AC[Audio Clean-Up]
+        AC -->|stream| ASR[Speech Recognition]
+        AC -->|audio| VID[Voice ID Identification]
+        ASR -->|text| API[API Connector]
+        VID -->|user| API
+
+        API -->|text| B[Backend API]
+        B[Backend API] -->|stream| API[API Connector]
+
+        API -->|stream| TTS[Text-to-Speech Stream]  
+```
+
 
 ## Getting Started
 

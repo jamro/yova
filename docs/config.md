@@ -32,7 +32,7 @@ The configuration is organized into three main sections:
     "model": "gpt-4o-mini-tts",
     "voice": "nova",
     "speed": 1.25,
-    "instructions": "Speak in a friendly, engaging tone. Always answer in Polish."
+    "instructions": "You are a English voice assistant. Read the input text aloud in natural, fluent language with clear pronunciation. Maintain a polite and helpful tone. Do not translate or improvise."
   }
 }
 ```
@@ -49,13 +49,24 @@ The configuration is organized into three main sections:
 {
   "speech2text": {
     "model": "gpt-4o-transcribe",
-    "instructions": "The audio is a voice command for a voice assistant. Transcribe only if the speech is clear and logical. Use correct spelling and punctuation. If the audio is unclear, contains noise, or is not valid, return an empty string. Do not attempt to guess or translate.",
-    "language": "pl",
+    "instructions": "The audio is an English voice command for a voice assistant. Transcribe only if the speech is clear and logical. Use correct spelling and punctuation. If the audio is unclear, contains noise, or is not valid, return an empty string ''). Do not attempt to guess or translate.",
+    "language": "en",
     "noise_reduction": "far_field",
-    "min_speech_length": 0.5,
-    "silence_amplitude_threshold": 0.15,
-    "audio_logs_path": "/path/to/audio/logs/",
-    "prerecord_beep": "beep1.wav"
+    "audio_logs_path": "",
+    "prerecord_beep": "beep7.wav",
+    "preprocessing": {
+      "min_speech_length": 0.5,
+      "dc_removal_cutoff_freq": 20.0,
+      "high_pass_cutoff_freq": 70.0,
+      "declicking": true,
+      "noise_supresion_level": 2,
+      "agc_enabled": true,
+      "vad_aggressiveness": 2,
+      "normalization_enabled": true,
+      "normalization_target_rms_dbfs": -20.0,
+      "normalization_peak_limit_dbfs": -3.0,
+      "edge_fade_enabled": true
+    }
   }
 }
 ```
@@ -65,10 +76,21 @@ The configuration is organized into three main sections:
 - `instructions` (string): Instructions for the transcription model on how to process and format the audio input
 - `language` (string): Language code for speech recognition (e.g., "en", "pl")
 - `noise_reduction` (string): Noise reduction setting for audio processing (see [OpenAI API documentation](https://platform.openai.com/docs/guides/realtime-transcription#noise-reduction) for more details)
-- `min_speech_length` (float): Minimum length of speech segment in seconds
-- `silence_amplitude_threshold` (float): Threshold for detecting silence
 - `audio_logs_path` (string): Path to store audio logs; if set, all recorded commands will be saved to disk (empty string disables logging)
 - `prerecord_beep` (string): Audio file to play before recording (from `yova_shared/assets/`)
+
+**Preprocessing Parameters:**
+- `min_speech_length` (float): Minimum length of speech to be transcribed (in seconds)
+- `dc_removal_cutoff_freq` (float): Cutoff frequency in Hz for DC removal filter
+- `high_pass_cutoff_freq` (float): Cutoff frequency in Hz for high-pass filter
+- `declicking` (boolean): Enable declicking to reduce audio artifacts
+- `noise_supresion_level` (integer): Noise suppression level (0-3, higher = more aggressive)
+- `agc_enabled` (boolean): Enable Automatic Gain Control
+- `vad_aggressiveness` (integer): Voice Activity Detection aggressiveness (0-3, higher = more aggressive)
+- `normalization_enabled` (boolean): Enable audio normalization
+- `normalization_target_rms_dbfs` (float): Normalisation Target RMS level in dBFS for normalization
+- `normalization_peak_limit_dbfs` (float): Normalisation Peak limit in dBFS to prevent clipping
+- `edge_fade_enabled` (boolean): Enable edge fading to reduce audio artifacts
 
 ### Voice ID Configuration (`voice_id`)
 
@@ -76,7 +98,8 @@ The configuration is organized into three main sections:
 {
   "voice_id": {
     "enabled": false,
-    "include_embedding": false
+    "include_embedding": false,
+    "threshold": 0.267
   }
 }
 ```
@@ -84,6 +107,7 @@ The configuration is organized into three main sections:
 **Parameters:**
 - `enabled` (boolean): Whether to enable Voice ID
 - `include_embedding` (boolean): Whether to include the embedding in the voice ID payload
+- `threshold` (float): Similarity threshold for speaker verification (0.0 to 1.0)
 
 More details in [Voice ID documentation](voice_id.md).
 
@@ -117,8 +141,19 @@ The following beep sounds are available in `yova_shared/assets/`:
 - Other options may be available depending on the OpenAI model
 
 ### Speech Detection
-- Adjust `min_speech_length` based on your speaking style
-- Lower `silence_amplitude_threshold` values make the system more sensitive to quiet speech
+- Adjust `preprocessing.min_speech_length` based on your speaking style
+
+### Audio Preprocessing
+The preprocessing section contains advanced audio processing parameters:
+
+- **DC Removal**: `dc_removal_cutoff_freq` removes low-frequency noise
+- **High-Pass Filter**: `high_pass_cutoff_freq` removes frequencies below the cutoff
+- **Declicking**: `declicking` reduces audio artifacts at segment boundaries
+- **Noise Suppression**: `noise_supresion_level` (0-3) controls noise reduction aggressiveness
+- **Automatic Gain Control**: `agc_enabled` automatically adjusts audio levels
+- **Voice Activity Detection**: `vad_aggressiveness` (0-3) controls speech detection sensitivity
+- **Normalization**: `normalization_enabled` with target RMS and peak limits for consistent audio levels
+- **Edge Fading**: `edge_fade_enabled` reduces artifacts at audio segment edges
 
 ## Troubleshooting
 

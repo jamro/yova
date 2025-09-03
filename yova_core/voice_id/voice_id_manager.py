@@ -8,13 +8,13 @@ from pathlib import Path
 SAMPLE_RATE = 16000
 
 class VoiceIdManager:
-    def __init__(self, logger, users_path=None, model=None):
+    def __init__(self, logger, users_path=None, model=None, similarity_threshold=0.267, decision_margin=0.04):
         self.logger = get_clean_logger("voice_id_manager", logger)
 
         self.ecapa_model = model or ECAPAModel(logger)
         default_users_path = Path(__file__).parent.parent.parent / ".data" / "voice_id" / "users"
         self.users_path = users_path or default_users_path
-        self.speaker_verifier = SpeakerVerifier(logger, storage_dir=self.users_path)
+        self.speaker_verifier = SpeakerVerifier(logger, storage_dir=self.users_path, similarity_threshold=similarity_threshold, decision_margin=decision_margin)
 
 
     def enroll_speaker(self, speaker_id: str, pcm16_audio: np.ndarray):

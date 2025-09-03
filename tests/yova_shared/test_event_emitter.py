@@ -202,8 +202,9 @@ class TestEventEmitter:
         # Should not raise an exception, should log the error
         await emitter.emit_event("test_event", {"data": "test"})
         
-        mock_logger.error.assert_called_once()
-        assert "Error in event listener for 'test_event'" in mock_logger.error.call_args[0][0]
+        # Event emitter logs error twice: once for the error message, once for stack trace
+        assert mock_logger.error.call_count == 2
+        assert "Error in event listener for 'test_event'" in mock_logger.error.call_args_list[0][0][0]
 
     @pytest.mark.asyncio
     async def test_emit_event_listener_exception_no_logger(self):

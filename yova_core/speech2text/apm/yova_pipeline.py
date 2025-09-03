@@ -12,7 +12,7 @@ from yova_core.speech2text.apm import AudioPipeline
 
 class YovaPipeline(AudioPipeline):
     def __init__(self, logger, sample_rate=16000, chunk_size=480, dc_removal_cutoff_freq=20.0, high_pass_cutoff_freq=70.0, 
-                 decleaking=True, noise_supresion_level=2, agc_enabled=True, vad_aggressiveness=2, normalization_enabled=True, 
+                 declicking=True, noise_supresion_level=2, agc_enabled=True, vad_aggressiveness=2, normalization_enabled=True, 
                  normalization_target_rms_dbfs=-20.0, normalization_peak_limit_dbfs=-3.0, edge_fade_enabled=True):
         super().__init__(logger, "YovaPipeline")
         
@@ -20,7 +20,7 @@ class YovaPipeline(AudioPipeline):
             self.add_processor(DCRemovalProcessor(
                 logger, 
                 sample_rate=sample_rate, 
-                cutoff_freq=20.dc_removal_cutoff_freq
+                cutoff_freq=dc_removal_cutoff_freq
             )) 
 
         if high_pass_cutoff_freq is not None:
@@ -30,7 +30,7 @@ class YovaPipeline(AudioPipeline):
                 cutoff_freq=high_pass_cutoff_freq
             )) 
 
-        if decleaking:
+        if declicking:
             self.add_processor(DeclickingProcessor(logger)) 
             
         if noise_supresion_level is not None:

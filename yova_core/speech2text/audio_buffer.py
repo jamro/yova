@@ -6,17 +6,6 @@ import pyaudio
 import numpy as np
 import traceback
 
-def get_audio_amplitude(audio_chunk):
-    if not audio_chunk:
-        return None
-
-    audio_array = np.frombuffer(audio_chunk, dtype=np.int16)
-    if len(audio_array) == 0:
-        return 0
-    
-    max_amplitude = np.max(np.abs(audio_array))
-    return max_amplitude / 32768.0
-
 def get_audio_len(audio_chunk, sample_rate, channels): # returns length in seconds
     if not audio_chunk:
         return 0
@@ -30,7 +19,7 @@ def get_audio_len(audio_chunk, sample_rate, channels): # returns length in secon
 
 class AudioBuffer:
     def __init__(self, logger, audio_logs_path=None, channels=1, sample_rate=16000, 
-                 pyaudio_instance=None, silence_amplitude_threshold=0.15, min_speech_length=0.5):
+                 pyaudio_instance=None, min_speech_length=0.5):
         self.buffer = []
         self.recording_start_time = None
         self.logger = get_clean_logger("audio_buffer", logger)
@@ -38,7 +27,6 @@ class AudioBuffer:
         self.channels = channels
         self.sample_rate = sample_rate
         self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
-        self.silence_amplitude_threshold = silence_amplitude_threshold
         self.min_speech_length = min_speech_length
         self.is_buffer_empty = True
         self.buffer_length = 0
@@ -52,13 +40,15 @@ class AudioBuffer:
         self.buffer_length = 0
 
     def add(self, audio_chunk):
+        if not audio_chunk:
+            return
+  
         self.buffer.append(audio_chunk)
 
         self.buffer_length += get_audio_len(audio_chunk, self.sample_rate, self.channels)
 
-        amplitude = get_audio_amplitude(audio_chunk)
         # suppress speech detection if buffer is short to avoid detection of pre-beep silence
-        if amplitude > self.silence_amplitude_threshold and self.is_buffer_empty and self.buffer_length > self.min_speech_length:
+        if self.is_buffer_empty and self.buffer_length > self.min_speech_length:
             self.logger.info("Speech detected")
             self.is_buffer_empty = False
 

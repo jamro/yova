@@ -26,7 +26,7 @@ DEFAULT_WATCHDOG_CHECK_INTERVAL = 30  # Check every 30 seconds
 class Transcriber(EventEmitter):
     def __init__(self, logger, realtime_api: RealtimeApi, voice_id_manager: VoiceIdManager, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
-                 silence_amplitude_threshold=0.15, min_speech_length=0.5, audio_logs_path=None, preprocess_pipeline: AudioPipeline=None,
+                 min_speech_length=0.5, audio_logs_path=None, preprocess_pipeline: AudioPipeline=None,
                  pyaudio_instance=None, exit_on_error=False,
                  max_session_duration=DEFAULT_MAX_SESSION_DURATION,
                  max_inactive_duration=DEFAULT_MAX_INACTIVE_DURATION,
@@ -66,7 +66,6 @@ class Transcriber(EventEmitter):
             channels=CHANNELS, 
             sample_rate=RATE, 
             pyaudio_instance=self._pyaudio_instance,
-            silence_amplitude_threshold=silence_amplitude_threshold,
             min_speech_length=min_speech_length
         )
 
@@ -256,19 +255,24 @@ class Transcriber(EventEmitter):
             self.is_recording = True
 
             while self.is_recording:
-                chunk = self.recording_stream.read()
+                raw_chunk = self.recording_stream.read()
 
-                # Store audio chunk for logging if enabled
-                self.audio_buffer.add(chunk)
+                clean_chunk = self.preprocess_pipeline.process_chunk(raw_chunk)
 
-                if self.recording_stream.is_buffer_full():
-                    self.logger.warning(f"Audio buffer is full. Data in buffer: {self.recording_stream.get_buffer_length()}")
+                if clean_chunk is not None:
+                    # Store audio chunk for logging if enabled
+                    self.audio_buffer.add(clean_chunk)
 
-                await self.realtime_api.send_audio_chunk(chunk)
-                error = await self.realtime_api.query_error()
-                if error:
-                    self.logger.error(f"Error: {error}")
-                    break
+                    if self.recording_stream.is_buffer_full():
+                        self.logger.warning(f"Audio buffer is full. Data in buffer: {self.recording_stream.get_buffer_length()}")
+
+                    await self.realtime_api.send_audio_chunk(clean_chunk)
+                    error = await self.realtime_api.query_error()
+                    if error:
+                        self.logger.error(f"Error: {error}")
+                        break
+                    
+
                 await asyncio.sleep(0.02)
         except Exception as e:
             self.logger.error(f"Error: {e}")

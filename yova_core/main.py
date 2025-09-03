@@ -7,6 +7,7 @@ from yova_core.state_machine import StateMachine
 from yova_core.voice_id.voice_id_manager import VoiceIdManager
 import numpy as np
 import base64
+from yova_core.speech2text.apm import YovaPipeline
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -47,12 +48,25 @@ async def main():
                 instructions=get_config("speech2text.instructions"),
             ),
             voice_id_manager=VoiceIdManager(
-                logger
+                logger,
+                similarity_threshold=get_config("voice_id.threshold"),
             ) if get_config("voice_id.enabled") else None,
+            preprocess_pipeline=YovaPipeline(
+                logger,
+                dc_removal_cutoff_freq=get_config("speech2text.preprocessing.dc_removal_cutoff_freq") or None, 
+                high_pass_cutoff_freq=get_config("speech2text.preprocessing.high_pass_cutoff_freq") or None, 
+                declicking=get_config("speech2text.preprocessing.declicking"), 
+                noise_supresion_level=get_config("speech2text.preprocessing.noise_supresion_level") or None, 
+                agc_enabled=get_config("speech2text.preprocessing.agc_enabled"), 
+                vad_aggressiveness=get_config("speech2text.preprocessing.vad_aggressiveness") or None, 
+                normalization_enabled=get_config("speech2text.preprocessing.normalization_enabled"), 
+                normalization_target_rms_dbfs=get_config("speech2text.preprocessing.normalization_target_rms_dbfs"), 
+                normalization_peak_limit_dbfs=get_config("speech2text.preprocessing.normalization_peak_limit_dbfs"), 
+                edge_fade_enabled=get_config("speech2text.preprocessing.edge_fade_enabled")
+            ),
             audio_logs_path=get_config("speech2text.audio_logs_path"),
             prerecord_beep=get_config("speech2text.prerecord_beep"),
-            min_speech_length=get_config("speech2text.min_speech_length"),
-            silence_amplitude_threshold=get_config("speech2text.silence_amplitude_threshold"),
+            min_speech_length=get_config("speech2text.preprocessing.min_speech_length"),
             exit_on_error=True
         )
     )
