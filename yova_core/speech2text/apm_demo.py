@@ -236,9 +236,7 @@ async def main_recording_step(input_file_path):
 
 async def main_processing_step(logger, input_file_path, output_file_path):
 
-    # Initialize VAD with 480-sample chunks (30ms at 16kHz), moderate aggressiveness
-    vad = VAD(logger, aggressiveness=2, sample_rate=16000, chunk_size=480)
-    frame_size = vad.frame_size  # 480 samples for 30ms at 16kHz
+    frame_size = 480
     print(f"Frame size: {frame_size}")
     
     # Create speech processing pipeline directly
@@ -273,9 +271,6 @@ async def main_processing_step(logger, input_file_path, output_file_path):
         # Process audio through speech pipeline
         audio_chunk_clean = speech_pipeline.process_chunk(audio_chunk)
         
-        # Process chunk with VAD
-        processed_chunk, is_speech = vad.process_audio_chunk(audio_chunk)
-        
         # End timing for this chunk
         chunk_end_time = time.perf_counter()
         processing_time = chunk_end_time - chunk_start_time
@@ -288,15 +283,14 @@ async def main_processing_step(logger, input_file_path, output_file_path):
         processing_percentages.append(processing_percentage)
         
         # Always buffer processed audio for ASR continuity
-        if is_speech:
+        if audio_chunk_clean is not None:
             speech_chunks += 1
             print(f"Chunk {chunk_count}: SPEECH detected ({len(audio_chunk_clean)} bytes) - Processing: {processing_percentage:.1f}%")
             audio_buffer.add(audio_chunk_clean)
         else:
             silence_chunks += 1
-            print(f"Chunk {chunk_count}: silence ({len(audio_chunk_clean)} bytes) - Processing: {processing_percentage:.1f}%")
+            print(f"Chunk {chunk_count}: silence ({len(audio_chunk)} bytes) - Processing: {processing_percentage:.1f}%")
         
-
         chunk_count += 1
     
     print(f"Finished processing {chunk_count} chunks")

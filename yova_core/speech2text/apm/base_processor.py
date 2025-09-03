@@ -2,6 +2,7 @@
 Base classes for modular audio processing pipeline
 """
 import numpy as np
+import traceback
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from yova_shared import get_clean_logger
@@ -165,8 +166,12 @@ class AudioPipeline:
         for processor in self.processors:
             try:
                 current_audio = processor.process(current_audio)
+                if current_audio is None:
+                    break
             except Exception as e:
                 self.logger.error(f"Error in processor '{processor.name}': {e}")
+                # stack trace
+                traceback.print_exc(limit=10)
                 # Continue with previous audio on error
                 break
         
@@ -188,12 +193,17 @@ class AudioPipeline:
             
             # Process through pipeline
             processed_array = self.process(audio_array)
+
+            if processed_array is None:
+                return None
             
             # Convert back to bytes
             return processed_array.tobytes()
             
         except Exception as e:
             self.logger.error(f"Error processing audio chunk: {e}")
+            # stack trace
+            traceback.print_exc()
             return audio_chunk
     
     def reset_all_states(self) -> None:

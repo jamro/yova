@@ -41,6 +41,8 @@ class SimpleAudioPipeline:
         """Process audio through all processors"""
         current_audio = audio_data
         for processor in self.processors:
+            if current_audio is None:
+                return None
             current_audio = processor.process(current_audio)
         return current_audio
     
