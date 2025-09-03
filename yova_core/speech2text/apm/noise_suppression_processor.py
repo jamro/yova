@@ -47,10 +47,11 @@ class NoiseSuppressionProcessor(AudioProcessor):
         
         self.ns_frame_size = int(self.sample_rate * self.frame_duration_ms / 1000.0)
         
-        # Initialize VAD for noise estimation
+        # Initialize VAD for noise estimation. Use equivalent chunk size from frame duration.
+        vad_chunk_size = int(self.sample_rate * self.frame_duration_ms / 1000.0)
         self.vad_ns = VAD(self.logger, aggressiveness=1, 
                          sample_rate=self.sample_rate, 
-                         frame_duration_ms=self.frame_duration_ms)
+                         chunk_size=vad_chunk_size)
         
         # FFT and window setup
         self.ns_nfft = 512 if self.ns_frame_size <= 512 else 1024

@@ -236,8 +236,8 @@ async def main_recording_step(input_file_path):
 
 async def main_processing_step(logger, input_file_path, output_file_path):
 
-    # Initialize VAD with 30ms frames (480 samples at 16kHz), moderate aggressiveness
-    vad = VAD(logger, aggressiveness=2, sample_rate=16000, frame_duration_ms=30)
+    # Initialize VAD with 480-sample chunks (30ms at 16kHz), moderate aggressiveness
+    vad = VAD(logger, aggressiveness=2, sample_rate=16000, chunk_size=480)
     frame_size = vad.frame_size  # 480 samples for 30ms at 16kHz
     print(f"Frame size: {frame_size}")
     

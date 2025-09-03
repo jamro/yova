@@ -1,6 +1,7 @@
 from typing import Dict, List, Callable, Any, Awaitable
 from yova_shared import get_clean_logger
 from .event_source import EventSource
+import traceback
 
 class EventEmitter(EventSource):
     """
@@ -82,6 +83,7 @@ class EventEmitter(EventSource):
                 except Exception as e:
                     if self.logger:
                         self.logger.error(f"Error in event listener for '{event_type}': {e}")
+                        self.logger.error(f"Stack trace: {traceback.format_exc()}")
         else:
             if self.logger:
                 self.logger.debug(f"No listeners registered for event '{event_type}'")
