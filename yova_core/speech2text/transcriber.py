@@ -34,10 +34,10 @@ class Transcriber(EventEmitter):
         """Initialize the transcriber"""
         super().__init__()
         self.logger = get_clean_logger("transcriber", logger)
-        self._pyaudio_instance = pyaudio_instance or pyaudio.PyAudio()
+        self._pyaudio_instance = pyaudio.PyAudio() if pyaudio_instance is None else pyaudio_instance
         self.realtime_api = realtime_api
         self.voice_id_manager = voice_id_manager
-        self.preprocess_pipeline = preprocess_pipeline or YovaPipeline(logger)
+        self.preprocess_pipeline = YovaPipeline(logger) if preprocess_pipeline is None else preprocess_pipeline
         self.voice_id_result = None
         self.logger.info(f"Voice ID manager is {'enabled' if self.voice_id_manager else 'disabled'}")
         self.voice_id_task = None
