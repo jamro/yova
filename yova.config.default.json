@@ -17,7 +17,6 @@
     "prerecord_beep": "beep7.wav",
     "preprocessing": {
       "min_speech_length": 0.5,
-      "dc_removal_cutoff_freq": 20.0,
       "high_pass_cutoff_freq": 70.0,
       "declicking": true,
       "noise_supresion_level": 2,
@@ -25,7 +24,7 @@
       "vad_aggressiveness": 2,
       "normalization_enabled": true,
       "normalization_target_rms_dbfs": -20.0,
-      "normalization_peak_limit_dbfs": -3.0,
+      "normalization_peak_limit_dbfs": -5.0,
       "edge_fade_enabled": true
     }
   },

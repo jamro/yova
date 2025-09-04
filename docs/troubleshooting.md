@@ -48,7 +48,7 @@ alsamixer
 4. **Set Capture (PGA) to 30%** (recommended - avoid going too high to prevent clipping)
 5. **Press ESC** to exit
 
-### Audio Device Detection
+### Audio Device Detection and Voice Command Recognition
 
 **Check available audio devices:**
 ```bash
@@ -74,6 +74,49 @@ card 2: seeed2micvoicec [seeed2micvoicec], device 0: ...
    dtoverlay=i2s-mmap
    dtparam=spi=on
    ```
+
+**Poor Voice Command Recognition:**
+
+**Problem:** Voice commands are not being recognized accurately or consistently
+
+**Symptoms:**
+- Commands are misinterpreted or not understood
+- System responds to unintended phrases
+- Recognition works inconsistently
+- Background noise interferes with command detection
+
+**Troubleshooting Steps:**
+
+1. **Adjust Audio Preprocessing Settings:**
+   - Review and modify preprocessing parameters in your configuration file
+   - Experiment with different noise reduction and gain settings
+   - Fine-tune voice activity detection thresholds
+
+   See [config.md](config.md) for more details.
+
+2. **Enable Audio Logging for Analysis:**
+   - Enable audio_logs_path in your configuration. This will record all voice commands for quality review
+   - Review recorded audio files to assess command clarity
+   - Check for background noise, speech volume, and pronunciation issues
+   - Identify patterns in failed recognition attempts
+
+   See [config.md](config.md) for more details.
+
+3. **Use Development Tools for Recognition Analysis:**
+   ```bash
+   # Run development tools to analyze recognition patterns
+   make dev-tools
+   ```
+   - Examine what phrases the system is actually recognizing
+   - Compare expected vs. actual transcriptions
+   - Identify common recognition errors and patterns
+
+**Additional Recommendations:**
+- Speak clearly and at a consistent volume
+- Minimize background noise when giving commands
+- Use consistent phrasing for voice commands
+- Consider adjusting microphone sensitivity if commands are too quiet or loud
+- Test recognition in different acoustic environments
 
 ### ALSA Configuration Issues
 

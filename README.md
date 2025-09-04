@@ -56,7 +56,7 @@ The following diagram illustrates how YOVA processes voice interactions from inp
         API -->|text| B[Backend API]
         B[Backend API] -->|stream| API
 
-        API -->|stream| TTS[Text-to-Speech<br/>Stream]  
+        API -->|stream| TTS[Text-to-Speech]  
 ```
 
 

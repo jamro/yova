@@ -186,7 +186,6 @@ def main():
 
     speech_pipeline = YovaPipeline(
         logger,
-        dc_removal_cutoff_freq=get_config("speech2text.preprocessing.dc_removal_cutoff_freq") or None, 
         high_pass_cutoff_freq=get_config("speech2text.preprocessing.high_pass_cutoff_freq") or None, 
         declicking=get_config("speech2text.preprocessing.declicking"), 
         noise_supresion_level=get_config("speech2text.preprocessing.noise_supresion_level") or None, 

@@ -56,7 +56,6 @@ The configuration is organized into three main sections:
     "prerecord_beep": "beep7.wav",
     "preprocessing": {
       "min_speech_length": 0.5,
-      "dc_removal_cutoff_freq": 20.0,
       "high_pass_cutoff_freq": 70.0,
       "declicking": true,
       "noise_supresion_level": 2,
@@ -81,7 +80,6 @@ The configuration is organized into three main sections:
 
 **Preprocessing Parameters:**
 - `min_speech_length` (float): Minimum length of speech to be transcribed (in seconds)
-- `dc_removal_cutoff_freq` (float): Cutoff frequency in Hz for DC removal filter
 - `high_pass_cutoff_freq` (float): Cutoff frequency in Hz for high-pass filter
 - `declicking` (boolean): Enable declicking to reduce audio artifacts
 - `noise_supresion_level` (integer): Noise suppression level (0-3, higher = more aggressive)
@@ -146,7 +144,6 @@ The following beep sounds are available in `yova_shared/assets/`:
 ### Audio Preprocessing
 The preprocessing section contains advanced audio processing parameters:
 
-- **DC Removal**: `dc_removal_cutoff_freq` removes low-frequency noise
 - **High-Pass Filter**: `high_pass_cutoff_freq` removes frequencies below the cutoff
 - **Declicking**: `declicking` reduces audio artifacts at segment boundaries
 - **Noise Suppression**: `noise_supresion_level` (0-3) controls noise reduction aggressiveness
