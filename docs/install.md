@@ -63,6 +63,8 @@ All 3D models are provided in the `3d_models` folder. The folder also contains:
    - Secure both parts together using the remaining 3x 2mm screws
    - Attach the `yova_case_cover.stl` component as needed for additional protection
 
+   ![Assembled Yova Device](/docs/img/yova_assembly.png)
+
 5. **Power Connections:**
    - **Raspberry Pi Power:** Connect the main power supply to the Raspberry Pi's USB-C port
    - **ReSpeaker HAT Power:** Connect a separate USB power source to the ReSpeaker HAT's USB port
