@@ -26,9 +26,9 @@ graph TD
  - **Multi-language support**: supports multiple languages for speech recognition and text-to-speech, making it convenient for users worldwide.
  - **3D printed case**: comes with customizable 3D models so you can print your own version or tweak the design.
  - **[Voice ID](docs/voice_id.md)**: biometric identification of users by voice for personalization and access control.
- - **Audio post-processing**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy.
- - **Modular architecture** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
- - **Flexible integration**: connect it to any backend you want to build.
+ - **[Audio post-processing](docs/audio_processing.md)**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy.
+ - **[Modular architecture](docs/architecture.md)** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
+ - **[Flexible integration](docs/integration.md)**: connect it to any backend you want to build.
  - **Ready after install** ships with a working ChatGPT integration as a simple example, so you can start using it right away.
 
 ## Performance
