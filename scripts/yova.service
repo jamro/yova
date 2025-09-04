@@ -1,4 +1,4 @@
-# /etc/systemd/system/yova-supervisord.service
+# /etc/systemd/system/yova.service
 [Unit]
 Description=Yova (Supervisor via Poetry)
 After=network-online.target

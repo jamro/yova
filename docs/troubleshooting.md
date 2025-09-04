@@ -167,23 +167,23 @@ aplay -D "plughw:2,0" rec_test.wav
 ### Check YOVA Service Status
 ```bash
 # Check if service is running
-sudo systemctl status supervisord.service
+sudo systemctl status yova.service
 
 # Check if service is enabled (starts on boot)
-sudo systemctl is-enabled supervisord.service
+sudo systemctl is-enabled yova.service
 
 # View service logs
-sudo journalctl -u supervisord.service -f
+sudo journalctl -u yova.service -f
 ```
 
 ### Restart YOVA Service
 ```bash
 # Restart service (after configuration changes)
-sudo systemctl restart supervisord.service
+sudo systemctl restart yova.service
 
 # Start service if stopped
-sudo systemctl start supervisord.service
+sudo systemctl start yova.service
 
 # Stop service
-sudo systemctl stop supervisord.service
+sudo systemctl stop yova.service
 ```

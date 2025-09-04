@@ -629,13 +629,13 @@ install_yova() {
 # Function to configure systemd service
 # MANUAL: Set up YOVA to run as a system service
 # COMMANDS:
-#   sudo cp ~/yova/scripts/supervisord.service /etc/systemd/system/
+#   sudo cp ~/yova/scripts/yova.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable supervisord.service
-#   sudo systemctl start supervisord.service
+#   sudo systemctl enable yova.service
+#   sudo systemctl start yova.service
 #
 # EXPLANATION:
-# - Copies the supervisord service file to systemd directory
+# - Copies the yova service file to systemd directory
 # - Reloads systemd to recognize the new service
 # - Enables the service to start automatically on boot
 # - Starts the service immediately
@@ -644,20 +644,20 @@ configure_systemd() {
     print_status "Configuring systemd service..."
     
     # Check if systemd service is already configured
-    if systemctl is-enabled supervisord.service &>/dev/null; then
+    if systemctl is-enabled yova.service &>/dev/null; then
         print_warning "Systemd service already configured and enabled, skipping configuration step"
         return 0
     fi
     
-    if [ -f "scripts/supervisord.service" ]; then
-        sudo cp scripts/supervisord.service /etc/systemd/system/
+    if [ -f "scripts/yova.service" ]; then
+        sudo cp scripts/yova.service /etc/systemd/system/
         sudo systemctl daemon-reload
-        sudo systemctl enable supervisord.service
-        sudo systemctl start supervisord.service
+        sudo systemctl enable yova.service
+        sudo systemctl start yova.service
         print_success "Systemd service configured"
         REBOOT_NEEDED=true
     else
-        print_warning "supervisord.service not found, skipping systemd configuration"
+        print_warning "yova.service not found, skipping systemd configuration"
     fi
 }
 
@@ -1021,13 +1021,13 @@ test_recording() {
 #
 # COMMANDS FOR SERVICE MANAGEMENT:
 #   # Check service status:
-#   sudo systemctl status supervisord.service
+#   sudo systemctl status yova.service
 #
 #   # View service logs:
-#   sudo journalctl -u supervisord.service -f
+#   sudo journalctl -u yova.service -f
 #
 #   # Restart service (after config changes):
-#   sudo systemctl restart supervisord.service
+#   sudo systemctl restart yova.service
 #
 # COMMANDS FOR CONFIGURATION:
 #   # Edit configuration:
@@ -1050,21 +1050,21 @@ post_install_instructions() {
     
     # Restart service to ensure it's running fresh
     echo "Restarting YOVA service..."
-    sudo systemctl restart supervisord.service
+    sudo systemctl restart yova.service
     
     # Check if service is configured and running
     echo "Checking YOVA service status..."
-    if systemctl is-enabled supervisord.service &>/dev/null; then
+    if systemctl is-enabled yova.service &>/dev/null; then
         print_success "✓ YOVA service is configured and enabled"
     else
         print_warning "✗ YOVA service is not configured"
     fi
     
-    if systemctl is-active supervisord.service &>/dev/null; then
+    if systemctl is-active yova.service &>/dev/null; then
         print_success "✓ YOVA service is running"
     else
         print_warning "✗ YOVA service is not running"
-        echo "   To start: sudo systemctl start supervisord.service"
+        echo "   To start: sudo systemctl start yova.service"
     fi
     
     echo ""
@@ -1081,11 +1081,11 @@ post_install_instructions() {
     echo "     * Change language"
     echo "     * Adjust audio settings"
     echo "   - After config changes, restart the service:"
-    echo "     sudo systemctl restart supervisord.service"
+    echo "     sudo systemctl restart yova.service"
     echo ""
     echo "3. If you need to check service status:"
-    echo "   - Status: sudo systemctl status supervisord.service"
-    echo "   - Logs: sudo journalctl -u supervisord.service -f"
+    echo "   - Status: sudo systemctl status yova.service"
+    echo "   - Logs: sudo journalctl -u yova.service -f"
 }
 
 # =============================================================================
@@ -1189,12 +1189,12 @@ handle_reboot() {
 #   15. Clone YOVA: git clone https://github.com/jamro/yova.git
 #   16. Install YOVA: cd yova && poetry config keyring.enabled false && make install
 #   17. Configure API: nano yova.config.json (add your OpenAI API key)
-#   18. Setup service: sudo cp scripts/supervisord.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable supervisord.service && sudo systemctl start supervisord.service
+#   18. Setup service: sudo cp scripts/yova.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable yova.service && sudo systemctl start yova.service
 #
 # PHASE 5: Testing and Validation (no reboot needed)
 #   19. Test YOVA: Press push-to-talk button and ask a question
-#   20. Check service: sudo systemctl status supervisord.service
-#   21. View logs: sudo journalctl -u supervisord.service -f
+#   20. Check service: sudo systemctl status yova.service
+#   21. View logs: sudo journalctl -u yova.service -f
 main() {
     echo "=========================================="
     echo "    YOVA Installation Script"
@@ -1269,8 +1269,8 @@ main "$@"
 # - Service configuration ensures YOVA runs automatically
 #
 # TROUBLESHOOTING:
-# - Check service status: sudo systemctl status supervisord.service
-# - View logs: sudo journalctl -u supervisord.service -f
+# - Check service status: sudo systemctl status yova.service
+# - View logs: sudo journalctl -u yova.service -f
 # - Test audio manually: aplay -l && arecord -l
 # - Verify hardware connections and power supply
 #
