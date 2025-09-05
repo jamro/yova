@@ -159,7 +159,6 @@ class AudioPipeline:
             Processed audio samples
         """
         if not self.processors:
-            self.logger.warning("No processors in pipeline, returning original audio")
             return audio_data
         
         current_audio = audio_data

@@ -4,6 +4,8 @@ yova.config.json
 /dev-sandbox.*
 /pretrained_models
 /.data
+/tests/asr/test_data
+/tests/asr/reports
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

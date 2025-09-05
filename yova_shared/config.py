@@ -10,10 +10,13 @@ def reload_config():
         config_data = json.load(file)
 
 
-def get_config(key_path: str):
+def get_config(key_path: str = None):
     global config_data
     if config_data is None:
         reload_config()
+
+    if key_path is None:
+        return config_data
 
     path = key_path.split('.')
     pointer = config_data
