@@ -14,6 +14,7 @@ from jiwer import wer, cer
 from datetime import datetime
 from openai import OpenAI
 from yova_core.speech2text.apm import YovaPipeline
+from yova_core.speech2text.batch_api import BatchApi
 
 TEST_DATA_FILE = "tests/asr/test_data/test_data.json"
 
@@ -235,6 +236,13 @@ async def main():
                 instructions=get_config("speech2text.instructions"),
             )
 
+    realtime_api = BatchApi(
+      logger, 
+      api_key, 
+      model=get_config("speech2text.model"),
+      prompt=get_config("speech2text.instructions")
+    )
+
     await realtime_api.connect()
 
     with open(TEST_DATA_FILE, "r") as f:
@@ -283,7 +291,7 @@ async def main():
     print(f"="*50)
     print("REPORT")
     print(f"="*50)
-    print(f"WER: {wer_score:.2f}, CER: {cer_score:.2f}, Avg Processing Time: {avg_processing_time:.2f}ms")
+    print(f"WER: {wer_score:.2f}, CER: {cer_score:.2f}, Avg Processing Time: {avg_processing_time:.2f}sec")
 
     # Create reports folder if it doesn't exist
     reports_folder = os.path.join(base_folder, "..", "reports")

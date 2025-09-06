@@ -10,6 +10,7 @@
   },
   "speech2text": {
     "model": "gpt-4o-transcribe",
+    "streaming": true,
     "instructions": "The audio is an English voice command for a voice assistant. Transcribe only if the speech is clear and logical. Use correct spelling and punctuation. If the audio is unclear, contains noise, or is not valid, return an empty string ''). Do not attempt to guess or translate.",
     "language": "en",
     "noise_reduction": "far_field",

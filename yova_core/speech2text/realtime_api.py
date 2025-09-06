@@ -4,6 +4,7 @@ import json
 from openai import OpenAI
 import base64
 import asyncio
+from yova_core.speech2text.transcription_api import TranscriptionApi
 
 # WebSocket configuration
 WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
@@ -11,7 +12,7 @@ WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
 # Audio format for API compatibility
 FORMAT = "pcm16"
 
-class RealtimeApi:
+class RealtimeApi(TranscriptionApi):
     
     def __init__(self, api_key, logger, openai_client=None, websocket_connector=None, 
                  model="gpt-4o-transcribe", language="en", noise_reduction="near_field", instructions=""):

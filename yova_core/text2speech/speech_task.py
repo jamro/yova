@@ -143,7 +143,7 @@ class SpeechTask(EventEmitter):
     async def play_audio(self):
         
         async def on_playback(data):
-            self.logger.info(f"Playing audio: {data[:100]}...")
+            self.logger.info(f"Playing audio: {data['text'][:100]}...")
             await self.emit_event("playing_audio", {"message_id": self.message_id, "text": data["text"]})
 
         self.logger.debug(f"Playing audio...")

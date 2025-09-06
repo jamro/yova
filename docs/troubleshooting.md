@@ -111,6 +111,21 @@ card 2: seeed2micvoicec [seeed2micvoicec], device 0: ...
    - Compare expected vs. actual transcriptions
    - Identify common recognition errors and patterns
 
+4. **Disable Speech2Text Streaming for Better Accuracy:**
+   - If recognition accuracy is poor despite other adjustments, try disabling streaming mode
+   - This will add approximately 500ms of latency but may significantly improve accuracy
+   - In your configuration file, set `speech2text.streaming` to `false`:
+   ```json
+   "speech2text": {
+     "streaming": false,
+     ...
+   }
+   ```
+   - Restart the Yova service after making this change:
+   ```bash
+   sudo systemctl restart yova.service
+   ```
+
 **Additional Recommendations:**
 - Speak clearly and at a consistent volume
 - Minimize background noise when giving commands

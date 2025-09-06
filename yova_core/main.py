@@ -8,6 +8,7 @@ from yova_core.voice_id.voice_id_manager import VoiceIdManager
 import numpy as np
 import base64
 from yova_core.speech2text.apm import YovaPipeline
+from yova_core.speech2text.batch_api import BatchApi
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -34,19 +35,32 @@ async def main():
     await publisher.connect()
 
     # Create state machine
+
+    if get_config("speech2text.streaming"):
+        logger.info("Using streaming transcription API")
+        transcription_api = RealtimeApi(
+            api_key, 
+            logger,
+            model=get_config("speech2text.model"),
+            language=get_config("speech2text.language"),
+            noise_reduction=get_config("speech2text.noise_reduction"),
+            instructions=get_config("speech2text.instructions"),
+        )
+    else:
+        logger.info("Using batch transcription API")
+        transcription_api = BatchApi(
+            logger,
+            api_key,
+            model=get_config("speech2text.model"),
+            prompt=get_config("speech2text.instructions")
+        )
+
     state_machine = StateMachine(
         logger,
         SpeechHandler(logger, api_key, playback_config),
         Transcriber(
             logger=logger,
-            realtime_api=RealtimeApi(
-                api_key, 
-                logger,
-                model=get_config("speech2text.model"),
-                language=get_config("speech2text.language"),
-                noise_reduction=get_config("speech2text.noise_reduction"),
-                instructions=get_config("speech2text.instructions"),
-            ),
+            transcription_api=transcription_api,
             voice_id_manager=VoiceIdManager(
                 logger,
                 similarity_threshold=get_config("voice_id.threshold"),

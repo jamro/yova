@@ -1,4 +1,4 @@
-from yova_core.speech2text.realtime_api import RealtimeApi
+from yova_core.speech2text.transcription_api import TranscriptionApi
 import asyncio
 import pyaudio
 import os
@@ -24,7 +24,7 @@ DEFAULT_MAX_INACTIVE_DURATION = 300  # 5 minutes in seconds
 DEFAULT_WATCHDOG_CHECK_INTERVAL = 30  # Check every 30 seconds
 
 class Transcriber(EventEmitter):
-    def __init__(self, logger, realtime_api: RealtimeApi, voice_id_manager: VoiceIdManager, audio_buffer: AudioBuffer=None,
+    def __init__(self, logger, transcription_api: TranscriptionApi, voice_id_manager: VoiceIdManager, audio_buffer: AudioBuffer=None,
                  prerecord_beep="beep1.wav", beep_volume_reduction=18, recording_stream: RecordingStream=None,
                  min_speech_length=0.5, audio_logs_path=None, preprocess_pipeline: AudioPipeline=None,
                  pyaudio_instance=None, exit_on_error=False,
@@ -35,7 +35,7 @@ class Transcriber(EventEmitter):
         super().__init__()
         self.logger = get_clean_logger("transcriber", logger)
         self._pyaudio_instance = pyaudio.PyAudio() if pyaudio_instance is None else pyaudio_instance
-        self.realtime_api = realtime_api
+        self.transcription_api = transcription_api
         self.voice_id_manager = voice_id_manager
         self.preprocess_pipeline = YovaPipeline(logger) if preprocess_pipeline is None else preprocess_pipeline
         self.voice_id_result = None
@@ -71,13 +71,13 @@ class Transcriber(EventEmitter):
 
     async def initialize(self):
         """Initialize the transcriber"""
-        await self.realtime_api.connect()
+        await self.transcription_api.connect()
         # Start watchdog immediately to monitor the connection
         self.watchdog_task = asyncio.create_task(self._watchdog_monitor())
 
     async def cleanup(self):
         """Cleanup the transcriber"""
-        await self.realtime_api.disconnect()
+        await self.transcription_api.disconnect()
         self.is_recording = False
         if self.listening_task:
             self.listening_task.cancel()
@@ -132,7 +132,7 @@ class Transcriber(EventEmitter):
                 self.logger.info("No audio to transcribe, returning empty string")
                 return ''
             else:
-                text = await self.realtime_api.commit_audio_buffer()
+                text = await self.transcription_api.commit_audio_buffer()
                 self.logger.info(f"Transcription: {text}")
         except Exception as e:
             self.logger.error(f"Error: {e}")
@@ -172,16 +172,16 @@ class Transcriber(EventEmitter):
             try:
                 await asyncio.sleep(self.watchdog_check_interval)
                 
-                if not self.realtime_api.is_connected:
+                if not self.transcription_api.is_connected:
                     self.logger.warning("Realtime API not connected, attempting to reconnect...")
-                    success = await self._reconnect_realtime_api()
+                    success = await self._reconnect_transcription_api()
                     if not success and self.exit_on_error:
                         self.logger.error("Reconnection failed and exit_on_error is True - exiting process")
                         os._exit(1)
                     continue
                 
-                session_duration = self.realtime_api.get_session_duration()
-                inactive_duration = self.realtime_api.get_inactive_duration()
+                session_duration = self.transcription_api.get_session_duration()
+                inactive_duration = self.transcription_api.get_inactive_duration()
                 
                 self.logger.debug(f"Watchdog check - Session: {session_duration:.1f}s, Inactive: {inactive_duration:.1f}s")
                 
@@ -190,7 +190,7 @@ class Transcriber(EventEmitter):
                     session_duration > self.max_session_duration and 
                     inactive_duration > self.max_inactive_duration):
                     self.logger.warning(f"Watchdog triggered reconnection - Session: {session_duration:.1f}s, Inactive: {inactive_duration:.1f}s")
-                    success = await self._reconnect_realtime_api()
+                    success = await self._reconnect_transcription_api()
                     if not success and self.exit_on_error:
                         self.logger.error("Reconnection failed and exit_on_error is True - exiting process")
                         os._exit(1)
@@ -205,19 +205,19 @@ class Transcriber(EventEmitter):
                     os._exit(1)
                 await asyncio.sleep(self.watchdog_check_interval)
     
-    async def _reconnect_realtime_api(self):
+    async def _reconnect_transcription_api(self):
         """Reconnect the realtime API"""
         try:
             self.logger.info("Disconnecting realtime API for reconnection...")
-            await self.realtime_api.disconnect()
+            await self.transcription_api.disconnect()
             
             self.logger.info("Reconnecting realtime API...")
-            await self.realtime_api.connect()
+            await self.transcription_api.connect()
             
-            if self.realtime_api.is_connected:
+            if self.transcription_api.is_connected:
                 self.logger.info("Realtime API reconnected successfully")
                 # Clear audio buffer after reconnection
-                await self.realtime_api.clear_audio_buffer()
+                await self.transcription_api.clear_audio_buffer()
                 return True
             else:
                 self.logger.error("Failed to reconnect realtime API")
@@ -235,7 +235,7 @@ class Transcriber(EventEmitter):
 
         try:
             self.logger.info("Clearing audio buffer")
-            await self.realtime_api.clear_audio_buffer()
+            await self.transcription_api.clear_audio_buffer()
             
             self.logger.info("Creating audio stream")
             start_time = asyncio.get_event_loop().time()
@@ -266,8 +266,8 @@ class Transcriber(EventEmitter):
                     if self.recording_stream.is_buffer_full():
                         self.logger.warning(f"Audio buffer is full. Data in buffer: {self.recording_stream.get_buffer_length()}")
 
-                    await self.realtime_api.send_audio_chunk(clean_chunk)
-                    error = await self.realtime_api.query_error()
+                    await self.transcription_api.send_audio_chunk(clean_chunk)
+                    error = await self.transcription_api.query_error()
                     if error:
                         self.logger.error(f"Error: {error}")
                         break

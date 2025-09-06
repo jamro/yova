@@ -12,3 +12,4 @@
 - AGC seems to not impact accuracy for streaming significantly
 - Normalization (target RMS -20dBFS, peak limit -3dBFS) improves accuracy for streaming slightly (WER 27% to 23%)
 - Edge fade seems to reduce accuracy for streaming slightly or not impact it at all
+- Audio processing pipeline seems to not improve accuracy much for non-streaming API
