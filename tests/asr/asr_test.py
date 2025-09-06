@@ -12,6 +12,8 @@ from yova_core.speech2text.audio_buffer import AudioBuffer
 from yova_core.speech2text.realtime_api import RealtimeApi
 from jiwer import wer, cer
 from datetime import datetime
+from openai import OpenAI
+from yova_core.speech2text.apm import YovaPipeline
 
 TEST_DATA_FILE = "tests/asr/test_data/test_data.json"
 
@@ -109,11 +111,45 @@ class FileAudioStream:
         return self.current_position >= self.total_samples
 
 
+async def transcribe_no_streaming(logger, file_path, transcript, realtime_api):
+    client = OpenAI(api_key=realtime_api.api_key)
+    audio_file = open(file_path, "rb")
+
+
+    start_time = asyncio.get_event_loop().time()
+    transcription = client.audio.transcriptions.create(
+        model="whisper-1", 
+        file=audio_file
+    )
+    end_time = asyncio.get_event_loop().time()
+    processing_time = end_time - start_time
+
+    return {
+      "text": transcription.text,
+      "processing_time": processing_time
+    }
+    
+
 async def transcribe(logger, file_path, transcript, realtime_api):
     frame_size = 480
     
     # Create speech processing pipeline directly
-    speech_pipeline = AudioPipeline(logger)
+    speech_pipeline = YovaPipeline(
+        logger, 
+        high_pass_cutoff_freq=get_config("speech2text.preprocessing.high_pass_cutoff_freq") or None, 
+        declicking=get_config("speech2text.preprocessing.declicking"), 
+        noise_supresion_level=get_config("speech2text.preprocessing.noise_supresion_level") or None, 
+        agc_enabled=get_config("speech2text.preprocessing.agc_enabled"), 
+        vad_aggressiveness=get_config("speech2text.preprocessing.vad_aggressiveness") or None, 
+        normalization_enabled=get_config("speech2text.preprocessing.normalization_enabled"), 
+        normalization_target_rms_dbfs=get_config("speech2text.preprocessing.normalization_target_rms_dbfs"), 
+        normalization_peak_limit_dbfs=get_config("speech2text.preprocessing.normalization_peak_limit_dbfs"), 
+        edge_fade_enabled=get_config("speech2text.preprocessing.edge_fade_enabled")
+    )
+
+    #print(f"Speech pipeline: {speech_pipeline.get_pipeline_info()}")
+
+
     audio_stream = FileAudioStream(file_path, chunk_size=frame_size, logger=logger)
     
     # Calculate chunk duration in seconds for percentage calculation
@@ -133,20 +169,30 @@ async def transcribe(logger, file_path, transcript, realtime_api):
         
         audio_chunk_clean = speech_pipeline.process_chunk(audio_chunk)
 
+        if audio_chunk_clean is None:
+            continue
+
         await realtime_api.send_audio_chunk(audio_chunk_clean)
         error = await realtime_api.query_error()
         if error:
             logger.error(f"Error: {error}")
             break
     
+    start_time = asyncio.get_event_loop().time()
     text = await realtime_api.commit_audio_buffer()
-    return text
+    end_time = asyncio.get_event_loop().time()
+    processing_time = end_time - start_time
+    return {
+      "text": text,
+      "processing_time": processing_time
+    }
 
 
 async def test_asr(logger, file_path, transcript, realtime_api):
 
     reference = []
     hypothesis = []
+    processing_times = []
 
     print(f"Text: {transcript}", end="", flush=True)
 
@@ -154,8 +200,11 @@ async def test_asr(logger, file_path, transcript, realtime_api):
     for i in range(3):
         print(".", end="", flush=True)
         reference.append(transcript)
-        text = await transcribe(logger, file_path, transcript, realtime_api)
+        result = await transcribe(logger, file_path, transcript, realtime_api)
+        text = result["text"]
+        processing_time = result["processing_time"]
         hypothesis.append(text)
+        processing_times.append(processing_time)
 
     wer_score = wer(reference, hypothesis)
     cer_score = cer(reference, hypothesis)
@@ -166,7 +215,8 @@ async def test_asr(logger, file_path, transcript, realtime_api):
       "wer": wer_score,
       "cer": cer_score,
       "reference": reference,
-      "hypothesis": hypothesis
+      "hypothesis": hypothesis,
+      "processing_times": processing_times
     }
         
 
@@ -195,12 +245,14 @@ async def main():
 
     reference = []
     hypothesis = []
+    processing_times = []
 
     for item in test_data:
         file_path = os.path.join(base_folder, item["file"])
         result = await test_asr(logger, file_path, item["transcript"], realtime_api)
         reference.extend(result["reference"])
         hypothesis.extend(result["hypothesis"])
+        processing_times.extend(result["processing_times"])
 
     await realtime_api.disconnect()
 
@@ -213,12 +265,16 @@ async def main():
     cer_score = cer(reference, hypothesis)
     report_data["wer"] = wer_score
     report_data["cer"] = cer_score
+
+    avg_processing_time = np.mean(processing_times)
+    report_data["avg_processing_time"] = avg_processing_time
     
     test_results = []
     for i in range(len(reference)):
         test_results.append({
             "reference_": reference[i],
-            "hypothesis": hypothesis[i]
+            "hypothesis": hypothesis[i],
+            "processing_time": processing_times[i]
         })
     report_data["test_results"] = test_results
 
@@ -227,7 +283,7 @@ async def main():
     print(f"="*50)
     print("REPORT")
     print(f"="*50)
-    print(f"WER: {wer_score:.2f}, CER: {cer_score:.2f}")
+    print(f"WER: {wer_score:.2f}, CER: {cer_score:.2f}, Avg Processing Time: {avg_processing_time:.2f}ms")
 
     # Create reports folder if it doesn't exist
     reports_folder = os.path.join(base_folder, "..", "reports")
