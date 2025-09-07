@@ -107,7 +107,7 @@ class SpeechTask(EventEmitter):
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()
                     self.logger.debug(f"Base64 audio playback created")
                     self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
-                elif (len(self.audio_queue) == 0 and self.current_playback is not None) or (len(self.audio_queue) == 1 and self.current_playback is not None):
+                elif len(self.audio_queue) == 0 and self.current_playback is None:
                     self.logger.info(f"Creating streaming response for text: {text[:100]}...")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
                     telemetry["load_start_time"] = asyncio.get_event_loop().time()

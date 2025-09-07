@@ -194,20 +194,22 @@ class TestSpeechTask:
             task.wait_time = 0.01  # Set low wait_time for faster test execution
             task.sentence_queue.append("Test sentence.")
             
-            # Current implementation uses DataPlayback for first item (no current_playback)
-            mock_data_playback = AsyncMock()
-            mock_data_playback.add_event_listener = Mock()
+            # Current implementation uses StreamPlayback for first item when no current_playback
+            # because the condition (len(self.audio_queue) == 0 and self.current_playback is not None) 
+            # evaluates to False when current_playback is None, so it goes to the else clause
+            mock_stream_playback = AsyncMock()
+            mock_stream_playback.add_event_listener = Mock()
             # Prevent audio task from draining the queue
-            with patch('yova_core.text2speech.speech_task.DataPlayback', return_value=mock_data_playback), \
+            with patch('yova_core.text2speech.speech_task.StreamPlayback', return_value=mock_stream_playback), \
                  patch.object(task, 'play_audio', new_callable=AsyncMock):
                 await task.convert_to_speech()
                 
                 assert len(task.audio_queue) == 1
-                assert task.audio_queue[0]["playback"] == mock_data_playback
+                assert task.audio_queue[0]["playback"] == mock_stream_playback
                 assert task.audio_queue[0]["text"] == "Test sentence."
                 assert "telemetry" in task.audio_queue[0]
                 assert task.audio_task is not None
-                mock_data_playback.load.assert_called_once()
+                mock_stream_playback.load.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_convert_to_speech_data_playback_subsequent(self):

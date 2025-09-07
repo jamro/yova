@@ -74,7 +74,7 @@ class TestTranscriber:
         """Helper method to create a Transcriber instance for testing."""
         defaults = {
             'logger': Mock(),
-            'realtime_api': Mock(spec=RealtimeApi),
+            'transcription_api': Mock(spec=RealtimeApi),
             'pyaudio_instance': Mock(),
             'voice_id_manager': Mock(spec=VoiceIdManager),
         }
@@ -86,7 +86,7 @@ class TestTranscriber:
         transcriber = self._create_transcriber()
         
         assert transcriber.logger is not None
-        assert transcriber.realtime_api is not None
+        assert transcriber.transcription_api is not None
         assert transcriber.recording_stream is not None
         assert transcriber.audio_buffer is not None
         assert transcriber.prerecord_beep == "beep1.wav"
@@ -125,15 +125,15 @@ class TestTranscriber:
     @pytest.mark.asyncio
     async def test_initialize_and_cleanup(self):
         """Test initialization and cleanup."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
         await transcriber.initialize()
-        mock_realtime_api.connect.assert_called_once()
+        mock_transcription_api.connect.assert_called_once()
         assert transcriber.watchdog_task is not None
         
         await transcriber.cleanup()
-        mock_realtime_api.disconnect.assert_called_once()
+        mock_transcription_api.disconnect.assert_called_once()
         assert transcriber.is_recording is False
         assert transcriber.listening_task is None
         assert transcriber.watchdog_task is None
@@ -141,8 +141,8 @@ class TestTranscriber:
     @pytest.mark.asyncio
     async def test_start_listening(self):
         """Test starting listening."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
         # Initialize first to start watchdog
         await transcriber.initialize()
@@ -153,14 +153,17 @@ class TestTranscriber:
         assert transcriber.listening_task is not None
         assert transcriber.watchdog_task is watchdog_task  # Same watchdog task
         assert transcriber.audio_buffer.recording_start_time is not None
+        
+        # Clean up
+        await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_stop_listening_success(self):
         """Test successful stop listening."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.commit_audio_buffer.return_value = "Hello world"
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.commit_audio_buffer.return_value = "Hello world"
         
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
         # Initialize first
         await transcriber.initialize()
@@ -187,12 +190,15 @@ class TestTranscriber:
             # Watchdog should still be running
             assert transcriber.watchdog_task is watchdog_task
             assert transcriber.is_recording is False
+            
+            # Clean up
+            await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_stop_listening_empty_buffer(self):
         """Test stop listening with empty buffer."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
         # Initialize first
         await transcriber.initialize()
@@ -219,17 +225,20 @@ class TestTranscriber:
             # Watchdog should still be running
             assert transcriber.watchdog_task is watchdog_task
             assert transcriber.is_recording is False
+            
+            # Clean up
+            await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_watchdog_monitor_normal_operation(self):
         """Test watchdog monitor during normal operation."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = True
-        mock_realtime_api.get_session_duration.return_value = 100  # 100 seconds
-        mock_realtime_api.get_inactive_duration.return_value = 50  # 50 seconds
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = True
+        mock_transcription_api.get_session_duration.return_value = 100  # 100 seconds
+        mock_transcription_api.get_inactive_duration.return_value = 50  # 50 seconds
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             max_session_duration=600,  # 10 minutes
             max_inactive_duration=300,  # 5 minutes
             watchdog_check_interval=0.1  # Fast for testing
@@ -239,26 +248,29 @@ class TestTranscriber:
         await transcriber.initialize()
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Let the existing watchdog run for a short time
         await asyncio.sleep(0.2)
         
         # Verify no reconnection was attempted
-        mock_realtime_api.disconnect.assert_not_called()
-        mock_realtime_api.connect.assert_not_called()
+        mock_transcription_api.disconnect.assert_not_called()
+        mock_transcription_api.connect.assert_not_called()
+        
+        # Clean up
+        await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_watchdog_monitor_trigger_reconnection_when_not_listening(self):
         """Test watchdog monitor triggers reconnection when thresholds are exceeded and not listening."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = True
-        mock_realtime_api.get_session_duration.return_value = 700  # 11.7 minutes
-        mock_realtime_api.get_inactive_duration.return_value = 350  # 5.8 minutes
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = True
+        mock_transcription_api.get_session_duration.return_value = 700  # 11.7 minutes
+        mock_transcription_api.get_inactive_duration.return_value = 350  # 5.8 minutes
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             max_session_duration=600,  # 10 minutes
             max_inactive_duration=300,  # 5 minutes
             watchdog_check_interval=0.1  # Fast for testing
@@ -269,26 +281,29 @@ class TestTranscriber:
         transcriber.is_recording = False  # Not listening
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Let the existing watchdog run for a short time
         await asyncio.sleep(0.2)
         
         # Verify reconnection was attempted
-        mock_realtime_api.disconnect.assert_called_once()
-        mock_realtime_api.connect.assert_called_once()
+        mock_transcription_api.disconnect.assert_called_once()
+        mock_transcription_api.connect.assert_called_once()
+        
+        # Clean up
+        await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_watchdog_monitor_no_reconnection_during_listening(self):
         """Test watchdog monitor does NOT trigger reconnection during active listening."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = True
-        mock_realtime_api.get_session_duration.return_value = 700  # 11.7 minutes
-        mock_realtime_api.get_inactive_duration.return_value = 350  # 5.8 minutes
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = True
+        mock_transcription_api.get_session_duration.return_value = 700  # 11.7 minutes
+        mock_transcription_api.get_inactive_duration.return_value = 350  # 5.8 minutes
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             max_session_duration=600,  # 10 minutes
             max_inactive_duration=300,  # 5 minutes
             watchdog_check_interval=0.1  # Fast for testing
@@ -299,8 +314,8 @@ class TestTranscriber:
         transcriber.is_recording = True  # Currently listening
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Start watchdog task
         watchdog_task = asyncio.create_task(transcriber._watchdog_monitor())
@@ -316,17 +331,20 @@ class TestTranscriber:
             pass
         
         # Verify NO reconnection was attempted because we're listening
-        mock_realtime_api.disconnect.assert_not_called()
-        mock_realtime_api.connect.assert_not_called()
+        mock_transcription_api.disconnect.assert_not_called()
+        mock_transcription_api.connect.assert_not_called()
+        
+        # Clean up
+        await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_watchdog_monitor_disconnected_api(self):
         """Test watchdog monitor handles disconnected API."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = False
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = False
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             watchdog_check_interval=0.1  # Fast for testing
         )
         
@@ -334,72 +352,75 @@ class TestTranscriber:
         await transcriber.initialize()
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Let the existing watchdog run for a short time
         await asyncio.sleep(0.2)
         
         # Verify reconnection was attempted
-        mock_realtime_api.disconnect.assert_called_once()
-        mock_realtime_api.connect.assert_called_once()
+        mock_transcription_api.disconnect.assert_called_once()
+        mock_transcription_api.connect.assert_called_once()
+        
+        # Clean up
+        await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_reconnect_realtime_api_success(self):
         """Test successful reconnection of realtime API."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = True
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = True
         
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
-        result = await transcriber._reconnect_realtime_api()
+        result = await transcriber._reconnect_transcription_api()
         
         # Verify disconnect and connect were called
-        mock_realtime_api.disconnect.assert_called_once()
-        mock_realtime_api.connect.assert_called_once()
-        mock_realtime_api.clear_audio_buffer.assert_called_once()
+        mock_transcription_api.disconnect.assert_called_once()
+        mock_transcription_api.connect.assert_called_once()
+        mock_transcription_api.clear_audio_buffer.assert_called_once()
         assert result is True
 
     @pytest.mark.asyncio
     async def test_reconnect_realtime_api_failure(self):
         """Test failed reconnection of realtime API."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = False
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = False
         
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
-        result = await transcriber._reconnect_realtime_api()
+        result = await transcriber._reconnect_transcription_api()
         
         # Verify disconnect and connect were called
-        mock_realtime_api.disconnect.assert_called_once()
-        mock_realtime_api.connect.assert_called_once()
+        mock_transcription_api.disconnect.assert_called_once()
+        mock_transcription_api.connect.assert_called_once()
         # clear_audio_buffer should not be called if connection failed
-        mock_realtime_api.clear_audio_buffer.assert_not_called()
+        mock_transcription_api.clear_audio_buffer.assert_not_called()
         assert result is False
 
     @pytest.mark.asyncio
     async def test_reconnect_realtime_api_exception(self):
         """Test reconnection when an exception occurs."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.disconnect.side_effect = Exception("Connection error")
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.disconnect.side_effect = Exception("Connection error")
         
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
-        result = await transcriber._reconnect_realtime_api()
+        result = await transcriber._reconnect_transcription_api()
         
         # Verify disconnect was called but connect was not
-        mock_realtime_api.disconnect.assert_called_once()
-        mock_realtime_api.connect.assert_not_called()
+        mock_transcription_api.disconnect.assert_called_once()
+        mock_transcription_api.connect.assert_not_called()
         assert result is False
 
     @pytest.mark.asyncio
     async def test_watchdog_exit_on_error_reconnection_failure(self):
         """Test watchdog exits process when reconnection fails and exit_on_error is True."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = False
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = False
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             exit_on_error=True,
             watchdog_check_interval=0.1  # Fast for testing
         )
@@ -408,8 +429,8 @@ class TestTranscriber:
         await transcriber.initialize()
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Mock os._exit to prevent actual exit during testing
         with patch('os._exit') as mock_exit:
@@ -417,18 +438,24 @@ class TestTranscriber:
             await asyncio.sleep(0.2)
             
             # Verify reconnection was attempted and process exit was called
-            mock_realtime_api.disconnect.assert_called_once()
-            mock_realtime_api.connect.assert_called_once()
+            mock_transcription_api.disconnect.assert_called_once()
+            mock_transcription_api.connect.assert_called_once()
             mock_exit.assert_called_once_with(1)
+            
+            # Clean up (though os._exit should have been called)
+            try:
+                await transcriber.cleanup()
+            except:
+                pass
 
     @pytest.mark.asyncio
     async def test_watchdog_no_exit_on_error_reconnection_failure(self):
         """Test watchdog does not exit process when reconnection fails and exit_on_error is False."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.is_connected = False
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.is_connected = False
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             exit_on_error=False,
             watchdog_check_interval=0.1  # Fast for testing
         )
@@ -437,8 +464,8 @@ class TestTranscriber:
         await transcriber.initialize()
         
         # Reset the mock to only count calls after initialize
-        mock_realtime_api.connect.reset_mock()
-        mock_realtime_api.disconnect.reset_mock()
+        mock_transcription_api.connect.reset_mock()
+        mock_transcription_api.disconnect.reset_mock()
         
         # Mock os._exit to prevent actual exit during testing
         with patch('os._exit') as mock_exit:
@@ -446,15 +473,18 @@ class TestTranscriber:
             await asyncio.sleep(0.2)
             
             # Verify reconnection was attempted but process exit was not called
-            mock_realtime_api.disconnect.assert_called_once()
-            mock_realtime_api.connect.assert_called_once()
+            mock_transcription_api.disconnect.assert_called_once()
+            mock_transcription_api.connect.assert_called_once()
             mock_exit.assert_not_called()
+            
+            # Clean up
+            await transcriber.cleanup()
 
     @pytest.mark.asyncio
     async def test_cleanup_with_watchdog(self):
         """Test cleanup properly cancels watchdog task."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        transcriber = self._create_transcriber(realtime_api=mock_realtime_api)
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        transcriber = self._create_transcriber(transcription_api=mock_transcription_api)
         
         # Initialize to start watchdog
         await transcriber.initialize()
@@ -471,12 +501,12 @@ class TestTranscriber:
     @pytest.mark.asyncio
     async def test_listen_and_transcribe_success(self):
         """Test successful listening and transcription."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
         mock_recording_stream = Mock()
         mock_recording_stream.read.return_value = np.array([1000, -2000], dtype=np.int16).tobytes()
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             recording_stream=mock_recording_stream
         )
         
@@ -486,7 +516,7 @@ class TestTranscriber:
             transcriber.is_recording = False
             await task
             
-            mock_realtime_api.clear_audio_buffer.assert_called_once()
+            mock_transcription_api.clear_audio_buffer.assert_called_once()
             mock_emit.assert_called_once_with("audio_recording_started", {"id": mock_emit.call_args[0][1]["id"]})
 
     @pytest.mark.asyncio
@@ -505,8 +535,8 @@ class TestTranscriber:
     @pytest.mark.asyncio
     async def test_listen_and_transcribe_error_handling(self):
         """Test listening with error handling."""
-        mock_realtime_api = AsyncMock(spec=RealtimeApi)
-        mock_realtime_api.query_error.return_value = "API Error"
+        mock_transcription_api = AsyncMock(spec=RealtimeApi)
+        mock_transcription_api.query_error.return_value = "API Error"
         
         mock_recording_stream = Mock()
         mock_recording_stream.read.return_value = np.array([1000, -2000], dtype=np.int16).tobytes()
@@ -518,7 +548,7 @@ class TestTranscriber:
         mock_preprocess_pipeline.process_chunk.return_value = np.array([1000, -2000], dtype=np.int16).tobytes()
         
         transcriber = self._create_transcriber(
-            realtime_api=mock_realtime_api,
+            transcription_api=mock_transcription_api,
             recording_stream=mock_recording_stream,
             preprocess_pipeline=mock_preprocess_pipeline
         )
@@ -529,7 +559,7 @@ class TestTranscriber:
             transcriber.is_recording = False
             await task
             
-            mock_realtime_api.query_error.assert_called()
+            mock_transcription_api.query_error.assert_called()
 
     def test_recording_stream_properties(self):
         """Test recording stream properties."""
