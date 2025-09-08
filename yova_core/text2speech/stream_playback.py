@@ -2,9 +2,14 @@ from yova_core.text2speech.playback import Playback
 from yova_shared import get_clean_logger, EventEmitter
 from openai.helpers import LocalAudioPlayer
 import asyncio
+from yova_core.cost_tracker import CostTracker
+import tiktoken
+import math
+
+AUDIO_TOKENS_PER_SECOND = 21
 
 class StreamPlayback(Playback):
-    def __init__(self, client, logger, text, config={}):
+    def __init__(self, client, logger, text, config={}, cost_tracker=None):
         super().__init__()
         self.client = client
         self.logger = get_clean_logger("stream_playback", logger)
@@ -19,6 +24,7 @@ class StreamPlayback(Playback):
         self.is_stopped = False
         self.playback_task = None
         self.event_emitter = EventEmitter(logger=logger)
+        self.cost_tracker = cost_tracker or CostTracker(logger)
 
     def add_event_listener(self, event_type: str, listener):
         """Add an event listener for a specific event type."""
@@ -72,8 +78,19 @@ class StreamPlayback(Playback):
         if self.is_stopped:
             return
         try:
+            # no usage info available for TTS model, need to estimate it
             await self.event_emitter.emit_event("playing_audio", {"text": self.text})
+            t0 = asyncio.get_event_loop().time()
             await self.stream_audio_player.play(audio)
+            duration_in_seconds = asyncio.get_event_loop().time() - t0
+            
+            input_text_tokens, output_audio_tokens = self.estimate_tokens(self.instructions + " " + self.text, duration_in_seconds)
+            self.cost_tracker.add_cost(
+                model=self.model,
+                input_text_tokens=input_text_tokens,
+                output_audio_tokens=output_audio_tokens
+            )
+            self.logger.info(f"Token usage - Input: {input_text_tokens}, Output: {output_audio_tokens}")
         except asyncio.CancelledError:
             self.logger.debug("Audio playback was cancelled")
             raise

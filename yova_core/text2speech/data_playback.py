@@ -5,9 +5,10 @@ from pydub.playback import _play_with_simpleaudio as play_audio
 from io import BytesIO
 import asyncio
 from yova_shared import EventEmitter
+from yova_core.cost_tracker import CostTracker
 
 class DataPlayback(Playback):
-    def __init__(self, client, logger, text, config={}):
+    def __init__(self, client, logger, text, config={}, cost_tracker=None):
         super().__init__()
         self.client = client
         self.logger = get_clean_logger("data_playback", logger)
@@ -21,6 +22,7 @@ class DataPlayback(Playback):
         self.current_playback = None
         self.is_stopped = False
         self.event_emitter = EventEmitter(logger=logger)
+        self.cost_tracker = cost_tracker or CostTracker(logger)
 
     def add_event_listener(self, event_type: str, listener):
         """Add an event listener for a specific event type."""
@@ -52,7 +54,16 @@ class DataPlayback(Playback):
         await self.event_emitter.emit_event("playing_audio", {"text": self.text})
         audio = AudioSegment.from_file(BytesIO(self.audio_data), format=self.format)
         self.current_playback = await asyncio.to_thread(play_audio, audio)
+        t0 = asyncio.get_event_loop().time()
         await asyncio.to_thread(self.current_playback.wait_done)
+        duration_in_seconds = asyncio.get_event_loop().time() - t0
+        input_text_tokens, output_audio_tokens = self.estimate_tokens(self.instructions + " " + self.text, duration_in_seconds)
+        self.cost_tracker.add_cost(
+            model=self.model,
+            input_text_tokens=input_text_tokens,
+            output_audio_tokens=output_audio_tokens
+        )
+        self.logger.info(f"Token usage (data playback) - Input: {input_text_tokens}, Output: {output_audio_tokens}")
 
     async def stop(self) -> None:
         self.is_stopped = True

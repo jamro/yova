@@ -5,6 +5,7 @@ from openai import OpenAI
 import base64
 import asyncio
 from yova_core.speech2text.transcription_api import TranscriptionApi
+from yova_core.cost_tracker import CostTracker
 
 # WebSocket configuration
 WEBSOCKET_URI = "wss://api.openai.com/v1/realtime"
@@ -15,7 +16,7 @@ FORMAT = "pcm16"
 class RealtimeApi(TranscriptionApi):
     
     def __init__(self, api_key, logger, openai_client=None, websocket_connector=None, 
-                 model="gpt-4o-transcribe", language="en", noise_reduction="near_field", instructions=""):
+                 model="gpt-4o-transcribe", language="en", noise_reduction="near_field", instructions="", cost_tracker=None):
         self.logger = get_clean_logger("realtime_api", logger)
         self._openai_client = openai_client or OpenAI(api_key=api_key)
         self._websocket_connector = websocket_connector or websockets.connect
@@ -28,7 +29,8 @@ class RealtimeApi(TranscriptionApi):
         self.instructions = instructions
         self.session_start_time = None
         self.last_activity_time = None
-        
+        self.cost_tracker = cost_tracker or CostTracker(logger)
+
     async def connect(self):
         """Connect to OpenAI's Realtime API"""
         self.logger.info(f"Connecting to OpenAI Realtime API...")
@@ -36,7 +38,7 @@ class RealtimeApi(TranscriptionApi):
         self.last_activity_time = asyncio.get_event_loop().time()
         
         # Stage 1: Create transcription session for authentication purposes
-        client_secret = self._create_transcription_session(self.model, self.language, self.noise_reduction)
+        client_secret = self._create_transcription_session(self.model, self.language, self.noise_reduction, self.instructions)
         if not client_secret:
             self.logger.error("Failed to create transcription session")
             return False
@@ -152,6 +154,15 @@ class RealtimeApi(TranscriptionApi):
                 return ''
             elif message_type == "conversation.item.input_audio_transcription.completed":
                 self.logger.info(f"Transcription completed: {data['transcript']}")
+
+                # track usage
+                self.cost_tracker.add_cost(
+                  self.model, 
+                  input_text_tokens=data['usage']['input_token_details']['text_tokens'], 
+                  input_audio_tokens=data['usage']['input_token_details']['audio_tokens'], 
+                  output_text_tokens=data['usage']['output_tokens']
+                )
+
                 return data.get("transcript")
             
         self.logger.error("Commit audio without transcription")
@@ -184,10 +195,10 @@ class RealtimeApi(TranscriptionApi):
         
         return len(self.websocket.messages)
 
-    def _create_transcription_session(self, model="gpt-4o-transcribe", language="en", noise_reduction="near_field"):
+    def _create_transcription_session(self, model="gpt-4o-transcribe", language="en", noise_reduction="near_field", prompt=""):
         """Create a transcription session"""
         try:
-          config = self._get_session_config(model, language, noise_reduction)
+          config = self._get_session_config(model, language, noise_reduction, prompt=prompt)
           response = self._openai_client.beta.realtime.transcription_sessions.create(**config)
           return response.client_secret
         except Exception as e:

@@ -6,9 +6,10 @@ from yova_core.text2speech.speech_task import SpeechTask
 from yova_shared import get_clean_logger
 from yova_shared import EventEmitter
 from typing import Any, Awaitable, Callable
+from yova_core.cost_tracker import CostTracker
 
 class SpeechHandler:
-    def __init__(self, logger, api_key, playback_config=None):
+    def __init__(self, logger, api_key, playback_config=None, cost_tracker=None):
         """
         Initialize SpeechHandler for streaming text-to-speech.
         
@@ -24,6 +25,7 @@ class SpeechHandler:
         self.is_active = False
         self.ignored_messages = []
         self.event_emitter = EventEmitter(logger=logger)
+        self.cost_tracker = cost_tracker or CostTracker(logger)
 
     def ignore_message(self, message_id):
         if message_id in self.ignored_messages:
@@ -59,7 +61,7 @@ class SpeechHandler:
         
         task = self.get_task(message_id)
         if task is None:
-            task = SpeechTask(message_id, self.api_key, self.logger, self.playback_config)
+            task = SpeechTask(message_id, self.api_key, self.logger, self.playback_config, self.cost_tracker)
             task.add_event_listener("playing_audio", self.on_playing_audio)
             self.tasks.append(task)
 

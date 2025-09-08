@@ -9,6 +9,7 @@ import numpy as np
 import base64
 from yova_core.speech2text.apm import YovaPipeline
 from yova_core.speech2text.batch_api import BatchApi
+from yova_core.cost_tracker import CostTracker
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -34,8 +35,10 @@ async def main():
     publisher = Publisher()
     await publisher.connect()
 
-    # Create state machine
+    # config cost tracker
+    cost_tracker = CostTracker(logger)
 
+    # Create state machine
     if get_config("speech2text.streaming"):
         logger.info("Using streaming transcription API")
         transcription_api = RealtimeApi(
@@ -45,6 +48,7 @@ async def main():
             language=get_config("speech2text.language"),
             noise_reduction=get_config("speech2text.noise_reduction"),
             instructions=get_config("speech2text.instructions"),
+            cost_tracker=cost_tracker
         )
     else:
         logger.info("Using batch transcription API")
@@ -52,12 +56,13 @@ async def main():
             logger,
             api_key,
             model=get_config("speech2text.model"),
-            prompt=get_config("speech2text.instructions")
+            prompt=get_config("speech2text.instructions"),
+            cost_tracker=cost_tracker
         )
 
     state_machine = StateMachine(
         logger,
-        SpeechHandler(logger, api_key, playback_config),
+        SpeechHandler(logger, api_key, playback_config, cost_tracker),
         Transcriber(
             logger=logger,
             transcription_api=transcription_api,

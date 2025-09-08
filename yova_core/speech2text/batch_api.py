@@ -5,16 +5,17 @@ from openai import OpenAI
 import io
 import wave
 import struct
-
+from yova_core.cost_tracker import CostTracker
 
 class BatchApi(TranscriptionApi):
-    def __init__(self, logger, api_key, model="gpt-4o-transcribe", prompt=""):
+    def __init__(self, logger, api_key, model="gpt-4o-transcribe", prompt="", cost_tracker=None):
         self.logger = get_clean_logger("batch_api", logger)
         self.buffer = []
         self.error = None
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.prompt = prompt
+        self.cost_tracker = cost_tracker or CostTracker(logger)
 
     @property
     def is_connected(self) -> bool:
@@ -85,6 +86,13 @@ class BatchApi(TranscriptionApi):
             
             self.error = str(e)
             return ''
+
+        self.cost_tracker.add_cost(
+          self.model, 
+          input_text_tokens=transcription.usage.input_token_details.text_tokens, 
+          input_audio_tokens=transcription.usage.input_token_details.audio_tokens, 
+          output_text_tokens=transcription.usage.output_tokens
+        )
 
         return transcription.text
 

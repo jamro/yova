@@ -7,9 +7,10 @@ from yova_shared import get_clean_logger, EventEmitter
 from yova_core.text2speech.stream_playback import StreamPlayback
 from yova_core.text2speech.data_playback import DataPlayback
 from yova_core.text2speech.base64_playback import Base64Playback
+from yova_core.cost_tracker import CostTracker
 
 class SpeechTask(EventEmitter):
-    def __init__(self, message_id, api_key, logger, playback_config=None):
+    def __init__(self, message_id, api_key, logger, playback_config=None, cost_tracker=None):
         super().__init__(logger)
         self.message_id = message_id
         self.logger = get_clean_logger("speech_task", logger)
@@ -26,6 +27,7 @@ class SpeechTask(EventEmitter):
         self.audio_task = None
         self.conversion_task = None
         self.current_playback = None
+        self.cost_tracker = cost_tracker or CostTracker(logger)
         
         # Use provided playback_config or default values
         if playback_config is not None:
@@ -109,7 +111,7 @@ class SpeechTask(EventEmitter):
                     self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
                 elif len(self.audio_queue) == 0 and self.current_playback is None:
                     self.logger.info(f"Creating streaming response for text: {text[:100]}...")
-                    playback = StreamPlayback(self.client, self.logger, text, self.playback_config)
+                    playback = StreamPlayback(self.client, self.logger, text, self.playback_config, cost_tracker=self.cost_tracker)
                     telemetry["load_start_time"] = asyncio.get_event_loop().time()
                     await playback.load()
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()
@@ -120,7 +122,7 @@ class SpeechTask(EventEmitter):
                     self.logger.info(f"Waiting for streaming to finish: {wait_time}s")
                     await asyncio.sleep(wait_time)
                     self.logger.info(f"Creating non-streaming response for text: {text[:100]}...")
-                    playback = DataPlayback(self.client, self.logger, text, self.playback_config)
+                    playback = DataPlayback(self.client, self.logger, text, self.playback_config, cost_tracker=self.cost_tracker)
                     telemetry["load_start_time"] = asyncio.get_event_loop().time()
                     await playback.load()
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()

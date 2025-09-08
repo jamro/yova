@@ -370,7 +370,14 @@ class TestRealtimeApi:
         messages = [
             json.dumps({
                 "type": "conversation.item.input_audio_transcription.completed",
-                "transcript": "Hello world"
+                "transcript": "Hello world",
+                "usage": {
+                    "input_token_details": {
+                        "text_tokens": 0,
+                        "audio_tokens": 100
+                    },
+                    "output_tokens": 50
+                }
             })
         ]
         mock_websocket.__aiter__ = lambda self: AsyncIterator(messages)
