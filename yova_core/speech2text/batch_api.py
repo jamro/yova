@@ -87,7 +87,8 @@ class BatchApi(TranscriptionApi):
             self.error = str(e)
             return ''
 
-        self.cost_tracker.add_cost(
+        self.cost_tracker.add_model_cost(
+          "core",
           self.model, 
           input_text_tokens=transcription.usage.input_token_details.text_tokens, 
           input_audio_tokens=transcription.usage.input_token_details.audio_tokens, 

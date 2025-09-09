@@ -2,6 +2,7 @@ from yova_shared import get_clean_logger
 from enum import Enum
 from yova_shared import EventEmitter
 import asyncio
+from yova_core.cost_tracker import CostTracker
 
 # define states as enum 
 class State(Enum):
@@ -11,13 +12,14 @@ class State(Enum):
 
 class StateMachine(EventEmitter):
 
-    def __init__(self, logger, speech_handler, transcriber):
+    def __init__(self, logger, speech_handler, transcriber, cost_tracker=None):
         super().__init__(logger)
         self.logger = get_clean_logger("state_machine", logger)
         self.state = State.IDLE
         self.transcriber = transcriber
         self.speech_handler = speech_handler
         self.speech_handler.add_event_listener("message_completed", self.on_speech_completed)
+        self.cost_tracker = cost_tracker or CostTracker(logger)
 
     def get_state(self):
         return self.state
@@ -42,7 +44,7 @@ class StateMachine(EventEmitter):
         if self.state == State.IDLE:
             pass # already idle
         elif self.state == State.LISTENING:
-            raise Exception("Not implemented")
+            pass # ignore
         elif self.state == State.SPEAKING:
             await self._set_state(State.IDLE)
         else:
@@ -50,6 +52,12 @@ class StateMachine(EventEmitter):
 
     async def on_response_chunk(self, id, text):
         if self.state == State.IDLE:
+            if self.cost_tracker.is_budget_exceeded():
+                await self.emit_event("error", {
+                    "error": "Budget exceeded",
+                    "details": "Unable to process response chunk due to budget exceeded"
+                })
+                return
             await self._set_state(State.SPEAKING)
             await self.speech_handler.process_chunk(id, text)
         elif self.state == State.LISTENING:
@@ -73,6 +81,13 @@ class StateMachine(EventEmitter):
             raise Exception("Invalid state " + self.state)
 
     async def on_input_activated(self):
+        if self.cost_tracker.is_budget_exceeded():
+            await self.emit_event("error", {
+                "error": "Budget exceeded",
+                "details": "Unable to start listening due to budget exceeded"
+            })
+            return
+
         if self.state == State.IDLE:
             await self._set_state(State.LISTENING)
             await self.transcriber.start_listening()

@@ -58,7 +58,8 @@ class DataPlayback(Playback):
         await asyncio.to_thread(self.current_playback.wait_done)
         duration_in_seconds = asyncio.get_event_loop().time() - t0
         input_text_tokens, output_audio_tokens = self.estimate_tokens(self.instructions + " " + self.text, duration_in_seconds)
-        self.cost_tracker.add_cost(
+        self.cost_tracker.add_model_cost(
+            "core",
             model=self.model,
             input_text_tokens=input_text_tokens,
             output_audio_tokens=output_audio_tokens

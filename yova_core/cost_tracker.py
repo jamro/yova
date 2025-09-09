@@ -2,6 +2,8 @@ from yova_shared import get_clean_logger
 from datetime import datetime
 import json
 from pathlib import Path
+from yova_shared import EventEmitter
+import asyncio
 
 PRICE_TABLES = {
     "gpt-4o-mini-tts": { # price per 1M tokens
@@ -9,17 +11,20 @@ PRICE_TABLES = {
         "output_audio_tokens": 12.00
     },
     "gpt-4o-transcribe": { # price per 1M tokens
-        "input_text_tokens": 6.00,
+        "input_audio_tokens": 2.50,
+        "input_audio_tokens": 6.00,
         "output_text_tokens": 10.00
     },
     "gpt-4o-mini-transcribe": { # price per 1M tokens
-        "input_text_tokens": 3.00,
+        "input_audio_tokens": 1.25,
+        "output_audio_tokens": 3.00,
         "output_text_tokens": 5.00
     },
 }
 
-class CostTracker:
-    def __init__(self, logger, usage_log_location=None, daily_budget=None):
+class CostTracker(EventEmitter):
+    def __init__(self, logger, usage_log_location=None, daily_budget=0.00):
+        super().__init__(logger=logger)
         self.logger = get_clean_logger("cost_tracker", logger)
         self.cost = 0
         self.usage_log_location = usage_log_location
@@ -37,14 +42,15 @@ class CostTracker:
                     self.logger.info(f"Loaded {len(self.usage_log)} usage logs from {current_log_filepath}. Total cost: ${self.cost:.5f}")
 
     def is_budget_exceeded(self):
-        if not self.daily_budget:
+        self.logger.info(f"Checking if budget is exceeded. Current cost: ${self.cost:.5f}, daily budget: ${self.daily_budget:.5f}")
+        if not self.daily_budget or self.daily_budget == 0.00:
             return False
         return self.cost >= self.daily_budget
 
     def get_current_log_filename(self):
         return self.usage_log_location / f"usage_{datetime.now().strftime('%Y-%m-%d')}.json"
 
-    def add_cost(self, model, input_text_tokens=0, input_audio_tokens=0, output_text_tokens=0, output_audio_tokens=0):
+    def add_model_cost(self, source, model, input_text_tokens=0, input_audio_tokens=0, output_text_tokens=0, output_audio_tokens=0):
         self.logger.info(f"Tracking cost for model: {model}, input_text_tokens: {input_text_tokens}, input_audio_tokens: {input_audio_tokens}, output_text_tokens: {output_text_tokens}, output_audio_tokens: {output_audio_tokens}")
 
         if model not in PRICE_TABLES:
@@ -62,8 +68,10 @@ class CostTracker:
 
         self.logger.info(f"Cost of operation: ${cost:.5f}. Total cost: ${self.cost:.5f}")
 
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         self.usage_log.append({
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "timestamp": timestamp,
+            "source": source,
             "model": model,
             "input_text_tokens": input_text_tokens,
             "input_audio_tokens": input_audio_tokens,
@@ -72,6 +80,42 @@ class CostTracker:
             "cost": cost,
         })
         self.save_usage_log()
+        asyncio.create_task(self.emit_event("add_cost", {
+            "timestamp": timestamp,
+            "source": source,
+            "model": model,
+            "input_text_tokens": input_text_tokens,
+            "input_audio_tokens": input_audio_tokens,
+            "output_text_tokens": output_text_tokens,
+            "output_audio_tokens": output_audio_tokens,
+            "cost": cost,
+            "daily_cost": self.cost,
+            "daily_budget": self.daily_budget
+        }))
+
+    def add_api_cost(self, cost, extra_data={}):
+        self.logger.info(f"Tracking cost for API... Cost of operation: ${cost:.5f}. Total cost: ${self.cost:.5f}")
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        self.usage_log.append({
+            "timestamp": timestamp,
+            "source": "api",
+            "cost": cost,
+            **extra_data
+        })
+        self.save_usage_log()
+        asyncio.create_task(self.emit_event("add_cost", {
+            "timestamp": timestamp,
+            "source": "api",
+            "model": extra_data.get("model", "unknown"),
+            "input_text_tokens": extra_data.get("input_text_tokens", 0),
+            "input_audio_tokens": extra_data.get("input_audio_tokens", 0),
+            "output_text_tokens": extra_data.get("output_text_tokens", 0),
+            "output_audio_tokens": extra_data.get("output_audio_tokens", 0),
+            "cost": cost,
+            "daily_cost": self.cost,
+            "daily_budget": self.daily_budget
+        }))
 
     def save_usage_log(self):
         if not self.usage_log_location:

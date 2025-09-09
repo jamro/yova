@@ -16,13 +16,21 @@ The configuration is organized into three main sections:
 ```json
 {
   "open_ai": {
-    "api_key": "your-openai-api-key-here"
+    "api_key": "your-openai-api-key-here",
+    "budget": {
+      "daily_usd_limit": 10.00
+    }
   }
 }
 ```
 
 **Parameters:**
 - `api_key` (string, required): Your OpenAI API key for accessing speech and transcription services
+- `budget` (object, required): Your OpenAI budget for accessing speech and transcription services
+  - `daily_usd_limit` (number, required): Your daily USD limit for accessing speech and transcription services. When 0.00, the budget is unlimited.
+
+**Pro Tips:**
+Use can use Yova to track backend costs too and include them in the budget. See [events.md](events.md) and look for `yova.api.usage.occur` and `yova.core.usage.change` events for more details. It's optional.
 
 ### Text-to-Speech Configuration (`text2speech`)
 

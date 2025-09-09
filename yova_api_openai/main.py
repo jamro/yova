@@ -61,10 +61,19 @@ async def main():
             "id": data['id']
         })  
 
+    async def onTokenUsage(data):
+        await publisher.publish("api_connector_openai", "yova.api.usage.occur", {
+            "cost": data['cost'],
+            "extra_data": {
+                "model": data['model']
+            }
+        })
+
     api_connector.add_event_listener("message_chunk", onMessageChunk)
     api_connector.add_event_listener("message_completed", onMessageCompleted)
     api_connector.add_event_listener("processing_started", onProcessingStarted)
     api_connector.add_event_listener("processing_completed", onProcessingCompleted)
+    api_connector.add_event_listener("token_usage", onTokenUsage)
 
     await api_connector.configure({"api_key": api_key})
     await api_connector.connect()

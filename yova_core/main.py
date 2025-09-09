@@ -39,8 +39,25 @@ async def main():
     # config cost tracker
     cost_tracker = CostTracker(
         logger, 
-        usage_log_location=Path(__file__).parent.parent / ".data" / "usage"
+        usage_log_location=Path(__file__).parent.parent / ".data" / "usage",
+        daily_budget=get_config("open_ai.budget.daily_usd_limit")
     )
+    async def on_add_cost(data):
+        await publisher.publish("core", "yova.core.usage.change", {
+            "cost": data['cost'],
+            "daily_cost": data['daily_cost'],
+            "daily_budget": data['daily_budget'],
+            "extra_data": {
+              "timestamp": data['timestamp'],
+              "source": data['source'],
+              "model": data['model'],
+              "input_text_tokens": data['input_text_tokens'],
+              "input_audio_tokens": data['input_audio_tokens'],
+              "output_text_tokens": data['output_text_tokens'],
+              "output_audio_tokens": data['output_audio_tokens']
+            }
+        })
+    cost_tracker.add_event_listener("add_cost", on_add_cost)
 
     # Create state machine
     if get_config("speech2text.streaming"):
@@ -90,7 +107,8 @@ async def main():
             prerecord_beep=get_config("speech2text.prerecord_beep"),
             min_speech_length=get_config("speech2text.preprocessing.min_speech_length"),
             exit_on_error=True
-        )
+        ),
+        cost_tracker=cost_tracker
     )
     async def log_state_change(data):
         logger.info(f"State changed: {data['previous_state']} -> {data['new_state']}")
@@ -98,12 +116,21 @@ async def main():
             "previous_state": data['previous_state'],
             "new_state": data['new_state']
         })
+
+    async def log_error(data):
+        logger.error(f"Error: {data['error']}")
+        await publisher.publish("core", "yova.core.error", {
+            "error": data['error'],
+            "details": data['details']
+        })
+
     state_machine.add_event_listener("state_changed", log_state_change)
+    state_machine.add_event_listener("error", log_error)
 
     # Create broker subscriber
     subscriber = Subscriber()
     await subscriber.connect()
-    await subscriber.subscribe_all(["yova.api.tts.chunk", "yova.api.tts.complete", "yova.core.input.state"])
+    await subscriber.subscribe_all(["yova.api.tts.chunk", "yova.api.tts.complete", "yova.core.input.state", "yova.api.usage.occur"])
     
     async def on_message(topic, message):
         data = message['data']
@@ -126,6 +153,10 @@ async def main():
                 await state_machine.on_input_activated()
             else:
                 await state_machine.on_input_deactivated()
+
+        # yova.api.usage.occur ================================================================
+        elif topic == "yova.api.usage.occur":
+            cost_tracker.add_api_cost(data['cost'], data['extra_data'] if 'extra_data' in data else {})
 
     listener_task = asyncio.create_task(subscriber.listen(on_message))
 

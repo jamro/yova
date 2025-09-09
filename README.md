@@ -27,6 +27,7 @@ graph TD
 - **Real-time audio processing**: optimized for low latency voice interactions with streaming architecture
 - **[Voice ID](docs/voice_id.md)**: biometric identification of users by voice for personalization and access control
 - **[Audio post-processing](docs/audio_processing.md)**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy
+- **Budget management**: track and manage your costs and budgets
 - **[Modular architecture](docs/architecture.md)**: add plugins, extensions, or connect other hardware without rewriting the core (e.g. add a camera, a screen, a speaker, a button, etc.)
 
 ## What YOVA doesn't provide:

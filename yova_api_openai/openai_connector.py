@@ -21,6 +21,9 @@ SUPPORTED_FORMATS = {
     'wma': 'audio/x-ms-wma'
 }
 
+INPUT_TOKEN_COST = 2.50 / 1000000
+OUTPUT_TOKEN_COST = 10.00 / 1000000
+
 def get_file_format(file_path):
     """Extract file format from file path"""
     _, ext = os.path.splitext(file_path)
@@ -122,7 +125,8 @@ class OpenAIConnector(ApiConnector):
                 messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
-                stream=True
+                stream=True,
+                stream_options={"include_usage": True}
             )
             
             full_response = ""
@@ -130,7 +134,7 @@ class OpenAIConnector(ApiConnector):
             # Process the streaming response
             first_chunk = True
             async for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
+                if chunk.choices and chunk.choices[0].delta.content is not None:
                     content = chunk.choices[0].delta.content
                     full_response += content
 
@@ -142,6 +146,12 @@ class OpenAIConnector(ApiConnector):
                     chunk_data = {"id": message_id, "text": content}
                     await self.event_emitter.emit_event("message_chunk", chunk_data)
                     self.logger.debug(f"OpenAIConnector: Emitted chunk: {chunk_data}")
+                elif chunk.usage:
+                    await self.event_emitter.emit_event("token_usage", { 
+                        "model": self.model,
+                        "cost": chunk.usage.prompt_tokens * INPUT_TOKEN_COST + chunk.usage.completion_tokens * OUTPUT_TOKEN_COST
+                    })
+
             
             # Add assistant response to conversation history
             self.conversation_history.add_assistant_message(full_response, message_id)

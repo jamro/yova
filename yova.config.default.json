@@ -1,6 +1,9 @@
 {
   "open_ai": {
-    "api_key": "sk-proj-..."
+    "api_key": "sk-proj-...",
+    "budget": {
+      "daily_usd_limit": 10.00
+    }
   },
   "text2speech": {
     "model": "gpt-4o-mini-tts",

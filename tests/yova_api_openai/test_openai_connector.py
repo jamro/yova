@@ -114,7 +114,7 @@ class TestOpenAIConnector:
         connector.client.chat.completions.create.assert_called_once()
         
         # Verify events were emitted
-        assert connector.event_emitter.emit_event.call_count == 6
+        assert connector.event_emitter.emit_event.call_count == 7
         
         # Get all calls to verify the structure
         calls = connector.event_emitter.emit_event.call_args_list
@@ -127,10 +127,18 @@ class TestOpenAIConnector:
         completion_calls = [call for call in calls if call[0][0] == "message_completed"]
         assert len(completion_calls) == 1
         
+        # Verify processing events
+        processing_started_calls = [call for call in calls if call[0][0] == "processing_started"]
+        processing_completed_calls = [call for call in calls if call[0][0] == "processing_completed"]
+        assert len(processing_started_calls) == 1
+        assert len(processing_completed_calls) == 1
+        
         # Verify all events have the expected structure
         for call in calls:
             event_data = call[0][1]
-            assert "id" in event_data
+            # token_usage event doesn't have an id field
+            if call[0][0] != "token_usage":
+                assert "id" in event_data
             # Only message_chunk and message_completed events have text field
             if call[0][0] in ["message_chunk", "message_completed"]:
                 assert "text" in event_data
@@ -138,7 +146,10 @@ class TestOpenAIConnector:
         # Verify same ID for correlation
         message_id = chunk_calls[0][0][1]["id"]
         assert chunk_calls[1][0][1]["id"] == message_id
+        assert chunk_calls[2][0][1]["id"] == message_id
         assert completion_calls[0][0][1]["id"] == message_id
+        assert processing_started_calls[0][0][1]["id"] == message_id
+        assert processing_completed_calls[0][0][1]["id"] == message_id
         
         # Verify text content
         # First chunk is hmmm sound (base64 audio), second is "Hello", third is " world"

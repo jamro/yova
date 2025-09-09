@@ -48,8 +48,10 @@ All YOVA events follow a standardized envelope format that provides metadata and
 - `yova.api.tts.complete` - All response chunks sent
 - `yova.api.thinking.start` - Backend API processing begins
 - `yova.api.thinking.stop` - Backend API processing completes
+- `yova.api.usage.occur` - Track backend costs (optional)
 - `yova.api.error` - Event for API errors handling
 - `yova.core.state.change` - State machine transitions (idle/listening/speaking)
+- `yova.core.usage.change` - Usage/cost changed
 - `yova.core.audio.record.start` - Audio recording begins
 - `yova.core.audio.play.start` - Audio playback begins
 - `yova.core.input.state` - Input activation status changes
@@ -201,9 +203,35 @@ More details in [Voice ID documentation](voice_id.md).
 
 **Description**: Signals that processing has finished and thinking indicators should stop. Event is optional, and can be omitted.
 
----
+#### `yova.api.usage.occur`
+**When**: Backend cost is tracked
+**Publisher**: API connector
+**Subscribers**: UI systems, monitoring tools
 
-### 4. API Error Events
+**Data Structure**:
+```json
+{
+  "v": 1,
+  "event": "yova.api.usage.occur",
+  "msg_id": "uuid-1234-5678-9abc-def5",
+  "source": "api_connector",
+  "ts_ms": 1756115770128,
+  "data": {
+    "cost": "number",
+    "extra_data": "object"
+  }
+}
+```
+
+**Description**: Signals that the backend cost has been incurred. Event is optional, and can be omitted. It can be used with yova budgets. To handle budget exceeded on backend side listen for `yova.core.usage.change` event. 
+
+**Data Structure**:
+- `cost`: The cost of the operation in USD
+- `extra_data`: Optional data about the operation to be stored in the usage log. For example: `{"model": "gpt-4o-mini-tts", "input_text_tokens": 100, "input_audio_tokens": 100, "output_text_tokens": 100, "output_audio_tokens": 100}`
+
+**Use Cases**:
+- Track backend costs for billing
+- Implement budget management on backend side
 
 #### `yova.api.error`
 **When**: API error occurs
@@ -234,7 +262,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 5. Core System State Events
+### 4. Core System State Events
 
 #### `yova.core.state.change`
 **When**: Voice assistant's internal state machine transitions
@@ -266,9 +294,43 @@ More details in [Voice ID documentation](voice_id.md).
 - Update user interfaces to show current operational status
 - Coordinate actions based on system state
 
+#### `yova.core.usage.change`
+**When**: Usage/cost changed
+**Publisher**: Core system
+**Subscribers**: UI systems, monitoring tools
+
+**Data Structure**:
+```json
+{
+  "v": 1,
+  "event": "yova.core.usage.change",
+  "msg_id": "uuid-1234-5678-9abc-def6",
+  "source": "core",
+  "ts_ms": 1756115770129,
+  "data": {
+    "cost": "number",
+    "daily_cost": "number",
+    "daily_budget": "number",
+    "extra_data": "object"
+  }
+}
+```
+
+**Description**: Signals that the usage/cost has changed.
+
+**Use Cases**:
+- Track usage/cost for billing
+- Implement budget management on backend side
+
+**Data Structure**:
+- `cost`: The cost of the operation in USD
+- `daily_cost`: The total daily cost of all operations in USD
+- `daily_budget`: The daily budget for the operation in USD. When 0.00, the budget is unlimited.
+- `extra_data`: Optional data about the operation to be stored in the usage log. For example: `{"model": "gpt-4o-mini-tts", "input_text_tokens": 100, "input_audio_tokens": 100, "output_text_tokens": 100, "output_audio_tokens": 100}`
+
 ---
 
-### 6. Audio Activity Events
+### 5. Audio Activity Events
 
 #### `yova.core.audio.record.start`
 **When**: Audio recording begins
@@ -315,7 +377,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 7. Input Status Events
+### 6. Input Status Events
 
 #### `yova.core.input.state`
 **When**: Input activation status changes
@@ -350,7 +412,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 8. System Health Events
+### 7. System Health Events
 
 #### `yova.core.health.ping`
 **When**: Test event for broker verification
@@ -375,10 +437,6 @@ More details in [Voice ID documentation](voice_id.md).
 
 **Use Cases**:
 - Testing and debugging the ZeroMQ broker
-
----
-
-### 9. Core Error Events
 
 #### `yova.core.error`
 **When**: Core error occurs

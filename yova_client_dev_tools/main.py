@@ -32,7 +32,13 @@ async def test_question_callback(event_data):
     await publisher.connect()
     await publisher.publish("dev_tools", "yova.api.asr.result", {
         "id": str(uuid.uuid4()),
-        "transcript": "Jaka jest stolica Polski?"
+        "transcript": "Jaka jest stolica Polski?",
+        "voice_id": {
+          "user_id": None,
+          "similarity": None,
+          "confidence_level": None,
+          "embedding": None
+        }
     })
 
 async def test_error_callback(event_data):
