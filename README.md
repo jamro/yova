@@ -20,18 +20,20 @@ graph TD
     Y <--> A[Your AI Assistant Backend API]
 ```
 
-## What makes YOVA useful:
- - **Runs on Raspberry Pi**: lightweight enough for edge devices, always ready to listen.
- - **Compact form factor**: a small device you can keep on your desk, in your room, or integrate into other projects.
- - **Multi-language support**: supports multiple languages for speech recognition and text-to-speech, making it convenient for users worldwide.
- - **3D printed case**: comes with customizable 3D models so you can print your own version or tweak the design.
- - **[Voice ID](docs/voice_id.md)**: biometric identification of users by voice for personalization and access control.
- - **[Audio post-processing](docs/audio_processing.md)**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy.
- - **[Modular architecture](docs/architecture.md)** - add plugins, extensions, or connect other hardware without rewriting the core. (e.g. add a camera, a screen, a speaker, a button, etc.)
- - **[Flexible integration](docs/integration.md)**: connect it to any backend you want to build.
- - **Ready after install** ships with a working ChatGPT integration as a simple example, so you can start using it right away.
+## What YOVA gives you:
 
-## Performance
+- **Compact Pi device**: lightweight enough for edge devices, always ready to listen - a small device you can keep on your desk, in your room, or integrate into other projects. Comes with customizable 3D models so you can print your own version or tweak the design
+- **Multi-language support**: supports multiple languages for speech recognition and text-to-speech, making it convenient for users worldwide
+- **Real-time audio processing**: optimized for low latency voice interactions with streaming architecture
+- **[Voice ID](docs/voice_id.md)**: biometric identification of users by voice for personalization and access control
+- **[Audio post-processing](docs/audio_processing.md)**: advanced signal processing techniques including noise reduction, echo cancellation, and acoustic echo processing to significantly improve speech recognition accuracy
+- **[Modular architecture](docs/architecture.md)**: add plugins, extensions, or connect other hardware without rewriting the core (e.g. add a camera, a screen, a speaker, a button, etc.)
+
+## What YOVA doesn't provide:
+
+- **Not a complete voice assistant**: YOVA is a building block for creating voice assistants, not a ready-to-use solution. The included OpenAI integration is just a simple example to get you started. You need to build your own backend connections to ChatGPT, Claude, custom agents, n8n workflows, or any other API - see [integration guide](docs/integration.md) for details. The real power lies in building your own custom assistant backend that fits your specific needs
+
+## Efficient Processing Flow
 
 YOVA is designed for low-latency voice interactions. Current performance metrics show:
 - **Input latency**: ~60ms median from button press to recording start
@@ -39,8 +41,6 @@ YOVA is designed for low-latency voice interactions. Current performance metrics
 - **Answer playback**: ~700ms median from API response to speech start (can be made to feel even better with proper UX strategies)
 
 For detailed performance analysis, optimization strategies, and pro tips, see the [Performance Guide](docs/performance.md).
-
-## Processing Flow
 
 The following diagram illustrates how YOVA processes voice interactions from input to output, showing the streaming architecture that enables low-latency performance:
 
