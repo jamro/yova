@@ -9,6 +9,7 @@ import sys
 from yova_broker.broker import YovaBroker
 from yova_broker.broker_tester import BrokerTester
 from yova_broker.broker_monitor import BrokerMonitor
+from yova_broker.broker_validator import BrokerValidator
 
 
 def signal_handler(signum, frame):
@@ -38,7 +39,8 @@ async def main():
         await asyncio.gather(
             broker.wait_for_proxy(),
             BrokerMonitor(broker).run_monitor(),
-            BrokerTester(broker).run_test()
+            BrokerTester(broker).run_test(),
+            BrokerValidator(broker).run_validator()
         )
     except KeyboardInterrupt:
         logging.info("Received interrupt signal, shutting down gracefully...")
