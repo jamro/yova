@@ -10,6 +10,7 @@ import base64
 from yova_core.speech2text.apm import YovaPipeline
 from yova_core.speech2text.batch_api import BatchApi
 from yova_core.cost_tracker import CostTracker
+from pathlib import Path
 
 async def main():
     print("Starting YOVA - Your Own Voice Assistant...")
@@ -36,7 +37,10 @@ async def main():
     await publisher.connect()
 
     # config cost tracker
-    cost_tracker = CostTracker(logger)
+    cost_tracker = CostTracker(
+        logger, 
+        usage_log_location=Path(__file__).parent.parent / ".data" / "usage"
+    )
 
     # Create state machine
     if get_config("speech2text.streaming"):

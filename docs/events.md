@@ -41,6 +41,21 @@ All YOVA events follow a standardized envelope format that provides metadata and
 
 ## Event Categories
 
+### Complete Event List
+
+- `yova.api.asr.result` - Voice command transcription result
+- `yova.api.tts.chunk` - Text chunk ready for speech conversion
+- `yova.api.tts.complete` - All response chunks sent
+- `yova.api.thinking.start` - Backend API processing begins
+- `yova.api.thinking.stop` - Backend API processing completes
+- `yova.core.state.change` - State machine transitions (idle/listening/speaking)
+- `yova.core.audio.record.start` - Audio recording begins
+- `yova.core.audio.play.start` - Audio playback begins
+- `yova.core.input.state` - Input activation status changes
+- `yova.core.health.ping` - Test event for broker verification
+
+---
+
 ### 1. Voice Recognition Events
 
 #### `yova.api.asr.result`
