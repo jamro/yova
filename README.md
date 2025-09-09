@@ -70,3 +70,7 @@ To get started with YOVA, you'll need a Raspberry Pi 5 and a ReSpeaker 2-Mic HAT
 4. **[Integration](docs/integration.md)** - Connect to your custom backend API
 
 For detailed step-by-step instructions, see the [Installation Guide](docs/install.md).
+
+## Development
+
+For development instructions, see the [Development Guide](docs/develompment.md).
