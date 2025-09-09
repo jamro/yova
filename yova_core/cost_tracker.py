@@ -11,13 +11,13 @@ PRICE_TABLES = {
         "output_audio_tokens": 12.00
     },
     "gpt-4o-transcribe": { # price per 1M tokens
-        "input_audio_tokens": 2.50,
+        "input_text_tokens": 2.50,
         "input_audio_tokens": 6.00,
         "output_text_tokens": 10.00
     },
     "gpt-4o-mini-transcribe": { # price per 1M tokens
-        "input_audio_tokens": 1.25,
-        "output_audio_tokens": 3.00,
+        "input_text_tokens": 1.25,
+        "input_audio_tokens": 3.00,
         "output_text_tokens": 5.00
     },
 }
