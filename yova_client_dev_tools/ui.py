@@ -16,6 +16,7 @@ class YovaDevToolsUI(EventEmitter):
         self._input_time = 0     # Add input time field (in ms)
         self._question_time = 0  # Add question time field (in ms)
         self._answer_time = 0    # Add answer time field (in ms)
+        self._error_message = "" # Add error message field
         self.setup_ui()
         
     def setup_ui(self):
@@ -63,6 +64,10 @@ class YovaDevToolsUI(EventEmitter):
             answer_time_box,     # Answer time fills available width
         ], dividechars=1)       # Add divider between columns
         
+        # Create error message display
+        self.error_display = urwid.Text(("error_value", ""), align="center")
+        error_box = urwid.LineBox(self.error_display, title="Error")
+        
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
         instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle, T to submit test question, E to publish error event"), align="center")
@@ -77,6 +82,8 @@ class YovaDevToolsUI(EventEmitter):
             qa_box,
             urwid.Text("", align="center"),  # Spacer
             time_row,      # Response times in same row
+            urwid.Text("", align="center"),  # Spacer
+            error_box,     # Error message display
             urwid.Text("", align="center"),  # Spacer
             urwid.Divider(),
             instructions_text,
@@ -108,6 +115,7 @@ class YovaDevToolsUI(EventEmitter):
             ("answer_value", "white", "default"),
             ("qa_label", "yellow", "default"),
             ("time_value", "white", "dark green", "bold"),
+            ("error_value", "white", "dark red", "bold"),
             ("instructions", "yellow", "default"),
             ("info", "light blue", "default"),
             ("footer", "white", "dark blue"),
@@ -125,6 +133,9 @@ class YovaDevToolsUI(EventEmitter):
             
     def toggle_push_to_talk(self):
         self.is_active = not self.is_active
+        
+        # Clear error message when spacebar is pressed
+        self.set_error_message("")
         
         if self.is_active:
             self.push_to_talk_button.set_text(("push_to_talk_active", "  PRESSED  "))
@@ -200,6 +211,16 @@ class YovaDevToolsUI(EventEmitter):
         """Set the current input time in milliseconds and update the UI"""
         self._input_time = input_time
         self.input_time_display.set_text(("time_value", f"{input_time} ms"))
+    
+    # Error message getter and setter methods
+    def get_error_message(self) -> str:
+        """Get the current error message"""
+        return self._error_message
+    
+    def set_error_message(self, error_message: str):
+        """Set the current error message and update the UI"""
+        self._error_message = error_message
+        self.error_display.set_text(("error_value", error_message))
             
     def run(self):
         try:

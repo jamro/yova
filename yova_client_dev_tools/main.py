@@ -75,13 +75,15 @@ async def subscribe_to_updates(ui):
             ui.set_answer(answer[:100] + "...")
             ui.loop.draw_screen()
 
+        # yova.*.error ================================================================
+        if topic == "yova.core.error" or topic == "yova.api.error":
+            ui.set_error_message(data['error'])
+            ui.loop.draw_screen()
+
     subsciber = Subscriber()
     await subsciber.connect()
     await subsciber.subscribe_all([
-        "yova.core.state.change", 
-        "yova.api.asr.result", 
-        "yova.api.tts.chunk", 
-        "yova.api.tts.complete"
+        "yova"
     ])
     asyncio.create_task(subsciber.listen(on_message))
     
