@@ -35,6 +35,14 @@ async def test_question_callback(event_data):
         "transcript": "Jaka jest stolica Polski?"
     })
 
+async def test_error_callback(event_data):
+    publisher = Publisher()
+    await publisher.connect()
+    await publisher.publish("dev_tools", "yova.core.error", {
+        "error": "Test error",
+        "details": "Test error details"
+    })
+
 async def subscribe_to_updates(ui):
     global answer, chunk_counter
     async def on_message(topic, message):
@@ -83,6 +91,7 @@ def main():
     profiler = Profiler(ui)
     ui.add_event_listener("push_to_talk_changed", push_to_talk_changed_callback)
     ui.add_event_listener("test_question", test_question_callback)
+    ui.add_event_listener("test_error", test_error_callback)
     ui.set_state("Unknown")
 
     asyncio.ensure_future(profiler.start())

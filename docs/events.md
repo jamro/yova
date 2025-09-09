@@ -48,11 +48,13 @@ All YOVA events follow a standardized envelope format that provides metadata and
 - `yova.api.tts.complete` - All response chunks sent
 - `yova.api.thinking.start` - Backend API processing begins
 - `yova.api.thinking.stop` - Backend API processing completes
+- `yova.api.error` - Event for API errors handling
 - `yova.core.state.change` - State machine transitions (idle/listening/speaking)
 - `yova.core.audio.record.start` - Audio recording begins
 - `yova.core.audio.play.start` - Audio playback begins
 - `yova.core.input.state` - Input activation status changes
 - `yova.core.health.ping` - Test event for broker verification
+- `yova.core.error` - Event for core errors handling
 
 ---
 
@@ -201,7 +203,38 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 4. Core System State Events
+### 4. API Error Events
+
+#### `yova.api.error`
+**When**: API error occurs
+**Publisher**: API connector
+**Subscribers**: UI systems, monitoring tools
+
+**Data Structure**:
+```json
+{
+  "v": 1,
+  "event": "yova.api.error",
+  "msg_id": "uuid-1234-5678-9abc-def5",
+  "source": "api_connector",
+  "ts_ms": 1756115770128,
+  "data": {
+    "error": "string",
+    "details": "string"
+  }
+}
+```
+
+**Description**: Signals that an error occurred in the API connector. Event is optional, and can be omitted.
+
+**Use Cases**:
+- Log errors for debugging
+- Trigger alerts based on API errors
+- Notify users about API issues
+
+---
+
+### 5. Core System State Events
 
 #### `yova.core.state.change`
 **When**: Voice assistant's internal state machine transitions
@@ -235,7 +268,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 5. Audio Activity Events
+### 6. Audio Activity Events
 
 #### `yova.core.audio.record.start`
 **When**: Audio recording begins
@@ -282,7 +315,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 6. Input Status Events
+### 7. Input Status Events
 
 #### `yova.core.input.state`
 **When**: Input activation status changes
@@ -317,7 +350,7 @@ More details in [Voice ID documentation](voice_id.md).
 
 ---
 
-### 7. System Health Events
+### 8. System Health Events
 
 #### `yova.core.health.ping`
 **When**: Test event for broker verification
@@ -342,6 +375,41 @@ More details in [Voice ID documentation](voice_id.md).
 
 **Use Cases**:
 - Testing and debugging the ZeroMQ broker
+
+---
+
+### 9. Core Error Events
+
+#### `yova.core.error`
+**When**: Core error occurs
+**Publisher**: Core system
+**Subscribers**: UI systems, monitoring tools
+
+
+**Data Structure**:
+```json
+{
+  "v": 1,
+  "event": "yova.core.error",
+  "msg_id": "uuid-1234-5678-9abc-def10",
+  "source": "core",
+  "ts_ms": 1756115770133,
+  "data": {
+    "error": "string",
+    "details": "string"
+  }
+}
+```
+
+**Description**: Signals that an error occurred in the core system. Event is optional, and can be omitted.
+
+**Use Cases**:
+- Log errors for debugging
+- Trigger alerts based on core errors
+- Notify users about core issues
+
+---
+
 
 ## Best Practices
 

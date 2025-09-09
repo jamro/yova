@@ -62,6 +62,9 @@ class BaseAnimation(ABC):
                     time.sleep(frame_delay)
                     if completed:
                         break
+                # Reset animation for next repetition
+                if self._running and not self._stop_requested:
+                    self.reset()
         
         self._running = False
         self.led_strip.off()

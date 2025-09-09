@@ -1,6 +1,8 @@
 import urwid
 import sys
 import asyncio
+import uuid
+import time
 from yova_shared.event_emitter import EventEmitter
 
 
@@ -63,7 +65,7 @@ class YovaDevToolsUI(EventEmitter):
         
         # Create title and instructions
         title_text = urwid.Text(("title", "YOVA Development Tools"), align="center")
-        instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle, T to submit test question"), align="center")
+        instructions_text = urwid.Text(("instructions", "Press SPACEBAR to toggle, T to submit test question, E to publish error event"), align="center")
         
         # Create the main pile widget
         self.main_pile = urwid.Pile([
@@ -116,6 +118,8 @@ class YovaDevToolsUI(EventEmitter):
             self.toggle_push_to_talk()
         elif key == "t":
             self.ask_test_question()
+        elif key == "e":
+            self.publish_error_event()
         elif key in ("q", "Q"):
             raise urwid.ExitMainLoop()
             
@@ -133,6 +137,9 @@ class YovaDevToolsUI(EventEmitter):
     
     def ask_test_question(self):
         asyncio.create_task(self.emit_event("test_question", {}))
+    
+    def publish_error_event(self):
+        asyncio.create_task(self.emit_event("test_error", {}))
     
     # State getter and setter methods
     def get_state(self) -> str:

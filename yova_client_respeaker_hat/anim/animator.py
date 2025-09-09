@@ -23,7 +23,8 @@ class Animator:
             'welcome': LightUpAnimation(self.led_strip, (255, 255, 255)),
             'thinking': SparkAnimation(self.led_strip, (255, 255, 255)),
             'listening': PulseAnimation(self.led_strip, (0, 0, 255)),
-            'speaking': PulseAnimation(self.led_strip, (0, 255, 0))
+            'speaking': PulseAnimation(self.led_strip, (0, 255, 0)),
+            'error': PulseAnimation(self.led_strip, (255, 0, 0), total_steps=15)
         }
         
         # Animation state

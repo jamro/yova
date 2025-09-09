@@ -1,4 +1,5 @@
 import sys
+import os
 
 try:
     import RPi.GPIO as GPIO
@@ -21,7 +22,7 @@ except ImportError:
 import asyncio
 from queue import Queue, Empty
 from yova_shared.broker import Publisher, Subscriber
-from yova_shared import setup_logging, get_clean_logger
+from yova_shared import setup_logging, get_clean_logger, play_audio
 from yova_client_respeaker_hat.anim import Animator
 
 BUTTON_PIN = 17
@@ -98,7 +99,9 @@ async def main_async():
         "yova.core.audio.play.start", 
         "yova.core.audio.record.start", 
         "yova.api.thinking.start",
-        "yova.api.thinking.stop"
+        "yova.api.thinking.stop",
+        "yova.core.error",
+        "yova.api.error"
     ])
 
     async def on_message(topic, message):
@@ -130,6 +133,21 @@ async def main_async():
             if animator.get_current_animation_id() == "thinking":
                 logger.info("Stopping thinking animation")
                 animator.stop()
+  
+        # yova.*.error ========================================================================
+        if topic == "yova.core.error" or topic == "yova.api.error":
+            logger.info("Playing error animation")
+            animator.play('error', repetitions=2, brightness=0.5)
+
+            error_file_path = os.path.join(os.path.dirname(__file__), "..", "yova_shared", "assets", "error.wav")
+            
+            # Play error sound
+            try:
+                logger.info("Playing error sound")
+                await play_audio(error_file_path, volume_gain=-10)  # Reduce volume by 10dB
+            except Exception as e:
+                logger.error(f"Failed to play error sound: {e}")
+            
     
     # start subscriber
     asyncio.create_task(subscriber.listen(on_message))
