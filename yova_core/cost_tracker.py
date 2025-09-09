@@ -129,6 +129,8 @@ class CostTracker(EventEmitter):
             json.dump(self.usage_log, f, indent=2)
 
     def _get_cost(self, price_table, position, tokens):
+        if tokens == 0:
+            return 0
         if position not in price_table:
             self.logger.warning(f"Model {price_table} does not have {position} in price table. skipping cost tracking for this segment.")
             return 0
