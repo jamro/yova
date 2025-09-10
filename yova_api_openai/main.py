@@ -36,7 +36,8 @@ async def main():
         try:
             await publisher.publish("api_connector_openai", "yova.api.tts.chunk", {
                 "id": chunk['id'],
-                "content": chunk['text']
+                "content": chunk['text'],
+                "priority_score": chunk['priority_score']
             })
         except Exception as e:
             logger.error(f"Failed to publish voice response chunk event: {e}")

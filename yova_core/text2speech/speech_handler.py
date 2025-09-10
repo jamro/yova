@@ -48,7 +48,7 @@ class SpeechHandler:
                 return task
         return None
         
-    async def process_chunk(self, message_id, text_chunk):
+    async def process_chunk(self, message_id, text_chunk, priority_score=0):
         """
         Process a text chunk and convert to speech if it forms a complete sentence.
         
@@ -65,10 +65,10 @@ class SpeechHandler:
             task.add_event_listener("playing_audio", self.on_playing_audio)
             self.tasks.append(task)
 
-        await task.append_chunk(text_chunk)
+        await task.append_chunk(text_chunk, priority_score)
 
     async def on_playing_audio(self, data):
-        self.logger.info(f"Playing audio: {data['text']}")
+        self.logger.info(f"Playing audio: {data['text'][:100]}...")
         await self.event_emitter.emit_event("playing_audio", {
             "message_id": data["message_id"],
             "text": data["text"]

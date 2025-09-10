@@ -110,7 +110,8 @@ async def main():
             if char in SENTENCE_ENDINGS:
                 await publisher.publish("yova.api.tts.chunk", {
                     "id": message_id, 
-                    "content": current_sentence
+                    "content": current_sentence,
+                    "priority_score": 0
                 })
                 current_sentence = ""
 
@@ -118,7 +119,8 @@ async def main():
         if current_sentence:
             await publisher.publish("yova.api.tts.chunk", {
                 "id": message_id, 
-                "content": current_sentence
+                "content": current_sentence,
+                "priority_score": 0
             })
 
         # Signal that all chunks have been sent

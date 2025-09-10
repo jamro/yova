@@ -126,12 +126,18 @@ More details in [Voice ID documentation](voice_id.md).
   "ts_ms": 1756115770124,
   "data": {
     "id": "string",
-    "content": "string"
+    "content": "string",
+    "priority_score": "number"
   }
 }
 ```
 
 **Description**: Designed for streaming APIs to reduce latency. YOVA aggregates chunks into sentences and processes them sentence-by-sentence.
+
+**Data Structure**:
+- `id`: The unique identifier for the message
+- `content`: The text chunk to be converted to speech
+- `priority_score`: The priority score for the chunk. When higher priority audio chunks are in playback queue, lower priority chunks are skipped. Prioritization happen within the same message id only.
 
 **Pro Tips**:
 - Keep the first sentence short for faster speech generation

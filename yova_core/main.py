@@ -138,7 +138,7 @@ async def main():
         # yova.api.tts.chunk ================================================================
         if topic == "yova.api.tts.chunk":
             logger.info(f"Received voice response event: yova.api.tts.chunk for message {data['id']}")
-            await state_machine.on_response_chunk(data['id'], data['content'])
+            await state_machine.on_response_chunk(data['id'], data['content'], data['priority_score'])
 
         # yova.api.tts.complete ================================================================
         if topic == "yova.api.tts.complete":

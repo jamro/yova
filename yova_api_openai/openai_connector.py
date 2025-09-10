@@ -103,7 +103,7 @@ class OpenAIConnector(ApiConnector):
         message_id = str(uuid.uuid4())
 
         # send hmmm sound to increase user confidence
-        chunk_data = {"id": message_id, "text": self.get_hmmm_sound_base64()}
+        chunk_data = {"id": message_id, "text": self.get_hmmm_sound_base64(), "priority_score": 0}
         await self.event_emitter.emit_event("message_chunk", chunk_data)
         self.logger.debug(f"OpenAIConnector: Emitted hmmm sound chunk: {chunk_data['text'][:20]}...")
 
@@ -143,7 +143,7 @@ class OpenAIConnector(ApiConnector):
                         first_chunk = False
                     
                     # Emit chunk event with ID and text
-                    chunk_data = {"id": message_id, "text": content}
+                    chunk_data = {"id": message_id, "text": content, "priority_score": 100} # high priority then filler chunks
                     await self.event_emitter.emit_event("message_chunk", chunk_data)
                     self.logger.debug(f"OpenAIConnector: Emitted chunk: {chunk_data}")
                 elif chunk.usage:

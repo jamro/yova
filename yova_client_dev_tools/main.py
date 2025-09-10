@@ -69,7 +69,7 @@ async def subscribe_to_updates(ui):
 
         # yova.api.tts.chunk ================================================================
         if topic == "yova.api.tts.chunk":
-            answer += data['content']
+            answer += f"[{data['priority_score']}] {data['content']}"
             chunk_counter += 1
             ui.set_answer(answer[:100] + "...")
             ui.loop.draw_screen()

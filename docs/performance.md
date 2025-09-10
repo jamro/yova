@@ -117,6 +117,14 @@ To make Yova feel even more responsive, implement **immediate feedback** right a
 - **Examples**: Pre-record "Hmm...", "Okay...", "Sure thing..." as WAV files
 - **Latency**: ~50-100ms (no TTS processing needed)
 
+##### Option 3: Multi-segment Filler (Best - Longest Coverage)
+- **Trigger**: Listen for `yova.asr.result` event
+- **Response**: Publish multiple `yova.api.tts.chunk` events with lower priority scores
+- **First segment**: Pre-recorded audio (e.g., "Hmm...", "Let me think...")
+- **Follow-up segments**: TTS-generated text (e.g., "about that...", "for a moment...", "let me check...")
+- **Priority**: Use lower priority scores (e.g., 50) so actual responses (priority 100) skip filler
+- **Latency**: ~50-100ms but very long coverage
+
 #### Benefits
 - **Perceived responsiveness**: User gets instant feedback that Yova heard them
 - **Better UX**: Eliminates the "did it hear me?" uncertainty

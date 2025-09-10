@@ -13,6 +13,10 @@ YOVA_API_TTS_CHUNK = {
         "content": {
             "type": "string",
             "description": "Text content or base64-encoded audio data for speech conversion"
+        },
+        "priority_score": {
+            "type": "number",
+            "description": "Priority score for the chunk. When higher priority audio chunks are in playback queue, lower priority chunks are skipped."
         }
     },
     "required": ["id", "content"],

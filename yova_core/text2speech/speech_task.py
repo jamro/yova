@@ -20,6 +20,7 @@ class SpeechTask(EventEmitter):
         self.client = AsyncOpenAI(api_key=self.api_key)
 
         self.current_buffer = ""
+        self.current_buffer_priority_score = 0
         self.sentence_endings = ['.', '!', '?', ':', ';']
         self.min_chunk_length = 15
         self.sentence_queue = []
@@ -52,7 +53,7 @@ class SpeechTask(EventEmitter):
         text_chunk = re.sub(r'#+', '', text_chunk)
         return text_chunk
 
-    async def append_chunk(self, text_chunk):
+    async def append_chunk(self, text_chunk, priority_score=0):
         if self.is_stopped:
             return
         
@@ -62,19 +63,21 @@ class SpeechTask(EventEmitter):
         if is_audio_chunk:
             # flush current buffer
             if len(self.current_buffer) > 0:
-                self.sentence_queue.append(self.current_buffer)
+                self.sentence_queue.append({"text": self.current_buffer, "priority_score": self.current_buffer_priority_score})
                 if not self.conversion_task:
                     self.conversion_task = asyncio.create_task(self.convert_to_speech())
                 self.current_buffer = ""
+                self.current_buffer_priority_score = 0
 
             # add audio chunk to the queue
-            self.sentence_queue.append(text_chunk)
+            self.sentence_queue.append({"text": text_chunk, "priority_score": priority_score})
             if not self.conversion_task:
                 self.conversion_task = asyncio.create_task(self.convert_to_speech())
 
         else:
             text_chunk = self.clean_chunk(text_chunk)
             self.current_buffer += text_chunk
+            self.current_buffer_priority_score = max(self.current_buffer_priority_score, priority_score)
         
             # Check if we have a complete sentence or enough content
             if (len(self.current_buffer) >= self.min_chunk_length and 
@@ -82,17 +85,22 @@ class SpeechTask(EventEmitter):
                 
                 self.current_buffer = self.current_buffer.strip()
                 if self.current_buffer:
-                    self.sentence_queue.append(self.current_buffer)
+                    self.sentence_queue.append({"text": self.current_buffer, "priority_score": self.current_buffer_priority_score})
                     if not self.conversion_task:
                         self.conversion_task = asyncio.create_task(self.convert_to_speech())
 
                 self.current_buffer = ""
+                self.current_buffer_priority_score = 0
 
     async def convert_to_speech(self):
         self.logger.debug(f"Converting to speech...")
         while len(self.sentence_queue) > 0 and not self.is_stopped:
-            text = self.sentence_queue.pop(0)
-            self.logger.debug(f"Converting sentence: {text[:100]}...")
+            self.sentence_queue = self.filter_priority_queue(self.sentence_queue)
+            sentence_obj = self.sentence_queue.pop(0)
+            text = sentence_obj["text"]
+            priority_score = sentence_obj["priority_score"]
+
+            self.logger.debug(f"Converting sentence (prio: {priority_score}): {text[:100]}...")
 
             telemetry = {
                 "create_time": asyncio.get_event_loop().time(),
@@ -108,7 +116,7 @@ class SpeechTask(EventEmitter):
                     await playback.load()
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()
                     self.logger.debug(f"Base64 audio playback created")
-                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry, "priority_score": priority_score})
                 elif len(self.audio_queue) == 0 and self.current_playback is None:
                     self.logger.info(f"Creating streaming response for text: {text[:100]}...")
                     playback = StreamPlayback(self.client, self.logger, text, self.playback_config, cost_tracker=self.cost_tracker)
@@ -116,7 +124,7 @@ class SpeechTask(EventEmitter):
                     await playback.load()
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()
                     self.logger.debug(f"Streaming response created")
-                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry, "priority_score": priority_score})
                 else:
                     wait_time = self.wait_time*len(self.audio_queue)
                     self.logger.info(f"Waiting for streaming to finish: {wait_time}s")
@@ -127,7 +135,7 @@ class SpeechTask(EventEmitter):
                     await playback.load()
                     telemetry["load_end_time"] = asyncio.get_event_loop().time()
                     self.logger.debug(f"Non-streaming response created")
-                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry})
+                    self.audio_queue.append({"playback": playback, "text": text, "telemetry": telemetry, "priority_score": priority_score})
                     
                 if not self.audio_task:
                     self.logger.info(f"Creating audio task")
@@ -150,6 +158,7 @@ class SpeechTask(EventEmitter):
 
         self.logger.debug(f"Playing audio...")
         while len(self.audio_queue) > 0 and not self.is_stopped:
+            self.audio_queue = self.filter_priority_queue(self.audio_queue)
             item = self.audio_queue.pop(0)
             item["telemetry"]["pop_time"] = asyncio.get_event_loop().time()
             self.current_playback = item["playback"]
@@ -174,11 +183,12 @@ class SpeechTask(EventEmitter):
         self.logger.debug(f"Completing task: {len(self.current_buffer)}")
         self.current_buffer = self.current_buffer.strip()
         if self.current_buffer:
-            self.sentence_queue.append(self.current_buffer)
+            self.sentence_queue.append({"text": self.current_buffer, "priority_score": self.current_buffer_priority_score})
             if not self.conversion_task:
                 self.conversion_task = asyncio.create_task(self.convert_to_speech())
 
         self.current_buffer = ""
+        self.current_buffer_priority_score = 0
         
         # Wait for any pending conversion task to complete
         if self.conversion_task:
@@ -237,3 +247,32 @@ class SpeechTask(EventEmitter):
             self.audio_task = None
         else:
             self.logger.info(f"No audio task to stop")
+
+    def filter_priority_queue(self, queue):
+
+        self.logger.debug(f"Filtering priority queue: {[[item['priority_score'], item['text'][:100]] for item in queue]}")
+      
+        if not queue or len(queue) == 0:
+            return queue
+            
+        # Find the highest priority score in the queue
+        # Only consider items that have a priority_score key
+        items_with_priority = [item for item in queue if 'priority_score' in item]
+        if not items_with_priority:
+            return queue
+            
+        max_priority = max(item['priority_score'] for item in items_with_priority)
+        
+        # Find the first occurrence of the highest priority item
+        first_max_priority_index = None
+        for i, item in enumerate(queue):
+            if item.get('priority_score') == max_priority:
+                first_max_priority_index = i
+                break
+        
+        # If we found a highest priority item, return from that index onwards
+        if first_max_priority_index is not None:
+            return queue[first_max_priority_index:]
+        
+        # Fallback: return the original queue if no priority scores found
+        return queue

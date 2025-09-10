@@ -50,7 +50,7 @@ class StateMachine(EventEmitter):
         else:
             raise Exception("Invalid state " + self.state)
 
-    async def on_response_chunk(self, id, text):
+    async def on_response_chunk(self, id, text, priority_score=0):
         if self.state == State.IDLE:
             if self.cost_tracker.is_budget_exceeded():
                 await self.emit_event("error", {
@@ -59,12 +59,12 @@ class StateMachine(EventEmitter):
                 })
                 return
             await self._set_state(State.SPEAKING)
-            await self.speech_handler.process_chunk(id, text)
+            await self.speech_handler.process_chunk(id, text, priority_score)
         elif self.state == State.LISTENING:
             await self.speech_handler.terminate_all_tasks()
             self.speech_handler.ignore_message(id)
         elif self.state == State.SPEAKING:
-            await self.speech_handler.process_chunk(id, text)
+            await self.speech_handler.process_chunk(id, text, priority_score)
         else:
             raise Exception("Invalid state " + self.state)
 

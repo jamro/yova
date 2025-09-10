@@ -110,7 +110,7 @@ class TestSpeechTask:
                 
                 assert task.current_buffer == ""
                 assert len(task.sentence_queue) == 1
-                assert task.sentence_queue[0] == "This is a complete sentence that should be processed."
+                assert task.sentence_queue[0] == {"text": "This is a complete sentence that should be processed.", "priority_score": 0}
                 assert task.conversion_task is not None
 
     @pytest.mark.asyncio
@@ -133,7 +133,7 @@ class TestSpeechTask:
                 
                 assert task.current_buffer == ""
                 assert len(task.sentence_queue) == 1
-                assert task.sentence_queue[0] == "First sentence. Second sentence!"
+                assert task.sentence_queue[0] == {"text": "First sentence. Second sentence!", "priority_score": 0}
 
     @pytest.mark.asyncio
     async def test_append_chunk_when_stopped(self):
@@ -176,11 +176,11 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.is_stopped = True
-            task.sentence_queue.append("Test sentence.")
+            task.sentence_queue.append({"text": "Test sentence.", "priority_score": 0})
             
             await task.convert_to_speech()
             
-            assert task.sentence_queue == ["Test sentence."]  # Should not be processed
+            assert task.sentence_queue == [{"text": "Test sentence.", "priority_score": 0}]  # Should not be processed
 
     @pytest.mark.asyncio
     async def test_convert_to_speech_streaming_first(self):
@@ -192,7 +192,7 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
-            task.sentence_queue.append("Test sentence.")
+            task.sentence_queue.append({"text": "Test sentence.", "priority_score": 0})
             
             # Current implementation uses StreamPlayback for first item when no current_playback
             # because the condition (len(self.audio_queue) == 0 and self.current_playback is not None) 
@@ -221,10 +221,10 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
-            task.sentence_queue.append("First sentence.")
-            task.sentence_queue.append("Second sentence.")
+            task.sentence_queue.append({"text": "First sentence.", "priority_score": 0})
+            task.sentence_queue.append({"text": "Second sentence.", "priority_score": 0})
             # Simulate existing audio in queue with proper structure
-            task.audio_queue.append({"playback": Mock(), "text": "Existing text"})
+            task.audio_queue.append({"playback": Mock(), "text": "Existing text", "priority_score": 0})
             
             # Mock DataPlayback
             mock_data_playback = AsyncMock()
@@ -257,7 +257,7 @@ class TestSpeechTask:
         
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
-            task.sentence_queue.append("Test sentence.")
+            task.sentence_queue.append({"text": "Test sentence.", "priority_score": 0})
             
             # Mock StreamPlayback to raise an exception
             with patch('yova_core.text2speech.speech_task.StreamPlayback') as mock_stream_class:
@@ -318,7 +318,8 @@ class TestSpeechTask:
             task.audio_queue.append({
                 "playback": mock_playback,
                 "text": "Test text",
-                "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                "telemetry": {"create_time": asyncio.get_event_loop().time()},
+                "priority_score": 0
             })
             
             # Mock the recursive call to prevent infinite recursion
@@ -350,12 +351,14 @@ class TestSpeechTask:
                 {
                     "playback": mock_playback1,
                     "text": "Text 1",
-                    "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                    "telemetry": {"create_time": asyncio.get_event_loop().time()},
+                    "priority_score": 0
                 },
                 {
                     "playback": mock_playback2,
                     "text": "Text 2",
-                    "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                    "telemetry": {"create_time": asyncio.get_event_loop().time()},
+                    "priority_score": 0
                 }
             ])
             
@@ -388,7 +391,7 @@ class TestSpeechTask:
                 
                 assert task.current_buffer == ""
                 assert len(task.sentence_queue) == 1
-                assert task.sentence_queue[0] == "Incomplete sentence"
+                assert task.sentence_queue[0] == {"text": "Incomplete sentence", "priority_score": 0}
 
     @pytest.mark.asyncio
     async def test_complete_with_empty_buffer(self):
@@ -465,7 +468,7 @@ class TestSpeechTask:
             
             # Set up some state
             task.current_buffer = "Some text"
-            task.sentence_queue = ["Sentence 1", "Sentence 2"]
+            task.sentence_queue = [{"text": "Sentence 1", "priority_score": 0}, {"text": "Sentence 2", "priority_score": 0}]
             task.audio_queue = [Mock(), Mock()]
             mock_playback = AsyncMock()
             task.current_playback = mock_playback
@@ -588,6 +591,28 @@ class TestSpeechTask:
             assert task.logger == mock_clean_logger
 
     @pytest.mark.asyncio
+    async def test_append_chunk_with_priority_score(self):
+        """Test appending text with priority score."""
+        message_id = "test_message_123"
+        api_key = "test_api_key"
+        mock_logger = Mock()
+        
+        with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
+            task = SpeechTask(message_id, api_key, mock_logger)
+            
+            # Mock methods that could create tasks to avoid unawaited coroutines
+            with patch.object(task, 'convert_to_speech') as mock_convert, \
+                 patch.object(task, 'play_audio') as mock_play_audio:
+                
+                # Add text with priority score
+                await task.append_chunk("This is a high priority sentence.", priority_score=5)
+                
+                assert task.current_buffer == ""
+                assert len(task.sentence_queue) == 1
+                assert task.sentence_queue[0] == {"text": "This is a high priority sentence.", "priority_score": 5}
+                assert task.conversion_task is not None
+
+    @pytest.mark.asyncio
     async def test_append_chunk_logging(self):
         """Test that append_chunk logs debug messages."""
         message_id = "test_message_123"
@@ -611,7 +636,7 @@ class TestSpeechTask:
         with patch('yova_core.text2speech.speech_task.AsyncOpenAI'):
             task = SpeechTask(message_id, api_key, mock_logger)
             task.wait_time = 0.01  # Set low wait_time for faster test execution
-            task.sentence_queue.append("Test sentence.")
+            task.sentence_queue.append({"text": "Test sentence.", "priority_score": 0})
             
             with patch('yova_core.text2speech.speech_task.DataPlayback') as mock_data_class, \
                  patch.object(task, 'play_audio') as mock_play_audio:
@@ -624,7 +649,7 @@ class TestSpeechTask:
                 
                 # Check that debug messages were logged
                 task.logger.debug.assert_any_call("Converting to speech...")
-                task.logger.debug.assert_any_call("Converting sentence: Test sentence....")
+                task.logger.debug.assert_any_call("Converting sentence (prio: 0): Test sentence....")
 
     @pytest.mark.asyncio
     async def test_play_audio_logging(self):
@@ -642,7 +667,8 @@ class TestSpeechTask:
             task.audio_queue.append({
                 "playback": mock_playback,
                 "text": "Test text",
-                "telemetry": {"create_time": asyncio.get_event_loop().time()}
+                "telemetry": {"create_time": asyncio.get_event_loop().time()},
+                "priority_score": 0
             })
             
             # Mock the recursive call to prevent infinite recursion
