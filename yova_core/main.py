@@ -184,7 +184,7 @@ async def main():
             await publisher.publish("core", "yova.api.asr.result", {
                 "id": str(data['id']),
                 "transcript": data['transcript'],
-                "voice_id": voice_id_payload
+                "voice_id": voice_id_payload,
             })
         except Exception as e:
             logger.error(f"Failed to publish voice command detection event: {e}")
